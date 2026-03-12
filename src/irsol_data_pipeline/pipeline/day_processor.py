@@ -1,0 +1,298 @@
+"""Day processor — processes all measurements for a single observation day."""
+
+from __future__ import annotations
+
+import datetime
+from pathlib import Path
+from typing import Optional
+
+from loguru import logger
+from pydantic import BaseModel, Field
+
+from irsol_data_pipeline.calibration.autocalibrate import calibrate_measurement
+from irsol_data_pipeline.correction.corrector import apply_correction
+from irsol_data_pipeline.io.dat_reader import load_measurement, read_zimpol_dat
+from irsol_data_pipeline.io.dat_writer import write_corrected_dat, save_correction_data
+from irsol_data_pipeline.io.filesystem import (
+    ObservationDay,
+    discover_flatfield_files,
+    discover_measurement_files,
+    get_processed_stem,
+    is_measurement_processed,
+)
+from irsol_data_pipeline.io.metadata_store import (
+    write_error_metadata,
+    write_processing_metadata,
+)
+from irsol_data_pipeline.pipeline.flatfield_cache import (
+    DEFAULT_MAX_DELTA,
+    FlatFieldCache,
+    build_flatfield_cache,
+)
+
+
+class MaxDeltaPolicy(BaseModel):
+    """Policy for determining the maximum time delta for flat-field matching.
+
+    The default policy applies the same max_delta to all measurements.
+    Subclass or replace this to implement per-wavelength or per-instrument
+    policies.
+    """
+
+    default_max_delta: datetime.timedelta = Field(
+        default_factory=lambda: DEFAULT_MAX_DELTA
+    )
+
+    def get_max_delta(
+        self,
+        wavelength: int,
+        instrument: str = "",
+        telescope: str = "",
+    ) -> datetime.timedelta:
+        """Return the max time delta for a given measurement context.
+
+        Override this method to implement different thresholds based on
+        wavelength, instrument, telescope, etc.
+
+        Args:
+            wavelength: Measurement wavelength in Angstrom.
+            instrument: Instrument name.
+            telescope: Telescope name.
+
+        Returns:
+            Maximum allowed timedelta.
+        """
+        return self.default_max_delta
+
+
+class DayProcessingResult(BaseModel):
+    """Summary of processing a single observation day."""
+
+    day_name: str
+    total_measurements: int
+    processed: int
+    skipped: int
+    failed: int
+    errors: list[str] = Field(default_factory=list)
+
+
+def process_observation_day(
+    day: ObservationDay,
+    max_delta_policy: Optional[MaxDeltaPolicy] = None,
+    refdata_dir: Optional[Path] = None,
+    reports_dir: Optional[Path] = None,
+) -> DayProcessingResult:
+    """Process all unprocessed measurements for a single observation day.
+
+    Pipeline steps per measurement:
+    1. Load measurement
+    2. Find closest flat-field correction (by wavelength and time)
+    3. Apply flat-field correction
+    4. Run wavelength auto-calibration
+    5. Save corrected data and metadata
+
+    If any step fails for a measurement, an error file is written and
+    processing continues with the next measurement.
+
+    Args:
+        day: ObservationDay to process.
+        max_delta_policy: Policy for flat-field time matching thresholds.
+        refdata_dir: Directory with wavelength calibration reference data.
+        reports_dir: Directory for spectroflat analysis reports.
+
+    Returns:
+        DayProcessingResult summary.
+    """
+    if max_delta_policy is None:
+        max_delta_policy = MaxDeltaPolicy()
+
+    result = DayProcessingResult(
+        day_name=day.name,
+        total_measurements=0,
+        processed=0,
+        skipped=0,
+        failed=0,
+    )
+
+    # Ensure processed directory exists
+    day.processed_dir.mkdir(parents=True, exist_ok=True)
+
+    # Discover files
+    measurement_paths = discover_measurement_files(day.reduced_dir)
+    flatfield_paths = discover_flatfield_files(day.reduced_dir)
+    result.total_measurements = len(measurement_paths)
+
+    if not measurement_paths:
+        logger.info("No measurements found", reduced_dir=str(day.reduced_dir))
+        return result
+
+    # Build flat-field cache (analyzed once, reused for all measurements)
+    logger.info(
+        "Building flat-field cache",
+        flatfield_count=len(flatfield_paths),
+    )
+    ff_cache = build_flatfield_cache(
+        flatfield_paths,
+        max_delta=max_delta_policy.default_max_delta,
+        reports_dir=reports_dir,
+    )
+    logger.info(
+        "Flat-field cache ready",
+        corrections=len(ff_cache),
+        wavelengths=ff_cache.wavelengths,
+    )
+
+    # Process each measurement
+    for meas_path in measurement_paths:
+        if is_measurement_processed(day.processed_dir, meas_path.name):
+            logger.debug("Skipping already processed", file=meas_path.name)
+            result.skipped += 1
+            continue
+
+        try:
+            _process_single_measurement(
+                meas_path=meas_path,
+                processed_dir=day.processed_dir,
+                ff_cache=ff_cache,
+                max_delta_policy=max_delta_policy,
+                refdata_dir=refdata_dir,
+            )
+            result.processed += 1
+        except Exception as e:
+            error_msg = f"{meas_path.name}: {e}"
+            logger.exception("Failed to process measurement", file=meas_path.name)
+            result.failed += 1
+            result.errors.append(error_msg)
+
+            # Write error file
+            stem = get_processed_stem(meas_path.name)
+            write_error_metadata(
+                day.processed_dir / f"{stem}_error.json",
+                source_file=meas_path.name,
+                error=str(e),
+            )
+
+    return result
+
+
+def process_single_measurement(
+    measurement_path: Path,
+    processed_dir: Path,
+    ff_cache: FlatFieldCache,
+    max_delta_policy: Optional[MaxDeltaPolicy] = None,
+    refdata_dir: Optional[Path] = None,
+) -> None:
+    """Process a single measurement (public API).
+
+    Args:
+        measurement_path: Path to the measurement .dat file.
+        processed_dir: Output directory for processed files.
+        ff_cache: Prebuilt flat-field correction cache.
+        max_delta_policy: Policy for flat-field time thresholds.
+        refdata_dir: Directory with calibration reference data.
+    """
+    if max_delta_policy is None:
+        max_delta_policy = MaxDeltaPolicy()
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    _process_single_measurement(
+        meas_path=measurement_path,
+        processed_dir=processed_dir,
+        ff_cache=ff_cache,
+        max_delta_policy=max_delta_policy,
+        refdata_dir=refdata_dir,
+    )
+
+
+def _process_single_measurement(
+    meas_path: Path,
+    processed_dir: Path,
+    ff_cache: FlatFieldCache,
+    max_delta_policy: MaxDeltaPolicy,
+    refdata_dir: Optional[Path],
+) -> None:
+    """Internal: process one measurement.
+
+    Raises on failure so the caller can handle error recording.
+    """
+    logger.info("Processing measurement", file=meas_path.name)
+    stem = get_processed_stem(meas_path.name)
+
+    # 1. Load measurement
+    measurement = load_measurement(meas_path)
+
+    # 2. Find closest flat-field
+    max_delta = max_delta_policy.get_max_delta(
+        wavelength=measurement.wavelength,
+        instrument=measurement.metadata.instrument,
+        telescope=measurement.metadata.telescope_name,
+    )
+
+    ff_correction = ff_cache.find_best_correction(
+        wavelength=measurement.wavelength,
+        timestamp=measurement.timestamp,
+        max_delta=max_delta,
+    )
+
+    if ff_correction is None:
+        raise RuntimeError(
+            f"No flat-field within {max_delta} for wavelength "
+            f"{measurement.wavelength} at {measurement.timestamp}"
+        )
+
+    ff_time_delta = abs(
+        (ff_correction.timestamp - measurement.timestamp).total_seconds()
+    )
+    logger.info(
+        "Using flat-field correction",
+        flat_field=ff_correction.source_flatfield_path.name,
+        delta_seconds=ff_time_delta,
+    )
+
+    # 3. Apply flat-field correction
+    corrected_stokes = apply_correction(
+        measurement.stokes,
+        dust_flat=ff_correction.dust_flat,
+        offset_map=ff_correction.offset_map,
+    )
+
+    # 4. Wavelength auto-calibration
+    calibration = calibrate_measurement(corrected_stokes, refdata_dir=refdata_dir)
+    logger.info(
+        "Wavelength calibration complete",
+        pixel_scale=calibration.pixel_scale,
+        wavelength_offset=calibration.wavelength_offset,
+        reference_file=calibration.reference_file,
+    )
+
+    # 5. Save corrected data
+    _, info_raw = read_zimpol_dat(meas_path)
+    #  TODO: rengen info array with new calibration results if needed
+    #  (e.g. update wavelength info, add calibration metadata, etc.)
+    write_corrected_dat(
+        processed_dir / f"{stem}_corrected.dat",
+        corrected_stokes,
+        info_raw,
+    )
+
+    # 6. Save flat-field correction data (pickle)
+    save_correction_data(
+        processed_dir / f"{stem}_flat_field_correction_data.pkl",
+        {
+            "dust_flat": ff_correction.dust_flat,
+            "offset_map": ff_correction.offset_map,
+            "desmiled": ff_correction.desmiled,
+            "source_flatfield": ff_correction.source_flatfield_path.name,
+        },
+    )
+
+    # 7. Save processing metadata
+    write_processing_metadata(
+        processed_dir / f"{stem}_metadata.json",
+        source_file=meas_path.name,
+        flat_field_used=ff_correction.source_flatfield_path.name,
+        flat_field_time_delta_seconds=ff_time_delta,
+        calibration_info=calibration.model_dump(),
+    )
+
+    logger.success("Measurement processed", file=meas_path.name)
