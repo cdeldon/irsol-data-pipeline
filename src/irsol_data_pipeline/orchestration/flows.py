@@ -17,7 +17,9 @@ from typing import Optional
 
 
 from loguru import logger
-from prefect import unmapped, flow, task
+from prefect import flow, task
+from prefect.futures import as_completed
+from prefect.task_runners import ThreadPoolTaskRunner
 from irsol_data_pipeline.orchestration.patch_logging import setup_logging
 from irsol_data_pipeline.io.filesystem import ObservationDay
 from irsol_data_pipeline.pipeline.day_processor import (
@@ -104,12 +106,22 @@ def dataset_scan_flow(
         if day.name in scan_result.pending_measurements
     ]
 
-    results = run_day_processing_subflow_task.map(
-        selected_day_paths,
-        unmapped(max_delta_hours),
-        unmapped(refdata_dir),
-    ).result()
-
+    with ThreadPoolTaskRunner(max_workers=1) as runner:
+        result_futures = []
+        for day_path in selected_day_paths:
+            future = runner.submit(
+                run_day_processing_subflow_task,
+                {
+                    "day_path": day_path,
+                    "max_delta_hours": max_delta_hours,
+                    "refdata_dir": refdata_dir,
+                },
+            )
+            result_futures.append(future)
+        results = []
+        for result_future in as_completed(result_futures):
+            result = result_future.result()
+            results.append(result)
     # Summary
     total_processed = sum(r.processed for r in results)
     total_failed = sum(r.failed for r in results)
