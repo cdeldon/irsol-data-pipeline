@@ -80,7 +80,6 @@ def process_observation_day(
     day: ObservationDay,
     max_delta_policy: Optional[MaxDeltaPolicy] = None,
     refdata_dir: Optional[Path] = None,
-    reports_dir: Optional[Path] = None,
 ) -> DayProcessingResult:
     """Process all unprocessed measurements for a single observation day.
 
@@ -98,7 +97,6 @@ def process_observation_day(
         day: ObservationDay to process.
         max_delta_policy: Policy for flat-field time matching thresholds.
         refdata_dir: Directory with wavelength calibration reference data.
-        reports_dir: Directory for spectroflat analysis reports.
 
     Returns:
         DayProcessingResult summary.
@@ -134,7 +132,6 @@ def process_observation_day(
     ff_cache = build_flatfield_cache(
         flatfield_paths,
         max_delta=max_delta_policy.default_max_delta,
-        reports_dir=reports_dir,
     )
     logger.info(
         "Flat-field cache ready",

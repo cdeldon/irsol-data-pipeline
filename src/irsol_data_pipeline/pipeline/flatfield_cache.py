@@ -101,11 +101,11 @@ class FlatFieldCache(BaseModel):
 
 
 @task(task_run_name="analyze-flatfield-{path.name}", retries=2)
-def _analyze_flatfield(path: Path, reports_dir: Optional[Path]) -> FlatFieldCorrection:
+def _analyze_flatfield(path: Path) -> FlatFieldCorrection:
     """Helper function to analyze a single flat-field file for parallel processing."""
     ff = load_flatfield(path)
     ff_si = read_flatfield_si(path)
-    dust_flat, offset_map, desmiled = analyze_flatfield(ff_si, reports_path=reports_dir)
+    dust_flat, offset_map, desmiled = analyze_flatfield(ff_si)
     correction = FlatFieldCorrection(
         source_flatfield_path=path,
         dust_flat=dust_flat,
@@ -128,18 +128,14 @@ def _flatfield_correction_cache_path(
 def build_flatfield_cache(
     flatfield_paths: list[Path],
     max_delta: datetime.timedelta = DEFAULT_MAX_DELTA,
-    reports_dir: Optional[Path] = None,
     allow_cached_data: bool = True,
-    max_workers: Optional[int] = None,
 ) -> FlatFieldCache:
     """Build a FlatFieldCache by analyzing all flat-field files.
 
     Args:
         flatfield_paths: List of flat-field .dat file paths.
         max_delta: Maximum time delta for matching.
-        reports_dir: Optional directory for spectroflat reports.
         allow_cached_data: If True, allows using cached analysis results if available.
-        max_workers: Number of parallel workers to use. Defaults to number of CPU cores minus one.
 
     Returns:
         Populated FlatFieldCache.
@@ -176,7 +172,7 @@ def build_flatfield_cache(
     )
     for ff_path in remaining_flatfields:
         try:
-            correction = _analyze_flatfield(ff_path, reports_dir)
+            correction = _analyze_flatfield(ff_path)
             write_flatfield_correction(
                 correction, _flatfield_correction_cache_path(ff_path)
             )

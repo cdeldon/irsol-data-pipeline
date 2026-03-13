@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -83,14 +82,13 @@ def analyze_flatfield(
     else:
         ff_data = flat_field_si
 
-    if reports_path is None:
-        tmp = tempfile.mkdtemp()
-        rpath = tmp
-    else:
+    if reports_path is not None:
         reports_path.mkdir(parents=True, exist_ok=True)
         rpath = str(reports_path)
+    else:
+        rpath = None
 
-    analyser = Analyser(ff_data, config, rpath)
+    analyser = Analyser(ff_data, config, rpath)  # type: ignore
     analyser.run()
 
     return analyser.dust_flat, analyser.offset_map, analyser.desmiled
