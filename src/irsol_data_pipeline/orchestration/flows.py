@@ -74,6 +74,7 @@ def process_unprocessed_measurements(
     Returns:
         List of DayProcessingResult for each processed day.
     """
+    setup_logging()
     logger.info(
         "Starting dataset scan flow", root=root, max_delta_hours=max_delta_hours
     )
@@ -159,6 +160,7 @@ def process_daily_unprocessed_measurements(
     Returns:
         DayProcessingResult summary.
     """
+    setup_logging()
     logger.info(
         "Starting day processing flow",
         day_path=day_path,
@@ -195,8 +197,11 @@ def process_daily_unprocessed_measurements(
 
 if __name__ == "__main__":
     # Example usage: run the dataset scan flow
-    setup_logging()
-    process_unprocessed_measurements(
-        root="data",
-        max_delta_hours=2.0,
+    process_unprocessed_measurements.serve(
+        name="run-process-unprocessed-measurements",
+        parameters={"root": "/home/deldon/code/irsol-data-pipeline/data"},
     )
+    # process_unprocessed_measurements(
+    #     root="data",
+    #     max_delta_hours=2.0,
+    # )

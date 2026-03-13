@@ -14,10 +14,10 @@ _prefect_sink_added = False
 def setup_logging(level: LOG_LEVEL = "DEBUG"):
     """Configure loguru logging with a Prefect sink that forwards logs to the run logger."""
     global _prefect_sink_added
-    _setup_base_logging(level=level)
-
     if _prefect_sink_added:
         return
+
+    _setup_base_logging(level=level)
 
     def _prefect_sink(message):
         record = message.record
