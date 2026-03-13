@@ -130,7 +130,7 @@ def process_observation_day(
         flatfield_count=len(flatfield_paths),
     )
     ff_cache = build_flatfield_cache(
-        flatfield_paths,
+        flatfield_paths=flatfield_paths,
         max_delta=max_delta_policy.default_max_delta,
     )
     logger.info(

@@ -1,8 +1,8 @@
 """Prefect 3.x orchestration flows.
 
 Two flows:
-1. dataset_scan_flow — Scans dataset root and triggers day processing
-2. day_processing_flow — Processes a single observation day
+1. process_unprocessed_measurements — Scans dataset root and triggers day processing
+2. process_daily_unprocessed_measurements — Processes a single observation day
 
 The orchestration layer contains NO scientific logic — it only
 calls pipeline functions and handles flow/task coordination.
@@ -49,7 +49,7 @@ def run_day_processing_subflow_task(
     refdata_dir: Optional[str] = None,
 ) -> DayProcessingResult:
     """Prefect task: execute the day-processing flow as a sub-flow."""
-    return day_processing_flow(
+    return process_daily_unprocessed_measurements(
         day_path=day_path,
         max_delta_hours=max_delta_hours,
         refdata_dir=refdata_dir,
@@ -58,10 +58,10 @@ def run_day_processing_subflow_task(
 
 @flow(
     name="dataset-scan",
-    flow_run_name="dataset-scan-for-{root}",
+    flow_run_name="process-unprocessed-measurements/{root}",
     description="Scans the dataset and processes all days with pending measurements",
 )
-def dataset_scan_flow(
+def process_unprocessed_measurements(
     root: Optional[str] = None,
     max_delta_hours: float = 2.0,
     refdata_dir: Optional[str] = None,
@@ -88,7 +88,7 @@ def dataset_scan_flow(
 
     dataset_root = Path(root)
     # Scan
-    scan_result = scan_dataset_task(dataset_root)
+    scan_result = scan_dataset_task(root=dataset_root)
     logger.info(
         "Scan complete",
         days=len(scan_result.observation_days),
@@ -137,11 +137,11 @@ def dataset_scan_flow(
 
 @flow(
     name="day-processing",
-    flow_run_name="{day_path.name}",
+    flow_run_name="process-unprocessed-daily-measurements/{day_path.name}",
     description="Processes a single observation day",
     retries=2,
 )
-def day_processing_flow(
+def process_daily_unprocessed_measurements(
     day_path: Path,
     max_delta_hours: float = 2.0,
     refdata_dir: Optional[str] = None,
@@ -193,7 +193,7 @@ def day_processing_flow(
 if __name__ == "__main__":
     # Example usage: run the dataset scan flow
     setup_logging()
-    dataset_scan_flow(
+    process_unprocessed_measurements(
         root="data",
         max_delta_hours=2.0,
     )
