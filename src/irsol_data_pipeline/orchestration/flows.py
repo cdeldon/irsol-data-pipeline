@@ -17,6 +17,7 @@ from typing import Optional
 
 
 from loguru import logger
+from prefect.artifacts import create_markdown_artifact
 from prefect import flow, task
 from prefect.futures import as_completed
 from prefect.task_runners import ThreadPoolTaskRunner
@@ -30,10 +31,58 @@ from irsol_data_pipeline.pipeline.day_processor import (
 from irsol_data_pipeline.pipeline.scanner import ScanResult, scan_dataset
 
 
+def _build_scan_report_markdown(root: Path, scan_result: ScanResult) -> str:
+    """Build a markdown summary of scan results for Prefect artifacts."""
+    total_processed = scan_result.total_measurements - scan_result.total_pending
+    lines = [
+        "# Dataset Scan Summary",
+        "",
+        f"- Root: `{root}`",
+        f"- Observation days discovered: `{len(scan_result.observation_days)}`",
+        f"- Total measurements found: `{scan_result.total_measurements}`",
+        f"- Already processed: `{total_processed}`",
+        f"- Still to process: `{scan_result.total_pending}`",
+        "",
+    ]
+
+    if scan_result.total_pending == 0:
+        lines.extend(
+            [
+                "## Pending Measurements",
+                "",
+                "No pending measurements found.",
+            ]
+        )
+        return "\n".join(lines)
+
+    lines.extend(
+        [
+            "## Pending Measurements",
+            "",
+            "| Observation Day | Pending Count | Files |",
+            "|---|---:|---|",
+        ]
+    )
+
+    for day_name in sorted(scan_result.pending_measurements):
+        files = sorted(p.name for p in scan_result.pending_measurements[day_name])
+        lines.append(
+            f"| `{day_name}` | {len(files)} | {', '.join(f'`{f}`' for f in files)} |"
+        )
+
+    return "\n".join(lines)
+
+
 @task(task_run_name="find-observations-to-process/{root}", retries=2)
 def scan_dataset_task(root: Path) -> ScanResult:
     """Prefect task: scan the dataset root."""
-    return scan_dataset(root)
+    scan_result = scan_dataset(root)
+    markdown = _build_scan_report_markdown(root=root, scan_result=scan_result)
+    create_markdown_artifact(
+        markdown=markdown,
+        description="Dataset scan summary: pending and already processed measurements",
+    )
+    return scan_result
 
 
 @task(
