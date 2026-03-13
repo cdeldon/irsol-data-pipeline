@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from irsol_data_pipeline.core.calibration import CalibrationResult
+from irsol_data_pipeline.core.types import StokesParameters
+
 import datetime
 from pathlib import Path
 from typing import Optional
@@ -201,6 +204,32 @@ def process_single_measurement(
     )
 
 
+@task(task_run_name="plot/{title}", retries=3)
+def _plot_data(
+    stokes: StokesParameters,
+    calibration: CalibrationResult,
+    title: str,
+    filename_save: Path,
+):
+
+    wavelength_offset = calibration.wavelength_offset
+    pixel_scale = calibration.pixel_scale
+    logger.debug(
+        "Plotting profile",
+        title=title,
+        output_path=str(filename_save),
+        wavelength_offset=wavelength_offset,
+        pixel_scale=pixel_scale,
+    )
+    plot_profile(
+        stokes,
+        title=title,
+        filename_save=filename_save,
+        a0=wavelength_offset,
+        a1=pixel_scale,
+    )
+
+
 @task(task_run_name="process-measurement/{meas_path.name}")
 def _process_single_measurement(
     meas_path: Path,
@@ -294,21 +323,17 @@ def _process_single_measurement(
     )
 
     # 8. Generate profile plots for the original and corrected data
-    wavelength_offset = calibration.wavelength_offset
-    pixel_scale = calibration.pixel_scale
-    plot_profile(
-        corrected_stokes,
+    _plot_data(
+        stokes=corrected_stokes,
+        calibration=calibration,
         title=f"{stem} - Corrected",
-        filename_save=processed_dir / f"{stem}_corrected_profile.png",
-        a0=wavelength_offset,
-        a1=pixel_scale,
+        filename_save=processed_dir / f"{stem}_profile_corrected.png",
     )
-    plot_profile(
-        measurement.stokes,
+    _plot_data(
+        stokes=measurement.stokes,
+        calibration=calibration,
         title=f"{stem} - Original",
-        filename_save=processed_dir / f"{stem}_original_profile.png",
-        a0=wavelength_offset,
-        a1=pixel_scale,
+        filename_save=processed_dir / f"{stem}_profile_original.png",
     )
 
     logger.success("Measurement processed", file=meas_path.name)
