@@ -12,13 +12,11 @@ from typing import Optional
 
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
-import os
 
-from irsol_data_pipeline.orchestration.decorators import prefect_enabled
 from irsol_data_pipeline.core.flatfield import FlatFieldCorrection
+from irsol_data_pipeline.orchestration.decorators import task
 from irsol_data_pipeline.correction.analyzer import analyze_flatfield
 from irsol_data_pipeline.io.dat_reader import load_flatfield, read_flatfield_si
-from concurrent.futures import ProcessPoolExecutor, as_completed, Future
 from irsol_data_pipeline.io.flatfield_correction_reader import read_flatfield_correction
 from irsol_data_pipeline.io.flatfield_correction_writer import (
     write_flatfield_correction,
@@ -102,6 +100,7 @@ class FlatFieldCache(BaseModel):
         return sum(len(v) for v in self._corrections.values())
 
 
+@task(task_run_name="analyze-flatfield-{path.name}", retries=2)
 def _analyze_flatfield(path: Path, reports_dir: Optional[Path]) -> FlatFieldCorrection:
     """Helper function to analyze a single flat-field file for parallel processing."""
     ff = load_flatfield(path)
@@ -170,59 +169,25 @@ def build_flatfield_cache(
         logger.info("All flat-field corrections loaded from cache, no analysis needed")
         return cache
 
-    max_workers = max_workers or max(
-        1, min(len(flatfield_paths), (os.cpu_count() or 1) - 1)
+    logger.debug(
+        "Starting flat-field analysis",
+        found_in_cache=len(flatfield_paths) - len(remaining_flatfields),
+        to_compute=len(remaining_flatfields),
     )
-    if prefect_enabled() or max_workers == 1:
-        # Sequential computation in same process/thread
-        logger.debug(
-            "Startng sequential flat-field analysis",
-            found_in_cache=len(flatfield_paths) - len(remaining_flatfields),
-            to_compute=len(remaining_flatfields),
-        )
-        for ff_path in remaining_flatfields:
-            try:
-                correction = _analyze_flatfield(ff_path, reports_dir)
-                write_flatfield_correction(
-                    correction, _flatfield_correction_cache_path(ff_path)
-                )
-                cache.add_correction(correction)
-                logger.success(
-                    "Cached flat-field correction",
-                    file=ff_path.name,
-                    wavelength=correction.wavelength,
-                )
-            except Exception:
-                logger.exception("Failed to analyze flat-field", file=ff_path.name)
-    else:
-        logger.debug(
-            "Starting parallel flat-field analysis",
-            found_in_cache=len(flatfield_paths) - len(remaining_flatfields),
-            to_compute=len(remaining_flatfields),
-            max_workers=max_workers,
-        )
-
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures_to_ff_path: dict[Future, Path] = {
-                executor.submit(_analyze_flatfield, ff_path, reports_dir): ff_path
-                for ff_path in remaining_flatfields
-            }
-
-            for future in as_completed(futures_to_ff_path):
-                ff_path = futures_to_ff_path[future]
-                try:
-                    correction = future.result()
-                    write_flatfield_correction(
-                        correction, _flatfield_correction_cache_path(ff_path)
-                    )
-
-                    cache.add_correction(correction)
-                    logger.success(
-                        "Cached flat-field correction",
-                        file=ff_path.name,
-                        wavelength=correction.wavelength,
-                    )
-                except Exception:
-                    logger.exception("Failed to analyze flat-field", file=ff_path.name)
+    for ff_path in remaining_flatfields:
+        try:
+            correction = _analyze_flatfield(ff_path, reports_dir)
+            write_flatfield_correction(
+                correction, _flatfield_correction_cache_path(ff_path)
+            )
+        except Exception:
+            logger.exception("Failed to analyze flat-field", file=ff_path.name)
+        else:
+            cache.add_correction(correction)
+            logger.success(
+                "Cached flat-field correction",
+                file=ff_path.name,
+                wavelength=correction.wavelength,
+            )
 
     return cache
