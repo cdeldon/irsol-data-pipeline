@@ -1,4 +1,8 @@
 repos:
+  - repo: https://github.com/pre-commit/pre-commit
+    rev: v4.5.1
+    hooks:
+      - id: validate_manifest
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -26,3 +30,11 @@ repos:
       - id: isort
         types_or: [ python, pyi ]
         args: [ --profile=black ]
+  - repo: https://github.com/PyCQA/docformatter
+    rev: v1.7.7
+    hooks:
+      - id: docformatter
+        entry: docformatter
+        args: [-i]
+        language: python
+        types: [python]

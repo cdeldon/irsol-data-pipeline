@@ -24,11 +24,9 @@ def plot(
     a0: Optional[float] = None,
     a1: Optional[float] = None,
 ):
-    """
-    Plot the Stokes profiles, similar as it is done in the ZIMPOL sw.
-    Here the script assumes that si, sq, su, sv are 2D arrays of the same shape:
-              si.shape = (n_spatial_points, n_wavelengths)
-              the same for sq, su, sv
+    """Plot the Stokes profiles, similar as it is done in the ZIMPOL sw. Here
+    the script assumes that si, sq, su, sv are 2D arrays of the same shape:
+    si.shape = (n_spatial_points, n_wavelengths) the same for sq, su, sv.
 
     Parameters:
     -----------

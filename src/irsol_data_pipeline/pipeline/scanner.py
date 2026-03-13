@@ -1,6 +1,7 @@
 """Dataset scanner.
 
-Scans the dataset root to discover observation days that need processing.
+Scans the dataset root to discover observation days that need
+processing.
 """
 
 from __future__ import annotations

@@ -60,9 +60,9 @@ class FlatField(BaseModel):
 class FlatFieldCorrection(BaseModel):
     """A computed flat-field correction ready to be applied.
 
-    This stores the analysis results (dust flat map and offset map)
-    from a flat-field analysis. The offset_map type depends on the
-    correction backend (e.g. spectroflat OffsetMap).
+    This stores the analysis results (dust flat map and offset map) from
+    a flat-field analysis. The offset_map type depends on the correction
+    backend (e.g. spectroflat OffsetMap).
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -100,8 +100,8 @@ class Measurement(BaseModel):
 class MeasurementMetadata(BaseModel):
     """Decoded metadata extracted from a ZIMPOL .dat info array.
 
-    All fields are extracted once at construction time so that downstream
-    code never touches the raw byte array.
+    All fields are extracted once at construction time so that
+    downstream code never touches the raw byte array.
     """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
@@ -213,7 +213,8 @@ def _decode_info(info: np.ndarray) -> dict[str, str]:
 def _parse_zimpol_datetime(dt_str: str) -> datetime.datetime:
     """Parse a ZIMPOL datetime string.
 
-    Format is typically ``"2024-07-13T10:22:00+01"`` (with timezone offset).
+    Format is typically ``"2024-07-13T10:22:00+01"`` (with timezone
+    offset).
     """
     value = dt_str.strip()
     if not value:
@@ -286,8 +287,8 @@ class MaxDeltaPolicy(BaseModel):
     """Policy for determining the maximum time delta for flat-field matching.
 
     The default policy applies the same max_delta to all measurements.
-    Subclass or replace this to implement per-wavelength or per-instrument
-    policies.
+    Subclass or replace this to implement per-wavelength or per-
+    instrument policies.
     """
 
     default_max_delta: datetime.timedelta = Field(

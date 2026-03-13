@@ -95,7 +95,8 @@ class TestNoopMode:
 
 
 class TestPrefectMode:
-    """When Prefect is enabled the real prefect decorators should be applied."""
+    """When Prefect is enabled the real prefect decorators should be
+    applied."""
 
     def test_task_returns_prefect_task(self):
         with patch.dict(os.environ, {"PREFECT_ENABLED": "1"}):

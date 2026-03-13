@@ -1,7 +1,7 @@
 """Filesystem discovery utilities.
 
-Functions for scanning the dataset hierarchy and discovering
-observation folders, measurement files, and flat-field files.
+Functions for scanning the dataset hierarchy and discovering observation
+folders, measurement files, and flat-field files.
 """
 
 from __future__ import annotations

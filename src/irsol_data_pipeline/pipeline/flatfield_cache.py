@@ -1,7 +1,7 @@
 """Flat-field correction cache.
 
-Stores computed flat-field corrections grouped by wavelength,
-and retrieves the closest correction in time for a given measurement.
+Stores computed flat-field corrections grouped by wavelength, and
+retrieves the closest correction in time for a given measurement.
 """
 
 from __future__ import annotations
@@ -26,8 +26,8 @@ from irsol_data_pipeline.orchestration.decorators import task
 class FlatFieldCache:
     """Cache for computed flat-field corrections.
 
-    Stores corrections grouped by wavelength and provides
-    lookup by closest timestamp.
+    Stores corrections grouped by wavelength and provides lookup by
+    closest timestamp.
     """
 
     def __init__(self, max_delta: datetime.timedelta = DEFAULT_MAX_DELTA):
@@ -51,7 +51,8 @@ class FlatFieldCache:
         timestamp: datetime.datetime,
         max_delta: Optional[datetime.timedelta] = None,
     ) -> Optional[FlatFieldCorrection]:
-        """Find the closest flat-field correction for a given wavelength and time.
+        """Find the closest flat-field correction for a given wavelength and
+        time.
 
         Args:
             wavelength: Target wavelength in Angstrom.
@@ -96,7 +97,8 @@ class FlatFieldCache:
 
 @task(task_run_name="analyze-flatfield/{path.name}")
 def _analyze_flatfield(path: Path) -> FlatFieldCorrection:
-    """Helper function to analyze a single flat-field file for parallel processing."""
+    """Helper function to analyze a single flat-field file for parallel
+    processing."""
     ff = load_flatfield(path)
     ff_si = read_flatfield_si(path)
     dust_flat, offset_map, desmiled = analyze_flatfield(ff_si)

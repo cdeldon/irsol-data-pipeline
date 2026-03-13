@@ -1,8 +1,8 @@
 """Wavelength auto-calibration.
 
 Determines the wavelength scale (pixel-to-wavelength mapping) of a
-measurement by cross-correlating it against reference spectral data
-and fitting spectral lines.
+measurement by cross-correlating it against reference spectral data and
+fitting spectral lines.
 
 Adapted from the fits-generator autocalibrate module.
 """
@@ -17,10 +17,8 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy.signal import correlate
 
+from irsol_data_pipeline.core.config import V_STOKES_CUTOFF
 from irsol_data_pipeline.core.models import CalibrationResult, StokesParameters
-
-# V Stokes intensity threshold for row filtering
-V_STOKES_CUTOFF = 0.4
 
 # Default: reference data shipped with this package
 _DEFAULT_REFDATA_DIR = Path(__file__).parent / "refdata"
