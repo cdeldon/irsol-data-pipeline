@@ -214,7 +214,7 @@ def process_observation_day(
                     description=f"Error for failed processed measurement {stem}",
                 )
 
-        return result
+    return result
 
 
 def process_single_measurement(

@@ -73,7 +73,7 @@ def _build_scan_report_markdown(root: Path, scan_result: ScanResult) -> str:
     return "\n".join(lines)
 
 
-@task(task_run_name="find-observations-to-process/{root}", retries=2)
+@task(task_run_name="find-observations-to-process/{root}")
 def scan_dataset_task(root: Path) -> ScanResult:
     """Prefect task: scan the dataset root."""
     scan_result = scan_dataset(root)
@@ -87,7 +87,6 @@ def scan_dataset_task(root: Path) -> ScanResult:
 
 @task(
     task_run_name="{day_path.name}",
-    retries=2,
 )
 def run_day_processing_subflow_task(
     day_path: Path,
@@ -192,7 +191,6 @@ def process_unprocessed_measurements(
 @flow(
     flow_run_name="process-unprocessed-daily-measurements/{day_path.name}",
     description="Processes a single observation day",
-    retries=2,
 )
 def process_daily_unprocessed_measurements(
     day_path: Path,
