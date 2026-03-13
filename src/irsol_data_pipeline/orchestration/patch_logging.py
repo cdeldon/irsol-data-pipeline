@@ -34,7 +34,15 @@ def setup_logging(level: LOG_LEVEL = "DEBUG"):
         elif level_no == 25:  # SUCCESS
             level_no = stdlib_logging.INFO
 
-        run_logger.log(level_no, str(message).rstrip())
+        extra_message = ", ".join(
+            f"{k}={v}" for k, v in record["extra"].items() if k != "_extra"
+        )
+        full_message = (
+            (f"{record['message']} | {extra_message}")
+            if extra_message
+            else record["message"]
+        )
+        run_logger.log(level_no, full_message)
 
     logger.add(_prefect_sink, format="{message}", level=level)
     _prefect_sink_added = True
