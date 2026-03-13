@@ -148,7 +148,7 @@ def process_observation_day(
 
         progress_id = create_progress_artifact(
             0.0,
-            key=f"progress/{day.name}",
+            key=f"progress-{day.name.lower().strip().replace(' ', '-')}",
             description=f"Processing progress for {day.name}",
         )
 
@@ -206,7 +206,7 @@ def process_observation_day(
                         table_rows.append({"key": k, "value": str(v)})
                 create_table_artifact(
                     table=table_rows,
-                    key=f"error_metadata/{meas_path}",
+                    key=f"error-metadata-{str(meas_path).lower().strip().replace(' ', '-').replace('/', '-')}",
                     description=f"Error for failed processed measurement {stem}",
                 )
 
@@ -383,7 +383,7 @@ def _process_single_measurement(
                 table_rows.append({"key": k, "value": str(v)})
         create_table_artifact(
             table=table_rows,
-            key=f"processing_metadata/{meas_path}",
+            key=f"processing-metadata-{str(meas_path).lower().strip().replace(' ', '-').replace('/', '-')}",
             description=f"Metadata for processed measurement {stem}",
         )
 
