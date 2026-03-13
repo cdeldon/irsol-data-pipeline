@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 from typing import Literal
+
 from loguru import logger
 
 _configured = False

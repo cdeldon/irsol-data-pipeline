@@ -8,10 +8,12 @@ from typing import Union
 import numpy as np
 from scipy.io import readsav
 
-from irsol_data_pipeline.core.measurement import Measurement
-from irsol_data_pipeline.core.flatfield import FlatField
-from irsol_data_pipeline.core.metadata import MeasurementMetadata
-from irsol_data_pipeline.core.types import StokesParameters
+from irsol_data_pipeline.core.models import (
+    FlatField,
+    Measurement,
+    MeasurementMetadata,
+    StokesParameters,
+)
 
 
 def read_zimpol_dat(

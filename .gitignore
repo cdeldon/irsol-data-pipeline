@@ -13,3 +13,4 @@ wheels/
 *.fits
 *.log
 data/
+.coverage

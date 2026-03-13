@@ -1,11 +1,11 @@
 """Tests for filesystem discovery utilities."""
 
 from irsol_data_pipeline.io.filesystem import (
-    OBSERVATION_PATTERN,
     FLATFIELD_PATTERN,
-    discover_observation_days,
-    discover_measurement_files,
+    OBSERVATION_PATTERN,
     discover_flatfield_files,
+    discover_measurement_files,
+    discover_observation_days,
     get_processed_stem,
     is_measurement_processed,
 )

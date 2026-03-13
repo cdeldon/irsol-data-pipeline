@@ -1,7 +1,7 @@
 """Tests for the metadata store (JSON read/write)."""
 
-import json
 import datetime
+import json
 
 from irsol_data_pipeline.io.metadata_store import (
     read_metadata,

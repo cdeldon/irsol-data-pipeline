@@ -14,11 +14,10 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from scipy.signal import correlate
 from scipy.optimize import curve_fit
+from scipy.signal import correlate
 
-from irsol_data_pipeline.core.calibration import CalibrationResult
-from irsol_data_pipeline.core.types import StokesParameters
+from irsol_data_pipeline.core.models import CalibrationResult, StokesParameters
 
 # V Stokes intensity threshold for row filtering
 V_STOKES_CUTOFF = 0.4

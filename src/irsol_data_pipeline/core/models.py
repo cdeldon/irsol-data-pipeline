@@ -1,18 +1,100 @@
-"""Abstraction over the ZIMPOL measurement info array.
-
-The info array is an Nx2 numpy array of key-value pairs (bytes).
-This module provides a typed, decoded interface so that users never
-need to work with raw indices.
-"""
+"""Domain model."""
 
 from __future__ import annotations
 
 import datetime
 import re
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+
+from irsol_data_pipeline.core.config import DEFAULT_MAX_DELTA
+
+
+class CalibrationResult(BaseModel):
+    """Result of wavelength auto-calibration.
+
+    The calibration maps pixel positions to wavelengths using a linear model:
+        wavelength = pixel_scale * pixel + wavelength_offset
+    """
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    pixel_scale: float  # a1: angstrom per pixel
+    wavelength_offset: float  # a0: wavelength at pixel 0
+    pixel_scale_error: float  # 1-sigma error on a1
+    wavelength_offset_error: float  # 1-sigma error on a0
+    reference_file: str  # name of reference data file used
+    peak_pixels: Optional[np.ndarray] = None  # pixel positions of fitted peaks
+    reference_lines: Optional[np.ndarray] = None  # wavelengths of the reference lines
+
+    def pixel_to_wavelength(self, pixel: float) -> float:
+        """Convert a pixel position to wavelength in Angstrom."""
+        return self.pixel_scale * pixel + self.wavelength_offset
+
+    def wavelength_to_pixel(self, wavelength: float) -> float:
+        """Convert a wavelength in Angstrom to pixel position."""
+        return (wavelength - self.wavelength_offset) / self.pixel_scale
+
+
+class FlatField(BaseModel):
+    """A flat-field measurement loaded from a .dat file."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    source_path: Path
+    metadata: MeasurementMetadata
+    stokes: StokesParameters
+
+    @property
+    def wavelength(self) -> int:
+        return self.metadata.wavelength
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        return self.metadata.datetime_start
+
+
+class FlatFieldCorrection(BaseModel):
+    """A computed flat-field correction ready to be applied.
+
+    This stores the analysis results (dust flat map and offset map)
+    from a flat-field analysis. The offset_map type depends on the
+    correction backend (e.g. spectroflat OffsetMap).
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    source_flatfield_path: Path
+    dust_flat: np.ndarray
+    offset_map: object  # Backend-specific (e.g. spectroflat OffsetMap)
+    desmiled: np.ndarray
+    timestamp: datetime.datetime
+    wavelength: int
+
+
+class Measurement(BaseModel):
+    """A solar observation measurement loaded from a .dat file."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    source_path: Path
+    metadata: MeasurementMetadata
+    stokes: StokesParameters
+
+    @property
+    def wavelength(self) -> int:
+        return self.metadata.wavelength
+
+    @property
+    def timestamp(self) -> datetime.datetime:
+        return self.metadata.datetime_start
+
+    @property
+    def name(self) -> str:
+        return self.source_path.stem
 
 
 class MeasurementMetadata(BaseModel):
@@ -168,3 +250,89 @@ def _parse_zimpol_datetime(dt_str: str) -> datetime.datetime:
         return parsed.replace(tzinfo=datetime.timezone.utc)
 
     return parsed.astimezone(datetime.timezone.utc)
+
+
+class StokesParameters(BaseModel):
+    """The four Stokes parameters: I, Q, U, V."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
+    i: np.ndarray
+    q: np.ndarray
+    u: np.ndarray
+    v: np.ndarray
+
+    def __iter__(self):
+        """Allow unpacking: i, q, u, v = stokes."""
+        return iter((self.i, self.q, self.u, self.v))
+
+
+class ObservationDay(BaseModel):
+    """Represents a single observation day directory."""
+
+    model_config = ConfigDict(frozen=True)
+
+    path: Path
+    raw_dir: Path
+    reduced_dir: Path
+    processed_dir: Path
+
+    @property
+    def name(self) -> str:
+        return self.path.name
+
+
+class MaxDeltaPolicy(BaseModel):
+    """Policy for determining the maximum time delta for flat-field matching.
+
+    The default policy applies the same max_delta to all measurements.
+    Subclass or replace this to implement per-wavelength or per-instrument
+    policies.
+    """
+
+    default_max_delta: datetime.timedelta = Field(
+        default_factory=lambda: DEFAULT_MAX_DELTA
+    )
+
+    def get_max_delta(
+        self,
+        wavelength: int,
+        instrument: str = "",
+        telescope: str = "",
+    ) -> datetime.timedelta:
+        """Return the max time delta for a given measurement context.
+
+        Override this method to implement different thresholds based on
+        wavelength, instrument, telescope, etc.
+
+        Args:
+            wavelength: Measurement wavelength in Angstrom.
+            instrument: Instrument name.
+            telescope: Telescope name.
+
+        Returns:
+            Maximum allowed timedelta.
+        """
+        return self.default_max_delta
+
+
+class DayProcessingResult(BaseModel):
+    """Summary of processing a single observation day."""
+
+    day_name: str
+    total_measurements: int
+    processed: int
+    skipped: int
+    failed: int
+    errors: list[str] = Field(default_factory=list)
+
+
+class ScanResult(BaseModel):
+    """Result of scanning a dataset root."""
+
+    model_config = ConfigDict(frozen=True)
+
+    observation_days: list[ObservationDay]
+    pending_measurements: dict[str, list[Path]]  # day_name -> [measurement_paths]
+    total_measurements: int
+    total_pending: int

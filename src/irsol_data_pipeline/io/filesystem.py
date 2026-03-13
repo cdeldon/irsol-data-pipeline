@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+
+from irsol_data_pipeline.core.models import ObservationDay
 from irsol_data_pipeline.orchestration.decorators import task
-
-
-from pydantic import BaseModel, ConfigDict
-
 
 # Pattern: <wavelength>_m<id>.dat  (e.g. 6302_m1.dat)
 OBSERVATION_PATTERN = re.compile(r"^(\d+)_m(\d+)\.dat$")
@@ -22,21 +20,6 @@ FLATFIELD_PATTERN = re.compile(r"^ff(\d+)_m(\d+)\.dat$")
 
 # Patterns to ignore: cal*, dark*
 IGNORED_PREFIXES = ("cal", "dark")
-
-
-class ObservationDay(BaseModel):
-    """Represents a single observation day directory."""
-
-    model_config = ConfigDict(frozen=True)
-
-    path: Path
-    raw_dir: Path
-    reduced_dir: Path
-    processed_dir: Path
-
-    @property
-    def name(self) -> str:
-        return self.path.name
 
 
 @task(task_run_name="discover-observation-days-for-{root.name}")

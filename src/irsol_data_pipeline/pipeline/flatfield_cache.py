@@ -11,34 +11,28 @@ from pathlib import Path
 from typing import Optional
 
 from loguru import logger
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
-from irsol_data_pipeline.core.flatfield import FlatFieldCorrection
-from irsol_data_pipeline.orchestration.decorators import task
+from irsol_data_pipeline.core.config import DEFAULT_MAX_DELTA
+from irsol_data_pipeline.core.models import FlatFieldCorrection
 from irsol_data_pipeline.correction.analyzer import analyze_flatfield
 from irsol_data_pipeline.io.dat_reader import load_flatfield, read_flatfield_si
 from irsol_data_pipeline.io.flatfield_correction_reader import read_flatfield_correction
 from irsol_data_pipeline.io.flatfield_correction_writer import (
     write_flatfield_correction,
 )
-
-# Default maximum time delta between measurement and flat-field
-DEFAULT_MAX_DELTA = datetime.timedelta(hours=2)
+from irsol_data_pipeline.orchestration.decorators import task
 
 
-class FlatFieldCache(BaseModel):
+class FlatFieldCache:
     """Cache for computed flat-field corrections.
 
     Stores corrections grouped by wavelength and provides
     lookup by closest timestamp.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    max_delta: datetime.timedelta = Field(default_factory=lambda: DEFAULT_MAX_DELTA)
-    _corrections: dict[int, list[FlatFieldCorrection]] = PrivateAttr(
-        default_factory=dict
-    )
+    def __init__(self, max_delta: datetime.timedelta = DEFAULT_MAX_DELTA):
+        self.max_delta = max_delta
+        self._corrections: dict[int, list[FlatFieldCorrection]] = {}
 
     def add_correction(self, correction: FlatFieldCorrection) -> None:
         """Add a computed correction to the cache.

@@ -7,12 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from irsol_data_pipeline.orchestration.decorators import (
-    flow,
-    prefect_enabled,
-    task,
-)
-
+from irsol_data_pipeline.orchestration.decorators import flow, prefect_enabled, task
 
 # ---------------------------------------------------------------------------
 # prefect_enabled()

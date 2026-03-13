@@ -1,7 +1,8 @@
-from irsol_data_pipeline.core.flatfield import FlatFieldCorrection
 import pickle
 from pathlib import Path
 from typing import Union
+
+from irsol_data_pipeline.core.models import FlatFieldCorrection
 
 
 def read_flatfield_correction(output_path: Union[Path, str]) -> FlatFieldCorrection:

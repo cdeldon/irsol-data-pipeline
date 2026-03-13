@@ -1,12 +1,10 @@
-from prefect.logging import get_run_logger
-from irsol_data_pipeline.logging_config import (
-    LOG_LEVEL,
-    setup_logging as _setup_base_logging,
-)
-
 import logging as stdlib_logging
-from loguru import logger
 
+from loguru import logger
+from prefect.logging import get_run_logger
+
+from irsol_data_pipeline.logging_config import LOG_LEVEL
+from irsol_data_pipeline.logging_config import setup_logging as _setup_base_logging
 
 _prefect_sink_added = False
 

@@ -15,17 +15,19 @@ import os
 from pathlib import Path
 from typing import Optional
 
-
 from loguru import logger
-from prefect.artifacts import create_markdown_artifact
 from prefect import flow, task
+from prefect.artifacts import create_markdown_artifact
 from prefect.futures import as_completed
 from prefect.task_runners import ThreadPoolTaskRunner
-from irsol_data_pipeline.orchestration.patch_logging import setup_logging
-from irsol_data_pipeline.io.filesystem import ObservationDay
-from irsol_data_pipeline.pipeline.day_processor import (
+
+from irsol_data_pipeline.core.models import (
     DayProcessingResult,
     MaxDeltaPolicy,
+    ObservationDay,
+)
+from irsol_data_pipeline.orchestration.patch_logging import setup_logging
+from irsol_data_pipeline.pipeline.day_processor import (
     process_observation_day,
 )
 from irsol_data_pipeline.pipeline.scanner import ScanResult, scan_dataset

@@ -7,7 +7,8 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
-from irsol_data_pipeline.core.types import StokesParameters
+
+from irsol_data_pipeline.core.models import StokesParameters
 
 
 def write_corrected_dat(

@@ -19,8 +19,7 @@ from sunpy.coordinates import frames, sun
 from sunpy.coordinates.sun import angular_radius
 
 from irsol_data_pipeline.calibration.autocalibrate import calibrate_measurement
-from irsol_data_pipeline.core.metadata import MeasurementMetadata
-from irsol_data_pipeline.core.types import StokesParameters
+from irsol_data_pipeline.core.models import MeasurementMetadata, StokesParameters
 from irsol_data_pipeline.io.dat_reader import read_zimpol_dat
 
 IRSOL_LOCATION = EarthLocation(

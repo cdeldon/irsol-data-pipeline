@@ -1,5 +1,6 @@
-from irsol_data_pipeline.orchestration.flows import process_unprocessed_measurements
 from pathlib import Path
+
+from irsol_data_pipeline.orchestration.flows import process_unprocessed_measurements
 
 
 def main():

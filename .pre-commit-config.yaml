@@ -20,3 +20,9 @@ repos:
         args: [ --fix ]
       - id: ruff-format
         types_or: [ python, pyi ]
+  - repo: https://github.com/PyCQA/isort
+    rev: 8.0.1
+    hooks:
+      - id: isort
+        types_or: [ python, pyi ]
+        args: [ --profile=black ]

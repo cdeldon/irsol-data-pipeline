@@ -6,11 +6,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from irsol_data_pipeline.core.calibration import CalibrationResult
-from irsol_data_pipeline.core.flatfield import FlatField
-from irsol_data_pipeline.core.measurement import Measurement
-from irsol_data_pipeline.core.metadata import MeasurementMetadata
-from irsol_data_pipeline.core.types import StokesParameters
+from irsol_data_pipeline.core.models import (
+    CalibrationResult,
+    FlatField,
+    Measurement,
+    MeasurementMetadata,
+    StokesParameters,
+)
 
 
 def _make_info_array(entries: dict[str, str]) -> np.ndarray:

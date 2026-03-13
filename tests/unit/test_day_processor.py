@@ -2,8 +2,7 @@
 
 import datetime
 
-
-from irsol_data_pipeline.pipeline.day_processor import MaxDeltaPolicy
+from irsol_data_pipeline.core.models import MaxDeltaPolicy
 
 
 class TestMaxDeltaPolicy:

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
-from loguru import logger
+
 import numpy as np
-from spectroflat import Analyser, Config, SmileConfig, SensorFlatConfig
-from spectroflat.smile import OffsetMap
+from loguru import logger
 from qollib.strings import parse_shape
+from spectroflat import Analyser, Config, SensorFlatConfig, SmileConfig
+from spectroflat.smile import OffsetMap
 
 
 def create_config_for_data(flat_field: np.ndarray) -> Config:

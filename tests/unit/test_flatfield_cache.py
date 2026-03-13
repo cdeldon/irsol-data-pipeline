@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from irsol_data_pipeline.core.flatfield import FlatFieldCorrection
+from irsol_data_pipeline.core.models import FlatFieldCorrection
 from irsol_data_pipeline.pipeline.flatfield_cache import FlatFieldCache
 
 

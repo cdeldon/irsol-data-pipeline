@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import numpy as np
-from spectroflat.smile.interpolated_correction import SmileInterpolator
 from spectroflat.smile import OffsetMap
+from spectroflat.smile.interpolated_correction import SmileInterpolator
 
-from irsol_data_pipeline.core.types import StokesParameters
+from irsol_data_pipeline.core.models import StokesParameters
 
 
 def apply_correction(

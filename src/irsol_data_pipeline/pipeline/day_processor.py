@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
-from irsol_data_pipeline.core.calibration import CalibrationResult
-from irsol_data_pipeline.core.types import StokesParameters
-
-import datetime
 from pathlib import Path
 from typing import Optional
 
 from loguru import logger
-from pydantic import BaseModel, Field
-from irsol_data_pipeline.orchestration.decorators import task, prefect_enabled
+
 from irsol_data_pipeline.calibration.autocalibrate import calibrate_measurement
-from irsol_data_pipeline.plotting import plot_profile
+from irsol_data_pipeline.core.models import (
+    CalibrationResult,
+    DayProcessingResult,
+    MaxDeltaPolicy,
+    ObservationDay,
+    StokesParameters,
+)
 from irsol_data_pipeline.correction.corrector import apply_correction
 from irsol_data_pipeline.io.dat_reader import load_measurement, read_zimpol_dat
-from irsol_data_pipeline.io.dat_writer import write_corrected_dat, save_correction_data
+from irsol_data_pipeline.io.dat_writer import save_correction_data, write_corrected_dat
 from irsol_data_pipeline.io.filesystem import (
-    ObservationDay,
     discover_flatfield_files,
     discover_measurement_files,
     get_processed_stem,
@@ -28,56 +28,12 @@ from irsol_data_pipeline.io.metadata_store import (
     write_error_metadata,
     write_processing_metadata,
 )
+from irsol_data_pipeline.orchestration.decorators import prefect_enabled, task
 from irsol_data_pipeline.pipeline.flatfield_cache import (
-    DEFAULT_MAX_DELTA,
     FlatFieldCache,
     build_flatfield_cache,
 )
-
-
-class MaxDeltaPolicy(BaseModel):
-    """Policy for determining the maximum time delta for flat-field matching.
-
-    The default policy applies the same max_delta to all measurements.
-    Subclass or replace this to implement per-wavelength or per-instrument
-    policies.
-    """
-
-    default_max_delta: datetime.timedelta = Field(
-        default_factory=lambda: DEFAULT_MAX_DELTA
-    )
-
-    def get_max_delta(
-        self,
-        wavelength: int,
-        instrument: str = "",
-        telescope: str = "",
-    ) -> datetime.timedelta:
-        """Return the max time delta for a given measurement context.
-
-        Override this method to implement different thresholds based on
-        wavelength, instrument, telescope, etc.
-
-        Args:
-            wavelength: Measurement wavelength in Angstrom.
-            instrument: Instrument name.
-            telescope: Telescope name.
-
-        Returns:
-            Maximum allowed timedelta.
-        """
-        return self.default_max_delta
-
-
-class DayProcessingResult(BaseModel):
-    """Summary of processing a single observation day."""
-
-    day_name: str
-    total_measurements: int
-    processed: int
-    skipped: int
-    failed: int
-    errors: list[str] = Field(default_factory=list)
+from irsol_data_pipeline.plotting import plot_profile
 
 
 def process_observation_day(
@@ -145,6 +101,7 @@ def process_observation_day(
 
     if prefect_enabled():
         from prefect.artifacts import create_progress_artifact, update_progress_artifact
+
         from irsol_data_pipeline.orchestration.utils import sanitize_artifact_title
 
         progress_id = create_progress_artifact(
@@ -192,11 +149,13 @@ def process_observation_day(
                 error=str(e),
             )
             if prefect_enabled():
+                import json
+
                 from prefect.artifacts import create_table_artifact
+
                 from irsol_data_pipeline.orchestration.utils import (
                     sanitize_artifact_title,
                 )
-                import json
 
                 with open(error_path) as f:
                     error_content = json.load(f)
@@ -372,9 +331,11 @@ def _process_single_measurement(
         calibration_info=calibration.model_dump(),
     )
     if prefect_enabled():
-        from prefect.artifacts import create_table_artifact
-        from irsol_data_pipeline.orchestration.utils import sanitize_artifact_title
         import json
+
+        from prefect.artifacts import create_table_artifact
+
+        from irsol_data_pipeline.orchestration.utils import sanitize_artifact_title
 
         with open(metadata_path) as f:
             metadata_content = json.load(f)

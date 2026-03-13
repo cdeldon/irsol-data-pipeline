@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from irsol_data_pipeline.io.filesystem import ObservationDay
+from irsol_data_pipeline.core.models import ObservationDay
 from irsol_data_pipeline.orchestration.flows import _build_scan_report_markdown
 from irsol_data_pipeline.pipeline.scanner import ScanResult
 

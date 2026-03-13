@@ -1,7 +1,9 @@
-from matplotlib import pyplot as plt
-import numpy as np
 from typing import Optional
-from irsol_data_pipeline.core.types import StokesParameters
+
+import numpy as np
+from matplotlib import pyplot as plt
+
+from irsol_data_pipeline.core.models import StokesParameters
 
 
 def plot(

@@ -5,7 +5,7 @@ import datetime
 import numpy as np
 import pytest
 
-from irsol_data_pipeline.core.metadata import (
+from irsol_data_pipeline.core.models import (
     MeasurementMetadata,
     _decode_info,
     _parse_zimpol_datetime,

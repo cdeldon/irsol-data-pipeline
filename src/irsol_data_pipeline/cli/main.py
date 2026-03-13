@@ -103,9 +103,8 @@ def process_day(
 ) -> None:
     """Process all unprocessed measurements for a single observation day."""
     _setup_logging(verbose)
-    from irsol_data_pipeline.io.filesystem import ObservationDay
+    from irsol_data_pipeline.core.models import MaxDeltaPolicy, ObservationDay
     from irsol_data_pipeline.pipeline.day_processor import (
-        MaxDeltaPolicy,
         process_observation_day,
     )
 
@@ -173,9 +172,9 @@ def process_measurement(
 ) -> None:
     """Process a single measurement file."""
     _setup_logging(verbose)
+    from irsol_data_pipeline.core.models import MaxDeltaPolicy
     from irsol_data_pipeline.io.filesystem import discover_flatfield_files
     from irsol_data_pipeline.pipeline.day_processor import (
-        MaxDeltaPolicy,
         process_single_measurement,
     )
     from irsol_data_pipeline.pipeline.flatfield_cache import build_flatfield_cache
@@ -278,9 +277,9 @@ def plot_stokes(
 ) -> None:
     """Plot Stokes parameters (I, Q/I, U/I, V/I) from a measurement file."""
     _setup_logging(verbose)
+    from irsol_data_pipeline.calibration.autocalibrate import calibrate_measurement
     from irsol_data_pipeline.io.dat_reader import load_measurement
     from irsol_data_pipeline.plotting import plot_profile
-    from irsol_data_pipeline.calibration.autocalibrate import calibrate_measurement
 
     meas_path = Path(measurement_path)
     if not meas_path.is_file():

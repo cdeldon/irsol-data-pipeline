@@ -8,25 +8,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from loguru import logger
-from pydantic import BaseModel, ConfigDict
 
+from irsol_data_pipeline.core.models import ScanResult
 from irsol_data_pipeline.io.filesystem import (
-    ObservationDay,
-    discover_observation_days,
     discover_measurement_files,
+    discover_observation_days,
     is_measurement_processed,
 )
-
-
-class ScanResult(BaseModel):
-    """Result of scanning a dataset root."""
-
-    model_config = ConfigDict(frozen=True)
-
-    observation_days: list[ObservationDay]
-    pending_measurements: dict[str, list[Path]]  # day_name -> [measurement_paths]
-    total_measurements: int
-    total_pending: int
 
 
 def scan_dataset(root: Path) -> ScanResult:
