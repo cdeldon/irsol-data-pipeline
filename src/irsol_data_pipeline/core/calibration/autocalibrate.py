@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -26,7 +25,7 @@ _DEFAULT_REFDATA_DIR = Path(__file__).parent / "refdata"
 
 def calibrate_measurement(
     stokes: StokesParameters,
-    refdata_dir: Optional[Path] = None,
+    refdata_dir: Path = _DEFAULT_REFDATA_DIR,
 ) -> CalibrationResult:
     """Run wavelength auto-calibration on a measurement.
 
@@ -41,9 +40,6 @@ def calibrate_measurement(
     Raises:
         RuntimeError: If calibration fails.
     """
-    if refdata_dir is None:
-        refdata_dir = _DEFAULT_REFDATA_DIR
-
     simean = _prepare_mean_spectrum(stokes.i, stokes.v)
     ref_data, reference_peaks, lines, reference_params, shift = _find_refdata(
         simean, refdata_dir

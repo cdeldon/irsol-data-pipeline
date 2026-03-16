@@ -42,8 +42,7 @@ def process_single_measurement(
         max_delta_policy: Policy for flat-field time thresholds.
         refdata_dir: Directory with calibration reference data.
     """
-    if max_delta_policy is None:
-        max_delta_policy = MaxDeltaPolicy()
+    max_delta_policy = max_delta_policy or MaxDeltaPolicy()
 
     processed_dir.mkdir(parents=True, exist_ok=True)
 

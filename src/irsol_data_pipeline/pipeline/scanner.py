@@ -63,3 +63,45 @@ def scan_dataset(root: Path) -> ScanResult:
         total_measurements=total,
         total_pending=total_pending,
     )
+
+
+def build_scan_report_markdown(root: Path, scan_result: ScanResult) -> str:
+    """Build a markdown summary of scan results for Prefect artifacts."""
+    total_processed = scan_result.total_measurements - scan_result.total_pending
+    lines = [
+        "# Dataset Scan Summary",
+        "",
+        f"- Root: `{root}`",
+        f"- Observation days discovered: `{len(scan_result.observation_days)}`",
+        f"- Total measurements found: `{scan_result.total_measurements}`",
+        f"- Already processed: `{total_processed}`",
+        f"- Still to process: `{scan_result.total_pending}`",
+        "",
+    ]
+
+    if scan_result.total_pending == 0:
+        lines.extend(
+            [
+                "## Pending Measurements",
+                "",
+                "No pending measurements found.",
+            ]
+        )
+        return "\n".join(lines)
+
+    lines.extend(
+        [
+            "## Pending Measurements",
+            "",
+            "| Observation Day | Pending Count | Files |",
+            "|---|---:|---|",
+        ]
+    )
+
+    for day_name in sorted(scan_result.pending_measurements):
+        files = sorted(p.name for p in scan_result.pending_measurements[day_name])
+        lines.append(
+            f"| `{day_name}` | {len(files)} | {', '.join(f'`{f}`' for f in files)} |"
+        )
+
+    return "\n".join(lines)

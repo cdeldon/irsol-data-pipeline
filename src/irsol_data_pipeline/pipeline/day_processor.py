@@ -59,8 +59,8 @@ def process_observation_day(
     Returns:
         DayProcessingResult summary.
     """
-    if max_delta_policy is None:
-        max_delta_policy = MaxDeltaPolicy()
+
+    max_delta_policy = max_delta_policy or MaxDeltaPolicy()
 
     result = DayProcessingResult(day_name=day.name)
 

@@ -141,10 +141,12 @@ class MeasurementMetadata(BaseModel):
             return raw.get(key)
 
         def _get_required(key: str) -> str:
-            v = raw.get(key)
-            if v is None:
-                raise KeyError(f"Required metadata key '{key}' not found in info array")
-            return v
+            try:
+                return raw[key]
+            except KeyError as err:
+                raise KeyError(
+                    f"Required metadata key '{key}' not found in info array"
+                ) from err
 
         def _parse_datetime(key: str) -> Optional[datetime.datetime]:
             v = raw.get(key)

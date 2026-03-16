@@ -17,7 +17,6 @@ from typing import Optional
 
 from loguru import logger
 from prefect import flow, task
-from prefect.artifacts import create_markdown_artifact
 from prefect.futures import as_completed
 from prefect.task_runners import ThreadPoolTaskRunner
 
@@ -32,61 +31,24 @@ from irsol_data_pipeline.io.filesystem import (
     reduced_dir_for_day,
 )
 from irsol_data_pipeline.orchestration.patch_logging import setup_logging
+from irsol_data_pipeline.orchestration.utils import create_prefect_markdown_report
 from irsol_data_pipeline.pipeline.day_processor import (
     process_observation_day,
 )
-from irsol_data_pipeline.pipeline.scanner import ScanResult, scan_dataset
-
-
-def _build_scan_report_markdown(root: Path, scan_result: ScanResult) -> str:
-    """Build a markdown summary of scan results for Prefect artifacts."""
-    total_processed = scan_result.total_measurements - scan_result.total_pending
-    lines = [
-        "# Dataset Scan Summary",
-        "",
-        f"- Root: `{root}`",
-        f"- Observation days discovered: `{len(scan_result.observation_days)}`",
-        f"- Total measurements found: `{scan_result.total_measurements}`",
-        f"- Already processed: `{total_processed}`",
-        f"- Still to process: `{scan_result.total_pending}`",
-        "",
-    ]
-
-    if scan_result.total_pending == 0:
-        lines.extend(
-            [
-                "## Pending Measurements",
-                "",
-                "No pending measurements found.",
-            ]
-        )
-        return "\n".join(lines)
-
-    lines.extend(
-        [
-            "## Pending Measurements",
-            "",
-            "| Observation Day | Pending Count | Files |",
-            "|---|---:|---|",
-        ]
-    )
-
-    for day_name in sorted(scan_result.pending_measurements):
-        files = sorted(p.name for p in scan_result.pending_measurements[day_name])
-        lines.append(
-            f"| `{day_name}` | {len(files)} | {', '.join(f'`{f}`' for f in files)} |"
-        )
-
-    return "\n".join(lines)
+from irsol_data_pipeline.pipeline.scanner import (
+    ScanResult,
+    build_scan_report_markdown,
+    scan_dataset,
+)
 
 
 @task(task_run_name="find-observations-to-process/{root}")
 def scan_dataset_task(root: Path) -> ScanResult:
     """Prefect task: scan the dataset root."""
     scan_result = scan_dataset(root)
-    markdown = _build_scan_report_markdown(root=root, scan_result=scan_result)
-    create_markdown_artifact(
-        markdown=markdown,
+    markdown = build_scan_report_markdown(root=root, scan_result=scan_result)
+    create_prefect_markdown_report(
+        content=markdown,
         description="Dataset scan summary: pending and already processed measurements",
     )
     return scan_result
@@ -116,7 +78,7 @@ def process_unprocessed_measurements(
     root: str,
     max_delta_hours: float = 2.0,
     refdata_dir: Optional[str] = None,
-    max_concurrency: int = max(1, min(12, (os.cpu_count() or 1) - 1)),
+    max_concurrent_days_to_process: int = max(1, min(12, (os.cpu_count() or 1) - 1)),
 ) -> list[DayProcessingResult]:
     """Scan the dataset and process all days with pending measurements.
 
@@ -124,7 +86,7 @@ def process_unprocessed_measurements(
         root: Dataset root path.
         max_delta_hours: Maximum flat-field time delta in hours.
         refdata_dir: Path to wavelength calibration reference data.
-        max_concurrency: Maximum number of concurrent day processing tasks. Defaults to CPU count - 1, capped at 12.
+        max_concurrent_days_to_process: Maximum number of concurrent day processing tasks. Defaults to CPU count - 1, capped at 12.
 
     Returns:
         List of DayProcessingResult for each processed day.
@@ -157,10 +119,10 @@ def process_unprocessed_measurements(
     logger.info(
         "Submitting day processing tasks",
         day_count=len(selected_day_paths),
-        max_concurrency=max_concurrency,
+        max_concurrent_days_to_process=max_concurrent_days_to_process,
     )
 
-    with ThreadPoolTaskRunner(max_workers=max_concurrency) as runner:
+    with ThreadPoolTaskRunner(max_workers=max_concurrent_days_to_process) as runner:
         result_futures = []
         for day_path in selected_day_paths:
             future = runner.submit(

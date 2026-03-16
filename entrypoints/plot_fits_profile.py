@@ -58,9 +58,7 @@ def main() -> None:
     if not fits_path.is_file():
         raise FileNotFoundError(f"FITS file not found: {fits_path}")
 
-    output_path = args.output
-    if output_path is None:
-        output_path = fits_path.with_name(f"{fits_path.stem}_profile.png")
+    output_path = args.output or fits_path.with_name(f"{fits_path.stem}_profile.png")
 
     imported = load_fits_measurement(fits_path)
     title = _build_plot_title(imported.header, fits_path)

@@ -63,8 +63,7 @@ class FlatFieldCache:
         Returns:
             The closest FlatFieldCorrection, or None if none within threshold.
         """
-        if max_delta is None:
-            max_delta = self.max_delta
+        max_delta = max_delta or self.max_delta
 
         candidates = self._corrections.get(wavelength, [])
         if not candidates:

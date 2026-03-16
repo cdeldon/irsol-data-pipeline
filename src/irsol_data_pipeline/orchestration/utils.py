@@ -13,6 +13,16 @@ def sanitize_artifact_title(title: str) -> str:
     return "".join(c for c in title if c in allowed_chars)
 
 
+def create_prefect_markdown_report(content: str, description: str):
+    if prefect_enabled():
+        from prefect.artifacts import create_markdown_artifact
+
+        create_markdown_artifact(
+            markdown=content,
+            description=description,
+        )
+
+
 def create_prefect_progress_callback(name: str, total: int) -> Callable[[int], None]:
     if prefect_enabled():
         from prefect.artifacts import create_progress_artifact, update_progress_artifact

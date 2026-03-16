@@ -74,8 +74,7 @@ def analyze_flatfield(
     Returns:
         Tuple of (dust_flat, offset_map, desmiled).
     """
-    if config is None:
-        config = create_config_for_data(flat_field_si)
+    config = config or create_config_for_data(flat_field_si)
 
     # Ensure data is 3D for spectroflat
     if flat_field_si.ndim == 2:
