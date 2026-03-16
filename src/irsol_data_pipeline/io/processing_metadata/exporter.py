@@ -5,13 +5,13 @@ from __future__ import annotations
 import datetime
 import json
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
-import irsol_data_pipeline
+from irsol_data_pipeline.version import __version__ as pipeline_version
 
 
 def write_processing_metadata(
-    output_path: Union[Path, str],
+    output_path: Path,
     source_file: str,
     flat_field_used: str,
     flat_field_timestamp: datetime.datetime,
@@ -36,8 +36,6 @@ def write_processing_metadata(
     Returns:
         Path to the written file.
     """
-    path = Path(output_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
 
     data: dict[str, Any] = {
         "source_file": source_file,
@@ -49,19 +47,19 @@ def write_processing_metadata(
         "processing_timestamp": datetime.datetime.now(
             datetime.timezone.utc
         ).isoformat(),
-        "pipeline_version": irsol_data_pipeline.__version__,
+        "pipeline_version": pipeline_version,
     }
     if extra:
         data.update(extra)
 
-    with open(path, "w") as f:
+    with output_path.open("w") as f:
         json.dump(data, f, indent=2, default=str)
 
-    return path
+    return output_path
 
 
 def write_error_metadata(
-    output_path: Union[Path, str],
+    output_path: Path,
     source_file: str,
     error: str,
 ) -> Path:
@@ -75,8 +73,6 @@ def write_error_metadata(
     Returns:
         Path to the written file.
     """
-    path = Path(output_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
 
     data = {
         "source_file": source_file,
@@ -84,23 +80,10 @@ def write_error_metadata(
         "processing_timestamp": datetime.datetime.now(
             datetime.timezone.utc
         ).isoformat(),
-        "pipeline_version": irsol_data_pipeline.__version__,
+        "pipeline_version": pipeline_version,
     }
 
-    with open(path, "w") as f:
+    with output_path.open("w") as f:
         json.dump(data, f, indent=2)
 
-    return path
-
-
-def read_metadata(path: Union[Path, str]) -> dict[str, Any]:
-    """Read a metadata or error JSON file.
-
-    Args:
-        path: Path to the JSON file.
-
-    Returns:
-        Parsed dict.
-    """
-    with open(Path(path)) as f:
-        return json.load(f)
+    return output_path

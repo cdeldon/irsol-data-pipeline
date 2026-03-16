@@ -11,6 +11,8 @@ from qollib.strings import parse_shape
 from spectroflat import Analyser, Config, SensorFlatConfig, SmileConfig
 from spectroflat.smile import OffsetMap
 
+from irsol_data_pipeline.exceptions import InvalidMeasurementDataException
+
 
 def create_config_for_data(flat_field: np.ndarray) -> Config:
     """Create a spectroflat Config appropriate for the given flat-field data.
@@ -26,7 +28,9 @@ def create_config_for_data(flat_field: np.ndarray) -> Config:
     elif flat_field.ndim == 3:
         ff_shape = flat_field.shape[1:]
     else:
-        raise ValueError(f"Flat field must be 2D or 3D, got shape {flat_field.shape}")
+        raise InvalidMeasurementDataException(
+            f"Flat field must be 2D or 3D, got shape {flat_field.shape}"
+        )
 
     roi = parse_shape(f"[1:{ff_shape[0] - 2},1:{ff_shape[1] - 2}]")
 

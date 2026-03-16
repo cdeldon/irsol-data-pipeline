@@ -11,15 +11,13 @@ from irsol_data_pipeline.core.models import (
     MaxDeltaPolicy,
     ObservationDay,
 )
+from irsol_data_pipeline.io import processing_metadata as processing_metadata_io
 from irsol_data_pipeline.io.filesystem import (
     discover_flatfield_files,
     discover_measurement_files,
     get_processed_stem,
     is_measurement_processed,
     processed_output_path,
-)
-from irsol_data_pipeline.io.metadata_store import (
-    write_error_metadata,
 )
 from irsol_data_pipeline.orchestration.utils import (
     create_prefect_json_report,
@@ -118,7 +116,7 @@ def process_observation_day(
                 meas_path.name,
                 kind="error_json",
             )
-            write_error_metadata(
+            processing_metadata_io.write_error(
                 error_path,
                 source_file=meas_path.name,
                 error=str(e),

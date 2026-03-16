@@ -1,4 +1,4 @@
-"""Tests for the day processor MaxDeltaPolicy."""
+"""Tests for ``MaxDeltaPolicy`` behavior."""
 
 import datetime
 

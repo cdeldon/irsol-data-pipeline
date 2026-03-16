@@ -10,6 +10,7 @@ import numpy as np
 from astropy.io import fits
 
 from irsol_data_pipeline.core.models import CalibrationResult, StokesParameters
+from irsol_data_pipeline.exceptions import FitsImportError
 
 
 @dataclass(frozen=True)
@@ -83,7 +84,9 @@ def _get_hdu(hdul: fits.HDUList, extname: str, fallback_index: int) -> fits.Imag
 
     hdu = hdul[fallback_index]
     if not isinstance(hdu, fits.ImageHDU):
-        raise ValueError(f"Expected ImageHDU at index {fallback_index} for {extname}")
+        raise FitsImportError(
+            f"Expected ImageHDU at index {fallback_index} for {extname}"
+        )
     return hdu
 
 
@@ -92,7 +95,7 @@ def _to_spatial_spectral(data: np.ndarray) -> np.ndarray:
     arr = np.asarray(data)
     arr = np.squeeze(arr)
     if arr.ndim != 2:
-        raise ValueError(
+        raise FitsImportError(
             f"Expected 2D Stokes image after squeeze, got shape {arr.shape}"
         )
     return arr.T

@@ -1,19 +1,15 @@
-"""Tests for the metadata store (JSON read/write)."""
+"""Tests for processing metadata JSON read/write helpers."""
 
 import datetime
 import json
 
-from irsol_data_pipeline.io.metadata_store import (
-    read_metadata,
-    write_error_metadata,
-    write_processing_metadata,
-)
+from irsol_data_pipeline.io import processing_metadata as processing_metadata_io
 
 
 class TestWriteProcessingMetadata:
     def test_writes_valid_json(self, tmp_path):
         output = tmp_path / "test_metadata.json"
-        write_processing_metadata(
+        processing_metadata_io.write(
             output,
             source_file="6302_m1.dat",
             flat_field_used="ff6302_m3.dat",
@@ -37,28 +33,11 @@ class TestWriteProcessingMetadata:
         assert "processing_timestamp" in data
         assert "pipeline_version" in data
 
-    def test_creates_parent_dirs(self, tmp_path):
-        output = tmp_path / "sub" / "dir" / "meta.json"
-        write_processing_metadata(
-            output,
-            source_file="test.dat",
-            flat_field_used="ff.dat",
-            flat_field_timestamp=datetime.datetime(
-                2024, 6, 1, 12, 0, tzinfo=datetime.timezone.utc
-            ),
-            measurement_timestamp=datetime.datetime(
-                2024, 6, 1, 12, 14, tzinfo=datetime.timezone.utc
-            ),
-            flat_field_time_delta_seconds=0,
-            calibration_info={},
-        )
-        assert output.exists()
-
 
 class TestWriteErrorMetadata:
     def test_writes_error(self, tmp_path):
         output = tmp_path / "error.json"
-        write_error_metadata(
+        processing_metadata_io.write_error(
             output,
             source_file="6302_m1.dat",
             error="No flat-field within threshold",
@@ -74,5 +53,5 @@ class TestReadMetadata:
     def test_reads_json(self, tmp_path):
         path = tmp_path / "test.json"
         path.write_text('{"key": "value"}')
-        data = read_metadata(path)
+        data = processing_metadata_io.read(path)
         assert data["key"] == "value"

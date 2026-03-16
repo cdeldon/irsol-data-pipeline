@@ -18,6 +18,7 @@ from scipy.signal import correlate
 
 from irsol_data_pipeline.core.config import V_STOKES_CUTOFF
 from irsol_data_pipeline.core.models import CalibrationResult, StokesParameters
+from irsol_data_pipeline.exceptions import AutocalibrationReferenceFilesNotFound
 
 # Default: reference data shipped with this package
 _DEFAULT_REFDATA_DIR = Path(__file__).parent / "refdata"
@@ -138,7 +139,7 @@ def _find_refdata(
         ref_datasets.append(ref_data)
 
     if not ref_datasets:
-        raise RuntimeError(f"No reference data files found in {refdata_dir}")
+        raise AutocalibrationReferenceFilesNotFound(refdata_dir)
 
     correlations = [None] * len(ref_datasets)
     correlation_coefficients = [0.0] * len(ref_datasets)

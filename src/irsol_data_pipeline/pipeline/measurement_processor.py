@@ -16,12 +16,14 @@ from irsol_data_pipeline.core.models import (
     MeasurementMetadata,
     StokesParameters,
 )
+from irsol_data_pipeline.exceptions import FlatFieldAssociationNotFoundException
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import flatfield as flatfield_io
+from irsol_data_pipeline.io import processing_metadata as processing_metadata_io
 from irsol_data_pipeline.io.filesystem import get_processed_stem, processed_output_path
 from irsol_data_pipeline.io.fits.exporter import write_stokes_fits
-from irsol_data_pipeline.io.metadata_store import write_processing_metadata
 from irsol_data_pipeline.orchestration.decorators import task
+from irsol_data_pipeline.orchestration.retry import retry_condition_except_on_exceptions
 from irsol_data_pipeline.orchestration.utils import create_prefect_json_report
 from irsol_data_pipeline.pipeline.flatfield_cache import FlatFieldCache
 from irsol_data_pipeline.plotting import plot_profile
@@ -42,9 +44,6 @@ def process_single_measurement(
         max_delta_policy: Policy for flat-field time thresholds.
     """
     max_delta_policy = max_delta_policy or MaxDeltaPolicy()
-
-    processed_dir.mkdir(parents=True, exist_ok=True)
-
     _process_single_measurement(
         meas_path=measurement_path,
         processed_dir=processed_dir,
@@ -81,6 +80,9 @@ def _plot_data(
     task_run_name="process-measurement/{meas_path.name}",
     retries=2,
     retry_delay_seconds=10,
+    retry_condition_fn=retry_condition_except_on_exceptions(
+        FlatFieldAssociationNotFoundException,
+    ),
 )
 def _process_single_measurement(
     meas_path: Path,
@@ -118,10 +120,7 @@ def _process_single_measurement(
     )
 
     if ff_correction is None:
-        raise RuntimeError(
-            f"No flat-field within {max_delta} for wavelength "
-            f"{measurement.wavelength} at {measurement.timestamp}"
-        )
+        raise FlatFieldAssociationNotFoundException(measurement, max_delta)
 
     ff_time_delta = abs(
         (ff_correction.timestamp - measurement.timestamp).total_seconds()
@@ -180,7 +179,7 @@ def _process_single_measurement(
         meas_path.name,
         kind="metadata_json",
     )
-    write_processing_metadata(
+    processing_metadata_io.write(
         metadata_path,
         source_file=meas_path.name,
         flat_field_timestamp=ff_correction.timestamp,

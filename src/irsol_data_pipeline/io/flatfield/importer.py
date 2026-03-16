@@ -6,6 +6,7 @@ import pickle
 from pathlib import Path
 
 from irsol_data_pipeline.core.models import FlatFieldCorrection
+from irsol_data_pipeline.exceptions import FlatfieldCorrectionImportError
 
 
 def load_correction_data(path: Path) -> FlatFieldCorrection:
@@ -21,9 +22,11 @@ def load_correction_data(path: Path) -> FlatFieldCorrection:
         try:
             flatfield_correction = pickle.load(f)
         except pickle.UnpicklingError as e:
-            raise ValueError(f"Failed to unpickle FlatFieldCorrection from {path}: {e}")
+            raise FlatfieldCorrectionImportError(
+                f"Failed to unpickle FlatFieldCorrection from {path}: {e}"
+            )
     if not isinstance(flatfield_correction, FlatFieldCorrection):
-        raise ValueError(
+        raise FlatfieldCorrectionImportError(
             f"Expected FlatFieldCorrection object in {path}, got {type(flatfield_correction)}"
         )
     return flatfield_correction

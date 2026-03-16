@@ -7,6 +7,7 @@ from spectroflat.smile import OffsetMap
 from spectroflat.smile.interpolated_correction import SmileInterpolator
 
 from irsol_data_pipeline.core.models import StokesParameters
+from irsol_data_pipeline.exceptions import SmileCorrectionException
 
 
 def apply_correction(
@@ -50,5 +51,5 @@ def _desmile(data: np.ndarray, offset_map: OffsetMap) -> np.ndarray:
     desmiled = interpolator.run()
     result = desmiled.result
     if result is None:
-        raise RuntimeError("Smile correction produced no result")
+        raise SmileCorrectionException("Smile correction produced no result")
     return result

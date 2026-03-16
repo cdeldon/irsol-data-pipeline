@@ -11,6 +11,7 @@ from scipy.io import readsav
 from irsol_data_pipeline.core.models import (
     StokesParameters,
 )
+from irsol_data_pipeline.exceptions import DatImportError
 
 
 def read_zimpol_dat(
@@ -28,7 +29,7 @@ def read_zimpol_dat(
     if path.suffix.lower() in [".dat", ".sav"]:
         data = readsav(str(path), verbose=False, python_dict=True)
     else:
-        raise ValueError(f"Unsupported file format: {path.suffix}")
+        raise DatImportError(f"Unsupported file format: {path.suffix}")
 
     si = np.array(data["si"])
     sq = np.array(data["sq"])

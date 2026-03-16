@@ -55,16 +55,14 @@ def write_stokes_fits(
     Returns:
         The path written to.
     """
-    out = Path(output_path)
-    out.parent.mkdir(parents=True, exist_ok=True)
 
     hdu_list = _build_fits_hdu_list(
         stokes=stokes,
         info=info,
         calibration=calibration,
     )
-    hdu_list.writeto(str(out), overwrite=True)
-    return out
+    hdu_list.writeto(str(output_path), overwrite=True)
+    return output_path
 
 
 def _build_fits_hdu_list(
