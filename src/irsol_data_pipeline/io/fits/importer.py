@@ -8,6 +8,7 @@ from typing import Optional
 
 import numpy as np
 from astropy.io import fits
+from loguru import logger
 
 from irsol_data_pipeline.core.models import CalibrationResult, StokesParameters
 from irsol_data_pipeline.exceptions import FitsImportError
@@ -24,6 +25,7 @@ class ImportedFitsMeasurement:
 
 def load_fits_measurement(fits_path: Path) -> ImportedFitsMeasurement:
     """Load Stokes profiles and optional wavelength calibration from FITS."""
+    logger.debug("Loading FITS measurement", path=fits_path)
     with fits.open(fits_path) as hdul:
         si_hdu = _get_hdu(hdul, "Stokes I", 1)
         sq_hdu = _get_hdu(hdul, "Stokes Q/I", 2)
@@ -38,6 +40,16 @@ def load_fits_measurement(fits_path: Path) -> ImportedFitsMeasurement:
             v=_to_spatial_spectral(sv_hdu.data),
         )
         calibration = _extract_calibration(header)
+
+    logger.debug(
+        "Loaded FITS measurement",
+        path=fits_path,
+        has_calibration=calibration is not None,
+        shape_i=stokes.i.shape,
+        shape_q=stokes.q.shape,
+        shape_u=stokes.u.shape,
+        shape_v=stokes.v.shape,
+    )
 
     return ImportedFitsMeasurement(
         stokes=stokes,
@@ -57,11 +69,13 @@ def _extract_calibration(header: fits.Header) -> Optional[CalibrationResult]:
         has_calibration = wavecal_value.strip() == "1"
 
     if not has_calibration:
+        logger.debug("No FITS calibration metadata present (WAVECAL != 1)")
         return None
 
     a0 = _as_float(header.get("CRVAL3"))
     a1 = _as_float(header.get("CDELT3"))
     if a0 is None or a1 is None:
+        logger.debug("Incomplete FITS calibration metadata", crval3=a0, cdelt3=a1)
         return None
 
     a1_err = _as_float(header.get("CRDER3"))

@@ -16,6 +16,7 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.io import fits
 from astropy.time import Time
+from loguru import logger
 from sunpy.coordinates import frames, sun
 from sunpy.coordinates.sun import angular_radius
 
@@ -55,6 +56,15 @@ def write_stokes_fits(
     Returns:
         The path written to.
     """
+    logger.debug(
+        "Writing Stokes FITS",
+        output_path=output_path,
+        has_calibration=calibration is not None,
+        shape_i=stokes.i.shape,
+        shape_q=stokes.q.shape,
+        shape_u=stokes.u.shape,
+        shape_v=stokes.v.shape,
+    )
 
     hdu_list = _build_fits_hdu_list(
         stokes=stokes,
@@ -62,6 +72,7 @@ def write_stokes_fits(
         calibration=calibration,
     )
     hdu_list.writeto(str(output_path), overwrite=True)
+    logger.debug("Stokes FITS written", output_path=output_path)
     return output_path
 
 
@@ -84,6 +95,7 @@ def _calibration_values(
 ) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
     """Resolve wavelength calibration values for FITS headers."""
     if calibration is None:
+        logger.debug("No wavelength calibration provided for FITS export")
         return None, None, None, None
 
     return (

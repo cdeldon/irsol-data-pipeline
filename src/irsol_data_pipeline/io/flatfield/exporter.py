@@ -6,6 +6,8 @@ import pickle
 from pathlib import Path
 from typing import Union
 
+from loguru import logger
+
 from irsol_data_pipeline.core.models import FlatFieldCorrection
 
 
@@ -24,6 +26,8 @@ def write_correction_data(
     """
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    logger.debug("Writing flat-field correction pickle", path=path)
     with open(path, "wb") as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+    logger.debug("Flat-field correction pickle written", path=path)
     return path

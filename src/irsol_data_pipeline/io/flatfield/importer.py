@@ -5,6 +5,8 @@ from __future__ import annotations
 import pickle
 from pathlib import Path
 
+from loguru import logger
+
 from irsol_data_pipeline.core.models import FlatFieldCorrection
 from irsol_data_pipeline.exceptions import FlatfieldCorrectionImportError
 
@@ -18,6 +20,7 @@ def load_correction_data(path: Path) -> FlatFieldCorrection:
     Returns:
         Deserialized FlatFieldCorrection.
     """
+    logger.debug("Loading flat-field correction pickle", path=path)
     with open(path, "rb") as f:
         try:
             flatfield_correction = pickle.load(f)
@@ -29,4 +32,5 @@ def load_correction_data(path: Path) -> FlatFieldCorrection:
         raise FlatfieldCorrectionImportError(
             f"Expected FlatFieldCorrection object in {path}, got {type(flatfield_correction)}"
         )
+    logger.debug("Loaded flat-field correction pickle", path=path)
     return flatfield_correction

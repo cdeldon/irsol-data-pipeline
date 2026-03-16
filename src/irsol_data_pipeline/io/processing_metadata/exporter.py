@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+
 from irsol_data_pipeline.version import __version__ as pipeline_version
 
 
@@ -36,6 +38,7 @@ def write_processing_metadata(
     Returns:
         Path to the written file.
     """
+    logger.debug("Writing processing metadata JSON", path=output_path)
 
     data: dict[str, Any] = {
         "source_file": source_file,
@@ -55,6 +58,7 @@ def write_processing_metadata(
     with output_path.open("w") as f:
         json.dump(data, f, indent=2, default=str)
 
+    logger.debug("Processing metadata JSON written", path=output_path)
     return output_path
 
 
@@ -73,6 +77,7 @@ def write_error_metadata(
     Returns:
         Path to the written file.
     """
+    logger.debug("Writing processing error JSON", path=output_path)
 
     data = {
         "source_file": source_file,
@@ -86,4 +91,5 @@ def write_error_metadata(
     with output_path.open("w") as f:
         json.dump(data, f, indent=2)
 
+    logger.debug("Processing error JSON written", path=output_path)
     return output_path

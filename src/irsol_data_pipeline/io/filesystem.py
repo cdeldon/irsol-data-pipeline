@@ -10,6 +10,8 @@ import re
 from pathlib import Path
 from typing import Literal
 
+from loguru import logger
+
 from irsol_data_pipeline.core.config import (
     CACHE_DIRNAME,
     CORRECTED_FITS_SUFFIX,
@@ -112,9 +114,11 @@ def discover_observation_days(root: Path) -> list[ObservationDay]:
     Returns:
         Sorted list of ObservationDay objects.
     """
+    logger.debug("Scanning observation days", root=root)
     days: list[ObservationDay] = []
 
     if not root.is_dir():
+        logger.debug("Observation root does not exist", root=root)
         return days
 
     for year_dir in sorted(root.iterdir()):
@@ -134,7 +138,9 @@ def discover_observation_days(root: Path) -> list[ObservationDay]:
                     )
                 )
 
-    return sorted(days, key=lambda d: d.path)
+    days_sorted = sorted(days, key=lambda d: d.path)
+    logger.debug("Discovered observation days", root=root, count=len(days_sorted))
+    return days_sorted
 
 
 def discover_measurement_files(reduced_dir: Path) -> list[Path]:
@@ -148,7 +154,9 @@ def discover_measurement_files(reduced_dir: Path) -> list[Path]:
     Returns:
         Sorted list of measurement file paths.
     """
+    logger.debug("Scanning measurement files", reduced_dir=reduced_dir)
     if not reduced_dir.is_dir():
+        logger.debug("Reduced directory does not exist", reduced_dir=reduced_dir)
         return []
 
     files: list[Path] = []
@@ -165,7 +173,13 @@ def discover_measurement_files(reduced_dir: Path) -> list[Path]:
         if OBSERVATION_PATTERN.match(p.name):
             files.append(p)
 
-    return sorted(files)
+    files_sorted = sorted(files)
+    logger.debug(
+        "Discovered measurement files",
+        reduced_dir=reduced_dir,
+        count=len(files_sorted),
+    )
+    return files_sorted
 
 
 def discover_flatfield_files(reduced_dir: Path) -> list[Path]:
@@ -177,7 +191,9 @@ def discover_flatfield_files(reduced_dir: Path) -> list[Path]:
     Returns:
         Sorted list of flat-field file paths.
     """
+    logger.debug("Scanning flat-field files", reduced_dir=reduced_dir)
     if not reduced_dir.is_dir():
+        logger.debug("Reduced directory does not exist", reduced_dir=reduced_dir)
         return []
 
     files: list[Path] = []
@@ -185,7 +201,13 @@ def discover_flatfield_files(reduced_dir: Path) -> list[Path]:
         if p.is_file() and FLATFIELD_PATTERN.match(p.name):
             files.append(p)
 
-    return sorted(files)
+    files_sorted = sorted(files)
+    logger.debug(
+        "Discovered flat-field files",
+        reduced_dir=reduced_dir,
+        count=len(files_sorted),
+    )
+    return files_sorted
 
 
 def get_processed_stem(source_name: str) -> str:
@@ -226,4 +248,13 @@ def is_measurement_processed(processed_dir: Path, source_name: str) -> bool:
         source_name,
         kind="error_json",
     )
-    return corrected_fits.exists() or error.exists()
+    is_processed = corrected_fits.exists() or error.exists()
+    logger.debug(
+        "Checked processed state",
+        source_name=source_name,
+        processed_dir=processed_dir,
+        has_corrected_fits=corrected_fits.exists(),
+        has_error_json=error.exists(),
+        is_processed=is_processed,
+    )
+    return is_processed
