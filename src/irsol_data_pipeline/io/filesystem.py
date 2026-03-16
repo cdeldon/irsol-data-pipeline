@@ -8,7 +8,20 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Literal
 
+from irsol_data_pipeline.core.config import (
+    CACHE_DIRNAME,
+    CORRECTED_FITS_SUFFIX,
+    ERROR_JSON_SUFFIX,
+    FLATFIELD_CORRECTION_DATA_SUFFIX,
+    METADATA_JSON_SUFFIX,
+    PROCESSED_DIRNAME,
+    PROFILE_CORRECTED_PNG_SUFFIX,
+    PROFILE_ORIGINAL_PNG_SUFFIX,
+    RAW_DIRNAME,
+    REDUCED_DIRNAME,
+)
 from irsol_data_pipeline.core.models import ObservationDay
 from irsol_data_pipeline.orchestration.decorators import task
 
@@ -20,6 +33,70 @@ FLATFIELD_PATTERN = re.compile(r"^ff(\d+)_m(\d+)\.dat$")
 
 # Patterns to ignore: cal*, dark*
 IGNORED_PREFIXES = ("cal", "dark")
+
+
+ProcessedOutputKind = Literal[
+    "corrected_fits",
+    "error_json",
+    "metadata_json",
+    "flatfield_correction_data",
+    "profile_corrected_png",
+    "profile_original_png",
+]
+
+_PROCESSED_SUFFIX_BY_KIND: dict[ProcessedOutputKind, str] = {
+    "corrected_fits": CORRECTED_FITS_SUFFIX,
+    "error_json": ERROR_JSON_SUFFIX,
+    "metadata_json": METADATA_JSON_SUFFIX,
+    "flatfield_correction_data": FLATFIELD_CORRECTION_DATA_SUFFIX,
+    "profile_corrected_png": PROFILE_CORRECTED_PNG_SUFFIX,
+    "profile_original_png": PROFILE_ORIGINAL_PNG_SUFFIX,
+}
+
+
+def raw_dir_for_day(day_path: Path) -> Path:
+    """Return the canonical raw directory for an observation day path."""
+    return day_path / RAW_DIRNAME
+
+
+def reduced_dir_for_day(day_path: Path) -> Path:
+    """Return the canonical reduced directory for an observation day path."""
+    return day_path / REDUCED_DIRNAME
+
+
+def processed_dir_for_day(day_path: Path) -> Path:
+    """Return the canonical processed directory for an observation day path."""
+    return day_path / PROCESSED_DIRNAME
+
+
+def processed_cache_dir_for_day(day_path: Path) -> Path:
+    """Return the canonical processed cache directory for an observation day
+    path."""
+    return processed_dir_for_day(day_path) / CACHE_DIRNAME
+
+
+def processed_dir_for_measurement(measurement_path: Path) -> Path:
+    """Return the default processed directory for a measurement path."""
+    return measurement_path.parent.parent / PROCESSED_DIRNAME
+
+
+def processed_output_path(
+    processed_dir: Path,
+    source_name: str,
+    kind: ProcessedOutputKind,
+) -> Path:
+    """Build a canonical processed output path for a source measurement
+    name."""
+    stem = get_processed_stem(source_name)
+    return processed_dir / f"{stem}{_PROCESSED_SUFFIX_BY_KIND[kind]}"
+
+
+def flatfield_correction_cache_path(flatfield_path: Path) -> Path:
+    """Return the flat-field correction cache path for a flat-field .dat
+    path."""
+    cache_filename = f"{flatfield_path.stem}_correction_cache.pkl"
+    day_path = flatfield_path.parent.parent
+    return processed_cache_dir_for_day(day_path) / cache_filename
 
 
 @task(task_run_name="discover-observation-days-for-{root.name}")
@@ -46,14 +123,14 @@ def discover_observation_days(root: Path) -> list[ObservationDay]:
         for day_dir in sorted(year_dir.iterdir()):
             if not day_dir.is_dir():
                 continue
-            reduced = day_dir / "reduced"
+            reduced = day_dir / REDUCED_DIRNAME
             if reduced.is_dir():
                 days.append(
                     ObservationDay(
                         path=day_dir,
-                        raw_dir=day_dir / "raw",
+                        raw_dir=day_dir / RAW_DIRNAME,
                         reduced_dir=reduced,
-                        processed_dir=day_dir / "processed",
+                        processed_dir=day_dir / PROCESSED_DIRNAME,
                     )
                 )
 
@@ -139,7 +216,14 @@ def is_measurement_processed(processed_dir: Path, source_name: str) -> bool:
     Returns:
         True if already processed.
     """
-    stem = get_processed_stem(source_name)
-    corrected_fits = processed_dir / f"{stem}_corrected.fits"
-    error = processed_dir / f"{stem}_error.json"
+    corrected_fits = processed_output_path(
+        processed_dir,
+        source_name,
+        kind="corrected_fits",
+    )
+    error = processed_output_path(
+        processed_dir,
+        source_name,
+        kind="error_json",
+    )
     return corrected_fits.exists() or error.exists()

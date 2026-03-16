@@ -16,6 +16,7 @@ from irsol_data_pipeline.core.config import DEFAULT_MAX_DELTA
 from irsol_data_pipeline.core.correction.analyzer import analyze_flatfield
 from irsol_data_pipeline.core.models import FlatFieldCorrection
 from irsol_data_pipeline.io.dat_reader import load_flatfield, read_flatfield_si
+from irsol_data_pipeline.io.filesystem import flatfield_correction_cache_path
 from irsol_data_pipeline.io.flatfield_correction_reader import read_flatfield_correction
 from irsol_data_pipeline.io.flatfield_correction_writer import (
     write_flatfield_correction,
@@ -113,14 +114,6 @@ def _analyze_flatfield(path: Path) -> FlatFieldCorrection:
     return correction
 
 
-def _flatfield_correction_cache_path(
-    flatfield_path: Path,
-) -> Path:
-    """Determine the cache file path for a given flat-field file."""
-    cache_filename = f"{flatfield_path.stem}_correction_cache.pkl"
-    return flatfield_path.parent.parent / "processed" / "_cache" / cache_filename
-
-
 @task(task_run_name="flat-field-correction/build")
 def build_flatfield_cache(
     flatfield_paths: list[Path],
@@ -142,7 +135,7 @@ def build_flatfield_cache(
     # identify if the flatfields have already been computed and cached, and if so, load them instead of recomputing
     remaining_flatfields = []
     for flatfield_path in flatfield_paths:
-        cache_path = _flatfield_correction_cache_path(flatfield_path)
+        cache_path = flatfield_correction_cache_path(flatfield_path)
         if allow_cached_data and cache_path.is_file():
             try:
                 correction = read_flatfield_correction(cache_path)
@@ -171,7 +164,7 @@ def build_flatfield_cache(
         try:
             correction = _analyze_flatfield(ff_path)
             write_flatfield_correction(
-                correction, _flatfield_correction_cache_path(ff_path)
+                correction, flatfield_correction_cache_path(ff_path)
             )
         except Exception:
             logger.exception("Failed to analyze flat-field", file=ff_path.name)

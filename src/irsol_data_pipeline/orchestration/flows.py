@@ -26,6 +26,11 @@ from irsol_data_pipeline.core.models import (
     MaxDeltaPolicy,
     ObservationDay,
 )
+from irsol_data_pipeline.io.filesystem import (
+    processed_dir_for_day,
+    raw_dir_for_day,
+    reduced_dir_for_day,
+)
 from irsol_data_pipeline.orchestration.patch_logging import setup_logging
 from irsol_data_pipeline.pipeline.day_processor import (
     process_observation_day,
@@ -108,7 +113,7 @@ def run_day_processing_subflow_task(
     description="Scans the dataset and processes all days with pending measurements",
 )
 def process_unprocessed_measurements(
-    root: Optional[str] = None,
+    root: str,
     max_delta_hours: float = 2.0,
     refdata_dir: Optional[str] = None,
     max_concurrency: int = max(1, min(12, (os.cpu_count() or 1) - 1)),
@@ -116,7 +121,7 @@ def process_unprocessed_measurements(
     """Scan the dataset and process all days with pending measurements.
 
     Args:
-        root: Dataset root path. Falls back to SOLAR_PIPELINE_ROOT env var.
+        root: Dataset root path.
         max_delta_hours: Maximum flat-field time delta in hours.
         refdata_dir: Path to wavelength calibration reference data.
         max_concurrency: Maximum number of concurrent day processing tasks. Defaults to CPU count - 1, capped at 12.
@@ -128,12 +133,6 @@ def process_unprocessed_measurements(
     logger.info(
         "Starting dataset scan flow", root=root, max_delta_hours=max_delta_hours
     )
-    if root is None:
-        root = os.environ.get("SOLAR_PIPELINE_ROOT")
-        if root is None:
-            raise ValueError(
-                "Dataset root not provided and SOLAR_PIPELINE_ROOT not set"
-            )
 
     dataset_root = Path(root)
     # Scan
@@ -219,9 +218,9 @@ def process_daily_unprocessed_measurements(
     path = Path(day_path)
     day = ObservationDay(
         path=path,
-        raw_dir=path / "raw",
-        reduced_dir=path / "reduced",
-        processed_dir=path / "processed",
+        raw_dir=raw_dir_for_day(path),
+        reduced_dir=reduced_dir_for_day(path),
+        processed_dir=processed_dir_for_day(path),
     )
 
     ref_path = Path(refdata_dir) if refdata_dir else None

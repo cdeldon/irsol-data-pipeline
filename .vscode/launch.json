@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Correct measurement",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "entrypoints/process_single_measurement.py",
+            "console": "integratedTerminal",
+            "args": [
+                "data/2025/251111/reduced/5886_m14.dat"
+            ]
+        },
+        {
+            "name": "Plot fitz",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "entrypoints/plot_fits_profile.py",
+            "console": "integratedTerminal",
+            "args": [
+                "data/2025/251111/processed/5886_m14_corrected.fits"
+            ]
+        }
+    ]
+}

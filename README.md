@@ -54,13 +54,7 @@ From the repository root:
 uv sync
 ```
 
-### 3. Set dataset root
-
-```bash
-export SOLAR_PIPELINE_ROOT=/path/to/your/dataset/root
-```
-
-### 4. Run with Prefect
+### 3. Run with Prefect
 
 Use Prefect as the only interaction path:
 
@@ -90,7 +84,10 @@ irsol-data-pipeline/
 ├── data/                          # Local dataset root used in development
 ├── documentation/                 # Documentation assets (screenshots, notes)
 ├── entrypoints/                   # Runtime entry scripts (for deployments and ops)
-│   └── serve_pipeline.py
+│   ├── serve_pipeline.py          # Serve the Prefect deployment locally
+│   ├── process_single_measurement.py
+│   │                             # Run correction/calibration for one .dat file
+│   └── plot_fits_profile.py       # Plot Stokes profiles from a processed FITS file
 ├── src/irsol_data_pipeline/
 │   ├── core/                      # Shared domain and scientific core logic
 │   │   ├── models.py              # Shared domain models/types used across modules
@@ -246,3 +243,39 @@ Notes:
 - Each day processing run reports processed/skipped/failed counts.
 
 ![Prefect dashboard showing deployment and run logs](./documentation/assets/prefect-dashboard.png)
+
+## FITS Profile Plot Entry Point
+
+For quick profile visualization from an existing FITS product, use:
+
+```bash
+uv run entrypoints/plot_fits_profile.py /path/to/measurement_corrected.fits
+```
+
+Optional output path:
+
+```bash
+uv run entrypoints/plot_fits_profile.py /path/to/measurement_corrected.fits -o /path/to/profile.png
+```
+
+The entrypoint reads Stokes image extensions from the FITS file, extracts title
+metadata from headers, and passes wavelength calibration (`a0`/`a1`) to the
+profile plot when calibration metadata is available.
+
+## Single Measurement Correction Entry Point
+
+To run correction/calibration for one `.dat` measurement:
+
+```bash
+uv run entrypoints/process_single_measurement.py /path/to/reduced/6302_m1.dat
+```
+
+Optional arguments:
+
+```bash
+uv run entrypoints/process_single_measurement.py /path/to/reduced/6302_m1.dat \
+	--flatfield-dir /path/to/reduced \
+	--output-dir /path/to/processed \
+	--refdata-dir /path/to/refdata \
+	--max-delta-hours 2.0
+```

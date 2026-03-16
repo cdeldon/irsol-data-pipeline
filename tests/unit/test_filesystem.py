@@ -1,13 +1,32 @@
 """Tests for filesystem discovery utilities."""
 
+from irsol_data_pipeline.core.config import (
+    CACHE_DIRNAME,
+    CORRECTED_FITS_SUFFIX,
+    ERROR_JSON_SUFFIX,
+    FLATFIELD_CORRECTION_DATA_SUFFIX,
+    METADATA_JSON_SUFFIX,
+    PROCESSED_DIRNAME,
+    PROFILE_CORRECTED_PNG_SUFFIX,
+    PROFILE_ORIGINAL_PNG_SUFFIX,
+    RAW_DIRNAME,
+    REDUCED_DIRNAME,
+)
 from irsol_data_pipeline.io.filesystem import (
     FLATFIELD_PATTERN,
     OBSERVATION_PATTERN,
     discover_flatfield_files,
     discover_measurement_files,
     discover_observation_days,
+    flatfield_correction_cache_path,
     get_processed_stem,
     is_measurement_processed,
+    processed_cache_dir_for_day,
+    processed_dir_for_day,
+    processed_dir_for_measurement,
+    processed_output_path,
+    raw_dir_for_day,
+    reduced_dir_for_day,
 )
 
 
@@ -36,12 +55,15 @@ class TestDiscoverObservationDays:
     def test_discovers_days(self, tmp_path):
         # Create: root/2024/240713/reduced/
         day_dir = tmp_path / "2024" / "240713"
-        (day_dir / "reduced").mkdir(parents=True)
-        (day_dir / "raw").mkdir(parents=True)
+        (day_dir / REDUCED_DIRNAME).mkdir(parents=True)
+        (day_dir / RAW_DIRNAME).mkdir(parents=True)
 
         days = discover_observation_days(tmp_path)
         assert len(days) == 1
         assert days[0].name == "240713"
+        assert days[0].raw_dir == day_dir / RAW_DIRNAME
+        assert days[0].reduced_dir == day_dir / REDUCED_DIRNAME
+        assert days[0].processed_dir == day_dir / PROCESSED_DIRNAME
 
     def test_skips_dirs_without_reduced(self, tmp_path):
         day_dir = tmp_path / "2024" / "240713"
@@ -53,7 +75,7 @@ class TestDiscoverObservationDays:
     def test_multiple_years(self, tmp_path):
         for year, day in [("2024", "240713"), ("2025", "251111")]:
             d = tmp_path / year / day
-            (d / "reduced").mkdir(parents=True)
+            (d / REDUCED_DIRNAME).mkdir(parents=True)
 
         days = discover_observation_days(tmp_path)
         assert len(days) == 2
@@ -109,14 +131,108 @@ class TestGetProcessedStem:
         assert get_processed_stem("ff6302_m1.dat") == "ff6302_m1"
 
 
+class TestDayDirectoryBuilders:
+    def test_raw_dir_for_day(self, tmp_path):
+        day_path = tmp_path / "2025" / "251111"
+        assert raw_dir_for_day(day_path) == day_path / RAW_DIRNAME
+
+    def test_reduced_dir_for_day(self, tmp_path):
+        day_path = tmp_path / "2025" / "251111"
+        assert reduced_dir_for_day(day_path) == day_path / REDUCED_DIRNAME
+
+    def test_processed_dir_for_day(self, tmp_path):
+        day_path = tmp_path / "2025" / "251111"
+        assert processed_dir_for_day(day_path) == day_path / PROCESSED_DIRNAME
+
+    def test_processed_cache_dir_for_day(self, tmp_path):
+        day_path = tmp_path / "2025" / "251111"
+        assert processed_cache_dir_for_day(day_path) == (
+            day_path / PROCESSED_DIRNAME / CACHE_DIRNAME
+        )
+
+
+class TestMeasurementPathBuilders:
+    def test_processed_dir_for_measurement(self, tmp_path):
+        measurement_path = (
+            tmp_path / "2025" / "251111" / REDUCED_DIRNAME / "6302_m1.dat"
+        )
+        assert processed_dir_for_measurement(measurement_path) == (
+            tmp_path / "2025" / "251111" / PROCESSED_DIRNAME
+        )
+
+    def test_flatfield_correction_cache_path(self, tmp_path):
+        flatfield_path = (
+            tmp_path / "2025" / "251111" / REDUCED_DIRNAME / "ff6302_m3.dat"
+        )
+        assert flatfield_correction_cache_path(flatfield_path) == (
+            tmp_path
+            / "2025"
+            / "251111"
+            / PROCESSED_DIRNAME
+            / CACHE_DIRNAME
+            / "ff6302_m3_correction_cache.pkl"
+        )
+
+
+class TestProcessedOutputPath:
+    def test_corrected_fits_path(self, tmp_path):
+        path = processed_output_path(tmp_path, "6302_m1.dat", kind="corrected_fits")
+        assert path == tmp_path / f"6302_m1{CORRECTED_FITS_SUFFIX}"
+
+    def test_error_json_path(self, tmp_path):
+        path = processed_output_path(tmp_path, "6302_m1.dat", kind="error_json")
+        assert path == tmp_path / f"6302_m1{ERROR_JSON_SUFFIX}"
+
+    def test_metadata_json_path(self, tmp_path):
+        path = processed_output_path(tmp_path, "6302_m1.dat", kind="metadata_json")
+        assert path == tmp_path / f"6302_m1{METADATA_JSON_SUFFIX}"
+
+    def test_flatfield_correction_data_path(self, tmp_path):
+        path = processed_output_path(
+            tmp_path,
+            "6302_m1.dat",
+            kind="flatfield_correction_data",
+        )
+        assert path == tmp_path / f"6302_m1{FLATFIELD_CORRECTION_DATA_SUFFIX}"
+
+    def test_profile_corrected_png_path(self, tmp_path):
+        path = processed_output_path(
+            tmp_path,
+            "6302_m1.dat",
+            kind="profile_corrected_png",
+        )
+        assert path == tmp_path / f"6302_m1{PROFILE_CORRECTED_PNG_SUFFIX}"
+
+    def test_profile_original_png_path(self, tmp_path):
+        path = processed_output_path(
+            tmp_path,
+            "6302_m1.dat",
+            kind="profile_original_png",
+        )
+        assert path == tmp_path / f"6302_m1{PROFILE_ORIGINAL_PNG_SUFFIX}"
+
+    def test_processed_output_uses_stem_of_source_name(self, tmp_path):
+        path = processed_output_path(tmp_path, "nested.name.dat", kind="corrected_fits")
+        assert path == tmp_path / f"nested.name{CORRECTED_FITS_SUFFIX}"
+
+
 class TestIsMeasurementProcessed:
     def test_not_processed(self, tmp_path):
         assert not is_measurement_processed(tmp_path, "6302_m1.dat")
 
     def test_corrected_fits_exists(self, tmp_path):
-        (tmp_path / "6302_m1_corrected.fits").touch()
+        processed_output_path(tmp_path, "6302_m1.dat", kind="corrected_fits").touch()
         assert is_measurement_processed(tmp_path, "6302_m1.dat")
 
     def test_error_exists(self, tmp_path):
-        (tmp_path / "6302_m1_error.json").touch()
+        processed_output_path(tmp_path, "6302_m1.dat", kind="error_json").touch()
         assert is_measurement_processed(tmp_path, "6302_m1.dat")
+
+    def test_prefers_centralized_output_builder(self, tmp_path):
+        corrected_path = processed_output_path(
+            tmp_path,
+            "4078_m12.dat",
+            kind="corrected_fits",
+        )
+        corrected_path.touch()
+        assert is_measurement_processed(tmp_path, "4078_m12.dat")

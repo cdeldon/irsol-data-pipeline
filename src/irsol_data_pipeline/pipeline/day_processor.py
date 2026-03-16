@@ -24,6 +24,7 @@ from irsol_data_pipeline.io.filesystem import (
     discover_measurement_files,
     get_processed_stem,
     is_measurement_processed,
+    processed_output_path,
 )
 from irsol_data_pipeline.io.fits.exporter import write_stokes_fits
 from irsol_data_pipeline.io.metadata_store import (
@@ -145,7 +146,11 @@ def process_observation_day(
 
             # Write error file
             stem = get_processed_stem(meas_path.name)
-            error_path = day.processed_dir / f"{stem}_error.json"
+            error_path = processed_output_path(
+                day.processed_dir,
+                meas_path.name,
+                kind="error_json",
+            )
             write_error_metadata(
                 error_path,
                 source_file=meas_path.name,
@@ -274,6 +279,7 @@ def _process_single_measurement(
     )
 
     # 3. Apply flat-field correction
+    logger.info("Applying flat-field correction", file=meas_path.name)
     corrected_stokes = apply_correction(
         stokes=measurement.stokes,
         dust_flat=ff_correction.dust_flat,
@@ -300,7 +306,11 @@ def _process_single_measurement(
     #  TODO: rengen info array with new calibration results if needed
     #  (e.g. update wavelength info, add calibration metadata, etc.)
     write_stokes_fits(
-        processed_dir / f"{stem}_corrected.fits",
+        processed_output_path(
+            processed_dir,
+            meas_path.name,
+            kind="corrected_fits",
+        ),
         corrected_stokes,
         info_raw,
         calibration=calibration,
@@ -308,7 +318,11 @@ def _process_single_measurement(
 
     # 6. Save flat-field correction data (pickle)
     save_correction_data(
-        processed_dir / f"{stem}_flat_field_correction_data.pkl",
+        processed_output_path(
+            processed_dir,
+            meas_path.name,
+            kind="flatfield_correction_data",
+        ),
         {
             "dust_flat": ff_correction.dust_flat,
             "offset_map": ff_correction.offset_map,
@@ -318,7 +332,11 @@ def _process_single_measurement(
     )
 
     # 7. Save processing metadata
-    metadata_path = processed_dir / f"{stem}_metadata.json"
+    metadata_path = processed_output_path(
+        processed_dir,
+        meas_path.name,
+        kind="metadata_json",
+    )
     write_processing_metadata(
         metadata_path,
         source_file=meas_path.name,
@@ -355,13 +373,21 @@ def _process_single_measurement(
         stokes=corrected_stokes,
         calibration=calibration,
         title=f"{stem} - Corrected",
-        filename_save=processed_dir / f"{stem}_profile_corrected.png",
+        filename_save=processed_output_path(
+            processed_dir,
+            meas_path.name,
+            kind="profile_corrected_png",
+        ),
     )
     _plot_data(
         stokes=measurement.stokes,
         calibration=calibration,
         title=f"{stem} - Original",
-        filename_save=processed_dir / f"{stem}_profile_original.png",
+        filename_save=processed_output_path(
+            processed_dir,
+            meas_path.name,
+            kind="profile_original_png",
+        ),
     )
 
     logger.success("Measurement processed", file=meas_path.name)
