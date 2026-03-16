@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Optional
 
@@ -23,9 +22,9 @@ from irsol_data_pipeline.io.filesystem import (
 from irsol_data_pipeline.io.metadata_store import (
     write_error_metadata,
 )
-from irsol_data_pipeline.orchestration.decorators import prefect_enabled
 from irsol_data_pipeline.orchestration.utils import (
-    sanitize_artifact_title,
+    create_prefect_json_report,
+    create_prefect_progress_callback,
 )
 from irsol_data_pipeline.pipeline.flatfield_cache import (
     build_flatfield_cache,
@@ -63,26 +62,18 @@ def process_observation_day(
     if max_delta_policy is None:
         max_delta_policy = MaxDeltaPolicy()
 
-    result = DayProcessingResult(
-        day_name=day.name,
-        total_measurements=0,
-        processed=0,
-        skipped=0,
-        failed=0,
-    )
+    result = DayProcessingResult(day_name=day.name)
 
     # Ensure processed directory exists
     day.processed_dir.mkdir(parents=True, exist_ok=True)
 
     # Discover files
     measurement_paths = discover_measurement_files(day.reduced_dir)
-    flatfield_paths = discover_flatfield_files(day.reduced_dir)
-    result.total_measurements = len(measurement_paths)
-
     if not measurement_paths:
         logger.info("No measurements found", reduced_dir=str(day.reduced_dir))
         return result
 
+    flatfield_paths = discover_flatfield_files(day.reduced_dir)
     # Build flat-field cache (analyzed once, reused for all measurements)
     logger.info(
         "Building flat-field cache",
@@ -98,22 +89,9 @@ def process_observation_day(
         wavelengths=ff_cache.wavelengths,
     )
 
-    if prefect_enabled():
-        from prefect.artifacts import create_progress_artifact, update_progress_artifact
-
-        progress_id = create_progress_artifact(
-            0.0,
-            key=sanitize_artifact_title(f"progress-{day.name}"),
-            description=f"Processing progress for {day.name}",
-        )
-
-        def update_progress(processed: int):
-            percent = (processed + 1) / len(measurement_paths) * 100
-            update_progress_artifact(artifact_id=progress_id, progress=percent)
-    else:
-
-        def update_progress(processed: int):
-            pass  # No-op if not using Prefect
+    update_progress = create_prefect_progress_callback(
+        name=day.name, total=len(measurement_paths)
+    )
 
     for meas_i, meas_path in enumerate(sorted(measurement_paths)):
         update_progress(meas_i)
@@ -149,23 +127,10 @@ def process_observation_day(
                 source_file=meas_path.name,
                 error=str(e),
             )
-            if prefect_enabled():
-                from prefect.artifacts import create_table_artifact
-
-                with open(error_path, "r", encoding="utf-8") as f:
-                    error_content = json.load(f)
-
-                table_rows = []
-                for k, v in error_content.items():
-                    if isinstance(v, dict):
-                        for kk, vv in v.items():
-                            table_rows.append({"key": f"{k}.{kk}", "value": str(vv)})
-                    else:
-                        table_rows.append({"key": k, "value": str(v)})
-                create_table_artifact(
-                    table=table_rows,
-                    key=sanitize_artifact_title(f"error-metadata-{meas_path.name}"),
-                    description=f"Error for failed processed measurement {stem}",
-                )
+            create_prefect_json_report(
+                error_path,
+                title=f"Error for failed processed measurement {stem}",
+                key=f"error-metadata-{meas_path.name}",
+            )
 
     return result

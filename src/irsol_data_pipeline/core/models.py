@@ -321,11 +321,14 @@ class DayProcessingResult(BaseModel):
     """Summary of processing a single observation day."""
 
     day_name: str
-    total_measurements: int
-    processed: int
-    skipped: int
-    failed: int
+    processed: int = 0
+    skipped: int = 0
+    failed: int = 0
     errors: list[str] = Field(default_factory=list)
+
+    @property
+    def total_measurements(self) -> int:
+        return self.processed + self.skipped + self.failed
 
 
 class ScanResult(BaseModel):
