@@ -5,8 +5,8 @@
  - [x] Implement wavelength auto-calibration
  - [x] Implement per-measurement processing pipeline
  - [x] Implement dataset scanning and orchestration with Prefect
- - [ ] Robust CLI capabilities for local processing and debugging
- - [ ] Correct export capabilities into `.fits` format, currently output is saved as `.npz` file but the final goal is to export into `.fits` format for compatibility with existing tools and workflows.
+ - [x] Prefect-only operational interface
+ - [x] Correct export capabilities into `.fits` format for compatibility with existing tools and workflows.
  - [ ] Comprehensive unit and integration tests
  - [ ] Documentation and usage examples
 
@@ -17,10 +17,7 @@ It discovers unprocessed observations, computes and reuses flat-field correction
 applies those corrections to matching measurements, auto-calibrates wavelength,
 and writes processed outputs plus metadata.
 
-The project supports two operation styles:
-
-- Local CLI processing (single day or single measurement).
-- Prefect-orchestrated processing (scan and process multiple observation days).
+The project is operated through Prefect flows (scan and process multiple observation days).
 
 Expected dataset layout:
 
@@ -63,22 +60,13 @@ uv sync
 export SOLAR_PIPELINE_ROOT=/path/to/your/dataset/root
 ```
 
-### 4. Run commands
+### 4. Run with Prefect
 
-Examples:
-
-```bash
-uv run solar-pipeline scan
-uv run solar-pipeline process-day /path/to/<year>/<day>
-uv run solar-pipeline process-measurement /path/to/file.dat
-uv run solar-pipeline export-fits /path/to/file.dat
-uv run solar-pipeline plot-stokes /path/to/file.dat --calibrate
-```
-
-You can also run the Typer app module directly:
+Use Prefect as the only interaction path:
 
 ```bash
-uv run python -m irsol_data_pipeline.cli.main --help
+make prefect/dashboard
+make prefect/serve-pipeline
 ```
 
 Optional Make targets:
@@ -104,7 +92,6 @@ irsol-data-pipeline/
 ├── entrypoints/                   # Runtime entry scripts (for deployments and ops)
 │   └── serve_pipeline.py
 ├── src/irsol_data_pipeline/
-│   ├── cli/                       # Typer CLI commands
 │   ├── core/                      # Shared domain and scientific core logic
 │   │   ├── models.py              # Shared domain models/types used across modules
 │   │   ├── config.py              # Shared configuration models/defaults
@@ -138,11 +125,11 @@ The codebase is split into focused layers.
 	  `CalibrationResult`, and processing result/policy models used across the
 	  pipeline, I/O, and orchestration layers.
 - Shared configuration module (`src/irsol_data_pipeline/core/config.py`):
-	- Centralized configuration models/default values so CLI commands, pipeline
-	  steps, and orchestration flows consume a consistent configuration contract.
+	- Centralized configuration models/default values so pipeline
+	  steps and orchestration flows consume a consistent configuration contract.
 - I/O (`src/irsol_data_pipeline/io/`):
-	- Read `.dat`/`.sav`/`.npz` (`dat_reader.py`)
-	- Write corrected data (`dat_writer.py`)
+	- Read `.dat`/`.sav` (`dat_reader.py`)
+	- Persist correction cache payloads (`dat_writer.py`)
 	- Export FITS products (`io/fits/exporter.py`)
 	- Discover observation days/files (`filesystem.py`)
 	- Persist metadata/error JSON (`metadata_store.py`)
@@ -162,15 +149,13 @@ The codebase is split into focused layers.
 	- Prefect flows for dataset-wide and per-day processing
 		(`orchestration/flows.py`)
 	- Prefect-aware logging bridge (`orchestration/patch_logging.py`)
-- CLI:
-	- User-facing commands via Typer (`cli/main.py`)
 
 ### Processing pipeline
 
 Per day, the processing behavior is:
 
 1. Discovery: find measurement files in `reduced/` and skip already processed
-	 measurements (`*_corrected.dat.npz` or `*_error.json` in `processed/`).
+	 measurements (`*_corrected.fits` or `*_error.json` in `processed/`).
 2. Flat-field analysis: build/load a cache of flat-field corrections per
 	 wavelength.
 3. Matching and correction: for each measurement, select the closest-time
@@ -183,15 +168,12 @@ Per day, the processing behavior is:
 
 For a source measurement `6302_m1.dat`, the pipeline writes into `processed/`:
 
-- `6302_m1_corrected.dat.npz`: corrected Stokes arrays in NumPy NPZ format
+- `6302_m1_corrected.fits`: corrected Stokes arrays and observation metadata in FITS format
 - `6302_m1_flat_field_correction_data.pkl`: serialized flat-field correction payload
 - `6302_m1_metadata.json`: processing metadata and calibration summary
 - `6302_m1_profile_corrected.png`: plot of corrected Stokes profiles
 - `6302_m1_profile_original.png`: plot of original Stokes profiles
 - `6302_m1_error.json`: written only if processing fails
-
-Note: corrected output uses an NPZ container with a `.dat` stem
-(`*_corrected.dat.npz`) for compatibility with existing naming conventions.
 
 ```mermaid
 flowchart TD
@@ -212,7 +194,7 @@ flowchart TD
 		J -- No --> K[Write *_error.json]
 		J -- Yes --> L[Apply flat-field and smile]
 		L --> M[Auto-calibrate wavelength]
-		M --> N[Write *_corrected.dat.npz]
+		M --> N[Write *_corrected.fits]
 		N --> O[Write correction pickle
         *_flat_field_correction_data.pkl]
 		O --> P[Write *_metadata.json]

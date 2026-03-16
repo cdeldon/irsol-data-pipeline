@@ -18,13 +18,14 @@ from irsol_data_pipeline.core.models import (
     StokesParameters,
 )
 from irsol_data_pipeline.io.dat_reader import load_measurement, read_zimpol_dat
-from irsol_data_pipeline.io.dat_writer import save_correction_data, write_corrected_dat
+from irsol_data_pipeline.io.dat_writer import save_correction_data
 from irsol_data_pipeline.io.filesystem import (
     discover_flatfield_files,
     discover_measurement_files,
     get_processed_stem,
     is_measurement_processed,
 )
+from irsol_data_pipeline.io.fits.exporter import write_stokes_fits
 from irsol_data_pipeline.io.metadata_store import (
     write_error_metadata,
     write_processing_metadata,
@@ -298,10 +299,11 @@ def _process_single_measurement(
     _, info_raw = read_zimpol_dat(meas_path)
     #  TODO: rengen info array with new calibration results if needed
     #  (e.g. update wavelength info, add calibration metadata, etc.)
-    write_corrected_dat(
-        processed_dir / f"{stem}_corrected.dat",
+    write_stokes_fits(
+        processed_dir / f"{stem}_corrected.fits",
         corrected_stokes,
         info_raw,
+        calibration=calibration,
     )
 
     # 6. Save flat-field correction data (pickle)

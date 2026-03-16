@@ -1581,14 +1581,12 @@ dependencies = [
     { name = "prefect" },
     { name = "pydantic" },
     { name = "qollib" },
-    { name = "rich" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "spectroflat" },
     { name = "sunpy", version = "6.0.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sunpy", version = "7.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*' or python_full_version == '3.14.*'" },
     { name = "sunpy", version = "7.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.15' or (python_full_version >= '3.12' and python_full_version < '3.14')" },
-    { name = "typer" },
 ]
 
 [package.dev-dependencies]
@@ -1606,11 +1604,9 @@ requires-dist = [
     { name = "prefect", specifier = ">=3.0.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "qollib", specifier = ">=0.1.0" },
-    { name = "rich", specifier = ">=13.0.0" },
     { name = "scipy", specifier = ">=1.10.0" },
     { name = "spectroflat", specifier = ">=2.1.0" },
     { name = "sunpy", specifier = ">=5.0" },
-    { name = "typer", specifier = ">=0.9.0" },
 ]
 
 [package.metadata.requires-dev]

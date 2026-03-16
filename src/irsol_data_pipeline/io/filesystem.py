@@ -128,8 +128,9 @@ def get_processed_stem(source_name: str) -> str:
 def is_measurement_processed(processed_dir: Path, source_name: str) -> bool:
     """Check whether a measurement has already been processed.
 
-    A measurement is considered processed if either a ``*_corrected.dat.npz``
-    file or an ``*_error.json`` file exists in the processed directory.
+    A measurement is considered processed if either a canonical
+    ``*_corrected.fits`` file or an ``*_error.json`` file exists in
+    the processed directory.
 
     Args:
         processed_dir: Path to the processed/ folder.
@@ -139,6 +140,6 @@ def is_measurement_processed(processed_dir: Path, source_name: str) -> bool:
         True if already processed.
     """
     stem = get_processed_stem(source_name)
-    corrected = processed_dir / f"{stem}_corrected.dat.npz"
+    corrected_fits = processed_dir / f"{stem}_corrected.fits"
     error = processed_dir / f"{stem}_error.json"
-    return corrected.exists() or error.exists()
+    return corrected_fits.exists() or error.exists()

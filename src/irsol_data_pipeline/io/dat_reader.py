@@ -30,9 +30,6 @@ def read_zimpol_dat(
     path = Path(file_path).resolve()
     if path.suffix.lower() in [".dat", ".sav"]:
         data = readsav(str(path), verbose=False, python_dict=True)
-    elif path.suffix.lower() == ".npz":
-        loaded = np.load(path, allow_pickle=True)
-        data = {key: loaded[key] for key in loaded.files}
     else:
         raise ValueError(f"Unsupported file format: {path.suffix}")
 

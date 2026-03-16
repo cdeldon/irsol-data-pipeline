@@ -18,57 +18,55 @@ from astropy.time import Time
 from sunpy.coordinates import frames, sun
 from sunpy.coordinates.sun import angular_radius
 
-from irsol_data_pipeline.core.calibration.autocalibrate import calibrate_measurement
-from irsol_data_pipeline.core.models import MeasurementMetadata, StokesParameters
+from irsol_data_pipeline.core.models import (
+    CalibrationResult,
+    MeasurementMetadata,
+    StokesParameters,
+)
 from irsol_data_pipeline.io.dat_reader import read_zimpol_dat
 
 IRSOL_LOCATION = EarthLocation(
-    lat=46.176906 * u.deg, lon=8.788521 * u.deg, height=503.4 * u.m
+    lat=46.176906 * u.Unit("deg"),
+    lon=8.788521 * u.Unit("deg"),
+    height=503.4 * u.Unit("m"),
 )
 
 GREGOR_LOCATION = EarthLocation(
-    lat=28.3014 * u.deg, lon=-16.5097 * u.deg, height=2390.0 * u.m
+    lat=28.3014 * u.Unit("deg"),
+    lon=-16.5097 * u.Unit("deg"),
+    height=2390.0 * u.Unit("m"),
 )
 
 
 def export_to_fits(
     dat_path: Union[Path, str],
     output_path: Optional[Union[Path, str]] = None,
-    refdata_dir: Optional[Path] = None,
+    calibration: Optional[CalibrationResult] = None,
 ) -> Optional[Path]:
-    """Export a .dat measurement file to FITS format.
+    """Export a measurement file to FITS format.
 
-    Reads the measurement, performs wavelength calibration, and writes a
-    multi-extension FITS file with SOLARNET-compliant headers.
+    Reads the measurement and writes a multi-extension FITS file with
+    SOLARNET-compliant headers.
 
-    Works with both reduced and processed .dat files.
+    Works with reduced `.dat`/`.sav` files.
 
     Args:
         dat_path: Path to the input .dat file.
         output_path: Where to write the .fits file. If None, the FITS
             content is built but not written (dry run).
-        refdata_dir: Directory with wavelength calibration reference data.
+        calibration: Optional precomputed wavelength calibration metadata.
 
     Returns:
         Path to the written FITS file, or None if no output_path given.
     """
     dat_path = Path(dat_path)
 
-    # Load data
     stokes, info = read_zimpol_dat(dat_path)
-    metadata = MeasurementMetadata.from_info_array(info)
-
-    # Wavelength calibration
-    try:
-        cal = calibrate_measurement(stokes, refdata_dir=refdata_dir)
-        a1, a0 = cal.pixel_scale, cal.wavelength_offset
-        a1_err, a0_err = cal.pixel_scale_error, cal.wavelength_offset_error
-    except Exception:
-        a1, a0 = None, None
-        a1_err, a0_err = None, None
-
-    # Build FITS HDU list
-    hdu_list = _build_hdu_list(stokes, metadata, a1, a0, a1_err, a0_err, dat_path)
+    hdu_list = build_fits_hdu_list(
+        stokes=stokes,
+        info=info,
+        calibration=calibration,
+    )
 
     if output_path is not None:
         out = Path(output_path)
@@ -79,6 +77,65 @@ def export_to_fits(
     return None
 
 
+def write_stokes_fits(
+    output_path: Union[Path, str],
+    stokes: StokesParameters,
+    info: np.ndarray,
+    calibration: Optional[CalibrationResult] = None,
+) -> Path:
+    """Write processed Stokes data to a FITS file.
+
+    Args:
+        output_path: Where to write the `.fits` file.
+        stokes: Stokes data to serialize.
+        info: Raw ZIMPOL info array used to derive FITS metadata.
+        calibration: Optional precomputed wavelength calibration.
+
+    Returns:
+        The path written to.
+    """
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    hdu_list = build_fits_hdu_list(
+        stokes=stokes,
+        info=info,
+        calibration=calibration,
+    )
+    hdu_list.writeto(str(out), overwrite=True)
+    return out
+
+
+def build_fits_hdu_list(
+    stokes: StokesParameters,
+    info: np.ndarray,
+    calibration: Optional[CalibrationResult] = None,
+) -> fits.HDUList:
+    """Build a FITS HDU list from Stokes data and raw info metadata.
+
+    Calibration metadata is only included when an explicit calibration
+    object is provided.
+    """
+    metadata = MeasurementMetadata.from_info_array(info)
+    a1, a0, a1_err, a0_err = _calibration_values(calibration)
+    return _build_hdu_list(stokes, metadata, a1, a0, a1_err, a0_err)
+
+
+def _calibration_values(
+    calibration: Optional[CalibrationResult],
+) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
+    """Resolve wavelength calibration values for FITS headers."""
+    if calibration is None:
+        return None, None, None, None
+
+    return (
+        calibration.pixel_scale,
+        calibration.wavelength_offset,
+        calibration.pixel_scale_error,
+        calibration.wavelength_offset_error,
+    )
+
+
 def _build_hdu_list(
     stokes: StokesParameters,
     metadata: MeasurementMetadata,
@@ -86,7 +143,6 @@ def _build_hdu_list(
     a0: Optional[float],
     a1_err: Optional[float],
     a0_err: Optional[float],
-    source_path: Path,
 ) -> fits.HDUList:
     """Build a complete multi-extension FITS HDU list."""
 
@@ -187,6 +243,10 @@ def _fill_primary_header(header: fits.Header, metadata: MeasurementMetadata) -> 
     )
     header["WAVEUNIT"] = (-10, "WAVELNTH in units 10^WAVEUNIT m = Angstrom")
     header["WAVEREF"] = "air"
+    header["WL_ATLAS"] = (
+        "An Atlas of the Spectrum of the Solar Photosphere, L. Wallace, K. Hinkle, and W. Livingston, National Optical Astronomy Observatories",
+        "Reference for wavelength calibration",
+    )
     header["PIXSIZEX"] = (22.5, "[micrometer], CCD pixel size x")
     header["PIXSIZEY"] = (90, "[micrometer], CCD pixel size y")
 
@@ -245,15 +305,15 @@ def _fill_data_header(
         y_scaling = 1.3
         gcrs = location.get_gcrs(obstime=obs_time)
         header["OBSGEO-X"] = (
-            gcrs.cartesian.x.to_value(u.m),
+            gcrs.cartesian.x.to_value(u.Unit("m")),
             "[m] IRSOL location (ITRS)",
         )
         header["OBSGEO-Y"] = (
-            gcrs.cartesian.y.to_value(u.m),
+            gcrs.cartesian.y.to_value(u.Unit("m")),
             "[m] IRSOL location (ITRS)",
         )
         header["OBSGEO-Z"] = (
-            gcrs.cartesian.z.to_value(u.m),
+            gcrs.cartesian.z.to_value(u.Unit("m")),
             "[m] IRSOL location (ITRS)",
         )
         slit = metadata.spectrograph_slit
@@ -269,15 +329,15 @@ def _fill_data_header(
         y_scaling = 1.0
         gcrs = location.get_gcrs(obstime=obs_time)
         header["OBSGEO-X"] = (
-            gcrs.cartesian.x.to_value(u.m),
+            gcrs.cartesian.x.to_value(u.Unit("m")),
             "[m] GREGOR location (ITRS)",
         )
         header["OBSGEO-Y"] = (
-            gcrs.cartesian.y.to_value(u.m),
+            gcrs.cartesian.y.to_value(u.Unit("m")),
             "[m] GREGOR location (ITRS)",
         )
         header["OBSGEO-Z"] = (
-            gcrs.cartesian.z.to_value(u.m),
+            gcrs.cartesian.z.to_value(u.Unit("m")),
             "[m] GREGOR location (ITRS)",
         )
         header["SLIT_WID"] = (0.29, "[arcsec] (0.07mm), slit width")
@@ -301,9 +361,10 @@ def _fill_data_header(
             pass
     if metadata.integration_time is not None:
         header["TEXPOSUR"] = (metadata.integration_time, "[s] single exposure time")
-        if "NSUMEXP" in header:
+        nsumexp_value = header.get("NSUMEXP")
+        if isinstance(nsumexp_value, (int, float)):
             header["XPOSURE"] = (
-                metadata.integration_time * header["NSUMEXP"],
+                metadata.integration_time * int(nsumexp_value),
                 "[s] total exposure time",
             )
 
@@ -344,7 +405,12 @@ def _fill_data_header(
         if a0_err is not None:
             header["CSYER3"] = (a0_err, "[angstrom] Error on wavelength fitting shift")
         header["WAVEMIN"] = (round(a0, 2), "Minimum wavelength in data")
-        naxis1 = si_hdu.header.get("NAXIS1", data.shape[1])
+        naxis1_value = si_hdu.header.get("NAXIS1", data.shape[1])
+        naxis1 = (
+            int(naxis1_value)
+            if isinstance(naxis1_value, (int, float))
+            else data.shape[1]
+        )
         header["WAVEMAX"] = (round(a1 * naxis1 + a0, 2), "Maximum wavelength in data")
         header["WAVECAL"] = (1, "Wavelength calibration done")
     else:
@@ -400,16 +466,19 @@ def _fill_data_header(
     header["RSUN_REF"] = (695700000.0, "[m] Standard solar radius")
     header["DSUN_REF"] = (149597870700.0, "[m] Standard Sun-Earth distance")
     header["RSUN_OBS"] = (
-        angular_radius(obs_time).to_value(u.arcsec),
+        angular_radius(obs_time).to_value(u.Unit("arcsec")),
         "[arcsec] Angular radius of the Sun",
     )
-    header["DSUN_OBS"] = (hgsr_coord.radius.to_value(u.m), "[m] Sun-Earth distance")
+    header["DSUN_OBS"] = (
+        hgsr_coord.radius.to_value(u.Unit("m")),
+        "[m] Sun-Earth distance",
+    )
     header["CRLN_OBS"] = (
-        cr_coord.lon.to_value(u.deg),
+        cr_coord.lon.to_value(u.Unit("deg")),
         "[deg] Carrington longitude of disk center",
     )
     header["CRLT_OBS"] = (
-        cr_coord.lat.to_value(u.deg),
+        cr_coord.lat.to_value(u.Unit("deg")),
         "[deg] Carrington latitude of disk center",
     )
 

@@ -113,8 +113,8 @@ class TestIsMeasurementProcessed:
     def test_not_processed(self, tmp_path):
         assert not is_measurement_processed(tmp_path, "6302_m1.dat")
 
-    def test_corrected_exists(self, tmp_path):
-        (tmp_path / "6302_m1_corrected.dat.npz").touch()
+    def test_corrected_fits_exists(self, tmp_path):
+        (tmp_path / "6302_m1_corrected.fits").touch()
         assert is_measurement_processed(tmp_path, "6302_m1.dat")
 
     def test_error_exists(self, tmp_path):

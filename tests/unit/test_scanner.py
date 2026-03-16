@@ -33,7 +33,7 @@ class TestScanDataset:
         (reduced / "6302_m1.dat").touch()
         (reduced / "6302_m2.dat").touch()
         # Mark m1 as processed
-        (processed / "6302_m1_corrected.dat.npz").touch()
+        (processed / "6302_m1_corrected.fits").touch()
 
         result = scan_dataset(tmp_path)
         assert result.total_measurements == 2
