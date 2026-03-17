@@ -7,6 +7,9 @@ from irsol_data_pipeline.orchestration.flows.delete_old_prefect_data import (
 
 def main():
 
+
+
+
     delete_old_prefect_data_deployment = delete_flow_runs_older_than.to_deployment(
         name="delete-old-prefect-flow-runs",
         parameters={"hours": 24 * 7 * 4, "interactive": False},
