@@ -116,7 +116,7 @@ def _process_single_measurement(
             with open(f.name, "w") as json_file:
                 json.dump(measurement_metadata.model_dump(), json_file, default=str)
             create_prefect_json_report(
-                path=Path(f.name), title="Measurement metadata", key=f"meas-{meas_path}"
+                path=Path(f.name), title="Measurement metadata", key=f"meas-{stem}"
             )
 
         # 2. Find closest flat-field
@@ -204,7 +204,7 @@ def _process_single_measurement(
 
         create_prefect_json_report(
             metadata_path,
-            title=f"Metadata for processed measurement {stem}",
+            title="Metadata for processed measurement",
             key=f"processing-metadata-{stem}",
         )
 

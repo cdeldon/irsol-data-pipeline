@@ -44,6 +44,21 @@ def create_prefect_progress_callback(name: str, total: int) -> Callable[[int], N
     return update_progress
 
 
+def _flatten_dict(d: dict, prefix: str = "") -> list[dict[str, str]]:
+    """Recursively flatten a nested dict into a list of {"key", "value"} rows.
+
+    Keys are joined with "." to reflect nesting depth, e.g. ``"a.b.c"``.
+    """
+    rows = []
+    for k, v in d.items():
+        full_key = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict):
+            rows.extend(_flatten_dict(v, prefix=full_key))
+        else:
+            rows.append({"key": full_key, "value": str(v)})
+    return rows
+
+
 def create_prefect_json_report(path: Path, title: str, key: str):
     if prefect_enabled():
         from prefect.artifacts import create_table_artifact
@@ -51,15 +66,8 @@ def create_prefect_json_report(path: Path, title: str, key: str):
         with path.open() as f:
             content = json.load(f)
 
-        table_rows = []
-        for k, v in content.items():
-            if isinstance(v, dict):
-                for kk, vv in v.items():
-                    table_rows.append({"key": f"{k}.{kk}", "value": str(vv)})
-            else:
-                table_rows.append({"key": k, "value": str(v)})
         create_table_artifact(
-            table=table_rows,
+            table=_flatten_dict(content),
             key=sanitize_artifact_title(key),
             description=title,
         )

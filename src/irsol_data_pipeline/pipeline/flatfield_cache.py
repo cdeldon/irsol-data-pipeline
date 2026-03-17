@@ -107,7 +107,7 @@ def _analyze_flatfield(path: Path) -> FlatFieldCorrection:
         with open(f.name, "w") as json_file:
             json.dump(metadata.model_dump(), json_file, default=str)
         create_prefect_json_report(
-            path=Path(f.name), title="Flatfield metadata", key=f"ff-{path}"
+            path=Path(f.name), title="Flatfield metadata", key=f"ff-{path.name}"
         )
 
     dust_flat, offset_map, desmiled = analyze_flatfield(stokes.i)
