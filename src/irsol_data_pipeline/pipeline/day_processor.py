@@ -89,13 +89,13 @@ def process_observation_day(
         )
 
         for meas_i, meas_path in enumerate(sorted(measurement_paths)):
-            update_progress(meas_i)
-            if is_measurement_processed(day.processed_dir, meas_path.name):
-                logger.debug("Skipping already processed", file=meas_path.name)
-                result.skipped += 1
-                continue
-
             with logger.contextualize(file=meas_path.name):
+                update_progress(meas_i)
+                if is_measurement_processed(day.processed_dir, meas_path.name):
+                    logger.debug("Skipping already processed", file=meas_path.name)
+                    result.skipped += 1
+                    continue
+
                 try:
                     process_single_measurement(
                         measurement_path=meas_path,
