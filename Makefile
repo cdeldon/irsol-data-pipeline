@@ -6,7 +6,8 @@ help:
 	@echo "  test  - Run pytest with coverage"
 	@echo "  prefect/dashboard - Start the Prefect dashboard"
 	@echo "  prefect/reset - Reset the Prefect database"
-	@echo "  prefect/serve-pipeline - Serve the pipeline using Prefect"
+	@echo "  prefect/serve-flat-field-correction-pipeline - Serve processing deployment"
+	@echo "  prefect/serve-maintenance-pipeline - Serve maintenance deployment"
 	@echo "  clean - Removes temporary python artifacts"
 
 lint:
@@ -15,14 +16,21 @@ lint:
 test:
 	uv run pytest --cov=src --cov-report=html --cov-report=term tests/
 
-prefect/dashboard:
+prefect/setup:
+	uv run prefect config set PREFECT_API_URL=http://localhost:4200/api
+	uv run prefect config set PREFECT_SERVER_ANALYTICS_ENABLED=false
+
+prefect/dashboard: prefect/setup
 	uv run prefect server start
 
 prefect/reset:
 	uv run prefect server database reset
 
-prefect/serve-pipeline:
-	PREFECT_ENABLED=true uv run entrypoints/serve_pipeline.py
+prefect/serve-maintenance-pipeline:
+	PREFECT_ENABLED=true uv run entrypoints/serve_prefect_maintenance.py
+
+prefect/serve-flat-field-correction-pipeline:
+	PREFECT_ENABLED=true uv run entrypoints/serve_flat_field_correction_pipeline.py
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

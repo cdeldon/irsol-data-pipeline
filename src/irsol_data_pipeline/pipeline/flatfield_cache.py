@@ -7,7 +7,9 @@ retrieves the closest correction in time for a given measurement.
 from __future__ import annotations
 
 import datetime
+import json
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Optional
 
 from loguru import logger
@@ -18,6 +20,7 @@ from irsol_data_pipeline.core.models import FlatFieldCorrection, MeasurementMeta
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import flatfield as flatfield_io
 from irsol_data_pipeline.orchestration.decorators import task
+from irsol_data_pipeline.orchestration.utils import create_prefect_json_report
 from irsol_data_pipeline.pipeline.filesystem import flatfield_correction_cache_path
 
 
@@ -100,17 +103,11 @@ def _analyze_flatfield(path: Path) -> FlatFieldCorrection:
     stokes, info = dat_io.read(path)
     metadata = MeasurementMetadata.from_info_array(info)
 
-    import json
-    from pathlib import Path
-    from tempfile import NamedTemporaryFile
-
-    from irsol_data_pipeline.orchestration.utils import create_prefect_json_report
-
     with NamedTemporaryFile(suffix=".json") as f:
         with open(f.name, "w") as json_file:
             json.dump(metadata.model_dump(), json_file, default=str)
         create_prefect_json_report(
-            path=Path(f.name), title="FF metadata", key=f"ff-{path}"
+            path=Path(f.name), title="Flatfield metadata", key=f"ff-{path}"
         )
 
     dust_flat, offset_map, desmiled = analyze_flatfield(stokes.i)

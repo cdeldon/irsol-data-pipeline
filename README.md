@@ -20,7 +20,7 @@ and writes processed outputs plus metadata.
 The project is operated through Prefect flows (scan and process multiple observation days).
 
 The codebase also exposes lightweight local entrypoints for serving the Prefect
-deployment, processing a single measurement, and plotting an existing FITS
+deployments, processing a single measurement, and plotting an existing FITS
 product.
 
 Expected dataset layout:
@@ -60,20 +60,14 @@ uv sync
 
 ### 3. Run with Prefect
 
-Use Prefect as the only interaction path:
-
-```bash
-make prefect/dashboard
-make prefect/serve-pipeline
-```
-
-Optional Make targets:
+Make targets:
 
 ```bash
 make lint
 make test
 make prefect/dashboard
-make prefect/serve-pipeline
+make prefect/serve-flat-field-correction-pipeline
+make prefect/serve-maintenance-pipeline
 make prefect/reset
 ```
 
@@ -88,7 +82,10 @@ irsol-data-pipeline/
 ├── data/                          # Local dataset root used in development
 ├── documentation/                 # Documentation assets (screenshots, notes)
 ├── entrypoints/                   # Runtime entry scripts (for deployments and ops)
-│   ├── serve_pipeline.py          # Serve the Prefect deployment locally
+│   ├── serve_flat_field_correction_pipeline.py
+│   │                             # Serve the processing deployment locally
+│   ├── serve_prefect_maintenance.py
+│   │                             # Serve maintenance deployment(s) for Prefect state
 │   ├── process_single_measurement.py
 │   │                             # Run correction/calibration for one .dat file
 │   └── plot_fits_profile.py       # Plot Stokes profiles from a processed FITS file
@@ -170,8 +167,9 @@ The codebase is split into focused layers.
 	- Process one observation day (`pipeline/day_processor.py`)
 	- Process one measurement (`pipeline/measurement_processor.py`)
 - Orchestration:
-	- Prefect flows for dataset-wide and per-day processing
-		(`orchestration/flows.py`)
+	- Prefect flows for dataset-wide processing and maintenance
+		(`orchestration/flows/flat_field_correction.py`,
+		`orchestration/flows/delete_old_prefect_data.py`)
 	- Prefect-aware logging bridge (`orchestration/patch_logging.py`)
 
 ### Processing pipeline
@@ -240,8 +238,8 @@ flowchart TD
 
 ### Recommended startup flow (Makefile)
 
-Use the Make targets to start the local Prefect server/dashboard and serve the
-pipeline deployment from the repository entrypoint.
+Use the Make targets to start the local Prefect server/dashboard and serve both
+processing and maintenance deployments from repository entrypoints.
 
 1. Start the Prefect server and dashboard:
 
@@ -249,25 +247,70 @@ pipeline deployment from the repository entrypoint.
 make prefect/dashboard
 ```
 
-2. In another terminal, serve the pipeline deployment:
+2. In another terminal, serve the flat-field correction deployment:
 
 ```bash
-make prefect/serve-pipeline
+make prefect/serve-flat-field-correction-pipeline
 ```
 
-This target runs `entrypoints/serve_pipeline.py`, which serves
-`process_unprocessed_measurements` as deployment `run-processing-pipeline`.
+This target runs `entrypoints/serve_flat_field_correction_pipeline.py`, which
+serves `process_unprocessed_measurements` as deployment
+`run-flat-field-correction-pipeline` and serves `process_daily_unprocessed_measurements` as deployment `run-daily-flat-field-correction-pipeline`.
+
+3. In another terminal, serve the maintenance deployment:
+
+```bash
+make prefect/serve-maintenance-pipeline
+```
+
+This target runs `entrypoints/serve_prefect_maintenance.py`, which serves
+`delete_flow_runs_older_than` as deployment `delete-old-prefect-data`.
+
+### Why maintenance deployments are necessary
+
+Prefect stores historical flow and task-run state in its local database. During
+active development and operations, this history grows quickly and can make the
+UI slower, increase disk usage, and add noise when troubleshooting recent runs.
+
+The maintenance deployment provides a controlled and repeatable cleanup path:
+
+- It deletes runs older than a retention window.
+- It avoids manual ad-hoc database operations.
+- It can be triggered on demand from the same deployment interface as the
+	processing pipeline.
+
+### How to run maintenance deployments
+
+1. Ensure the Prefect server is running:
+
+```bash
+make prefect/dashboard
+```
+
+2. Serve the maintenance deployment:
+
+```bash
+make prefect/serve-maintenance-pipeline
+```
+
+3. In the Prefect UI, go to `Deployments` and select
+`delete-old-prefect-data`.
+
 
 Notes:
 
-- `make prefect/serve-pipeline` sets `PREFECT_ENABLED=true` so Prefect-aware decorators are active.
-- The default deployment parameter root is `<repo>/data` (configured in `entrypoints/serve_pipeline.py`).
+- `make prefect/serve-flat-field-correction-pipeline` and
+	`make prefect/serve-maintenance-pipeline` set `PREFECT_ENABLED=true` so
+	Prefect-aware decorators are active.
+- The default processing deployment parameter root is `<repo>/data` (configured
+	in `entrypoints/serve_flat_field_correction_pipeline.py`).
 - If needed, reset local Prefect state with `make prefect/reset`.
+- The maintenance flows will run automatically on schedule.
 
 ### Invoking from the dashboard
 
 1. Open the Prefect UI: `http://127.0.0.1:4200`.
-2. Go to `Deployments` and select `run-processing-pipeline`.
+2. Go to `Deployments` and select `run-flat-field-correction-pipeline`.
 3. Click `Run` / `Quick Run`.
 4. Optionally adjust parameters (`root`, `max_delta_hours`, `max_concurrent_days_to_process`).
 5. Inspect run logs and artifacts:
