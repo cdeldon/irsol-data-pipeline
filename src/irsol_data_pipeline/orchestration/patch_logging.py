@@ -1,4 +1,5 @@
 import logging as stdlib_logging
+import traceback
 
 from loguru import logger
 from prefect.logging import get_run_logger
@@ -7,6 +8,24 @@ from irsol_data_pipeline.logging_config import LOG_LEVEL
 from irsol_data_pipeline.logging_config import setup_logging as _setup_base_logging
 
 _prefect_sink_added = False
+
+
+def _extract_traceback_message(record: dict) -> str | None:
+    """Extract a formatted traceback from a loguru record if present."""
+    exception = record.get("exception")
+    if exception is None:
+        return None
+
+    try:
+        return "".join(
+            traceback.format_exception(
+                exception.type,
+                exception.value,
+                exception.traceback,
+            )
+        ).strip()
+    except Exception:
+        return str(exception)
 
 
 def setup_logging(level: LOG_LEVEL = "DEBUG"):
@@ -33,6 +52,7 @@ def setup_logging(level: LOG_LEVEL = "DEBUG"):
         elif level_no == 25:  # SUCCESS
             level_no = stdlib_logging.INFO
 
+        traceback_message = _extract_traceback_message(record)
         extra_message = ", ".join(
             f"{k}={v}" for k, v in record["extra"].items() if k != "_extra"
         )
@@ -41,6 +61,9 @@ def setup_logging(level: LOG_LEVEL = "DEBUG"):
             if extra_message
             else record["message"]
         )
+        if traceback_message:
+            full_message = f"{full_message}\n{traceback_message}"
+
         run_logger.log(level_no, full_message)
 
     logger.add(_prefect_sink, format="{message}", level=level)
