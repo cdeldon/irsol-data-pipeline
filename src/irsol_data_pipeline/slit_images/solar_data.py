@@ -7,6 +7,7 @@ Center and returns them as SunPy Map objects.
 from __future__ import annotations
 
 import datetime
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -38,21 +39,22 @@ def _fetch_sdo_map_for_product_wavelength(
     cache_dir: Optional[Path],
 ) -> tuple[Optional[str], Optional[sunpy.map.Map]]:
     """Fetch a single SDO map for one product/wavelength combination."""
-    best = _find_closest_record(
-        keys_df, segs_df, segment, wavelength, mid_time, time_fmt
-    )
-    if best is None:
-        logger.warning("No SDO data for {} at wavelength {}", series, wavelength)
-        return (None, None)
+    with logger.contextualize(series=series, wavelength=wavelength):
+        best = _find_closest_record(
+            keys_df, segs_df, segment, wavelength, mid_time, time_fmt
+        )
+        if best is None:
+            logger.warning("No SDO data found")
+            return (None, None)
 
-    index, data_time, metadata = best
-    slug = segs_df[segment][index]
-    url = JSOC_BASE_URL + slug
+        index, data_time, metadata = best
+        slug = segs_df[segment][index]
+        url = JSOC_BASE_URL + slug
 
-    smap = _download_and_load_map(
-        series, wavelength, data_time, url, metadata, cache_dir
-    )
-    return (data_time, smap)
+        smap = _download_and_load_map(
+            series, wavelength, data_time, url, metadata, cache_dir
+        )
+        return (data_time, smap)
 
 
 @task(task_run_name="fetch-sdo-maps-for-observation/{series}")
@@ -116,61 +118,63 @@ def fetch_sdo_maps(
     """
 
     mid_time = start_time + (end_time - start_time) / 2
-    logger.info("Fetching SDO data for mid-time: {}", mid_time)
+    with logger.contextualize(
+        start_time=start_time, end_time=end_time, mid_time=mid_time
+    ):
+        logger.info("Fetching SDO data")
 
-    # Build time range with 5-minute padding
-    padded_start = (start_time - datetime.timedelta(minutes=5)).strftime(
-        "%Y.%m.%d_%H:%M:%S"
-    )
-    padded_end = (end_time + datetime.timedelta(minutes=5)).strftime(
-        "%Y.%m.%d_%H:%M:%S"
-    )
-    time_range = f"{padded_start}-{padded_end}"
-
-    client = drms.Client(email=jsoc_email)
-    results: list[tuple[Optional[str], Optional[sunpy.map.Map]]] = []
-
-    for series, wavelengths, segment, time_fmt in SDO_DATA_PRODUCTS:
-        results.extend(
-            _fetch_sdo_maps_for_product(
-                client,
-                series,
-                wavelengths,
-                segment,
-                time_fmt,
-                time_range,
-                mid_time,
-                cache_dir,
-            )
+        # Build time range with 5-minute padding
+        padded_start = (start_time - datetime.timedelta(minutes=5)).strftime(
+            "%Y.%m.%d_%H:%M:%S"
         )
+        padded_end = (end_time + datetime.timedelta(minutes=5)).strftime(
+            "%Y.%m.%d_%H:%M:%S"
+        )
+        time_range = f"{padded_start}-{padded_end}"
 
-    return results
+        client = drms.Client(email=jsoc_email)
+        results: list[tuple[Optional[str], Optional[sunpy.map.Map]]] = []
+
+        for series, wavelengths, segment, time_fmt in SDO_DATA_PRODUCTS:
+            results.extend(
+                _fetch_sdo_maps_for_product(
+                    client,
+                    series,
+                    wavelengths,
+                    segment,
+                    time_fmt,
+                    time_range,
+                    mid_time,
+                    cache_dir,
+                )
+            )
+
+        return results
 
 
 def _query_drms(client, series: str, time_range: str, segment: str):
     """Query DRMS with retries for a given series and time range."""
-
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            result = client.query(
-                f"{series}[{time_range}]",
-                key=",".join(DRMS_KEYS),
-                seg=segment,
-            )
-            if not hasattr(result[0], "WAVELNTH"):
-                logger.warning("No data available for series {}", series)
-                return None
-            return result
-        except Exception as exc:
-            logger.warning(
-                "DRMS query attempt {}/{} failed for {}: {}",
-                attempt + 1,
-                max_retries,
-                series,
-                exc,
-            )
-    return None
+    with logger.contextualize(series=series):
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                result = client.query(
+                    f"{series}[{time_range}]",
+                    key=",".join(DRMS_KEYS),
+                    seg=segment,
+                )
+                if not hasattr(result[0], "WAVELNTH"):
+                    logger.warning("No data available")
+                    return None
+                return result
+            except Exception as exc:
+                logger.warning(
+                    "DRMS query failed",
+                    attempt=attempt + 1,
+                    max_retries=max_retries,
+                    error=str(exc),
+                )
+        return None
 
 
 def _find_closest_record(
@@ -226,52 +230,53 @@ def _download_and_load_map(
     cache_dir: Optional[Path],
 ) -> Optional[sunpy.map.Map]:
     """Download a FITS file and return a SunPy Map."""
-    safe_time = data_time.replace("/", "-").replace(":", "-").replace(" ", "_")
-    filename = f"{series}_{wavelength}_{safe_time}.fits"
+    with logger.contextualize(
+        series=series, wavelength=wavelength, data_time=data_time
+    ):
+        safe_time = data_time.replace("/", "-").replace(":", "-").replace(" ", "_")
+        filename = f"{series}_{wavelength}_{safe_time}.fits"
 
-    target: Optional[Path] = None
-    if cache_dir is not None:
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        target = cache_dir / filename
+        target: Optional[Path] = None
+        if cache_dir is not None:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            target = cache_dir / filename
 
-    if target is not None and target.is_file():
-        logger.debug("Using cached SDO file: {}", target)
-    else:
-        logger.info("Downloading SDO data: {}", url)
+        if target is not None and target.is_file():
+            logger.debug("Using cached SDO file", target=target)
+        else:
+            logger.info("Downloading SDO data", url=url)
+            try:
+                resp = requests.get(url, timeout=120)
+                resp.raise_for_status()
+            except requests.RequestException as exc:
+                logger.error("Failed to download SDO data", url=url, error=str(exc))
+                return None
+
+            if target is not None:
+                target.write_bytes(resp.content)
+            else:
+                # Use a temp approach; write to cache_dir if available
+                tmp = Path(tempfile.mktemp(suffix=".fits"))
+                tmp.write_bytes(resp.content)
+                target = tmp
+
         try:
-            resp = requests.get(url, timeout=120)
-            resp.raise_for_status()
-        except requests.RequestException as exc:
-            logger.error("Failed to download SDO data from {}: {}", url, exc)
+            data, header = fits.getdata(str(target), header=True)
+        except Exception as exc:
+            logger.error("Error reading FITS file", target=target, error=str(exc))
             return None
 
-        if target is not None:
-            target.write_bytes(resp.content)
-        else:
-            # Use a temp approach; write to cache_dir if available
-            import tempfile
+        for k, v in metadata.items():
+            header[k] = v
 
-            tmp = Path(tempfile.mktemp(suffix=".fits"))
-            tmp.write_bytes(resp.content)
-            target = tmp
+        is_hmi = "hmi" in series
+        if is_hmi:
+            header["CDELT1"] = -header["CDELT1"]
+            header["CDELT2"] = -header["CDELT2"]
 
-    try:
-        data, header = fits.getdata(str(target), header=True)
-    except Exception as exc:
-        logger.error("Error reading FITS file {}: {}", target, exc)
-        return None
+        smap = sunpy.map.Map(data, header)
 
-    for k, v in metadata.items():
-        header[k] = v
+        if is_hmi:
+            smap = smap.rotate(angle=180 * u.Unit("deg"))
 
-    is_hmi = "hmi" in series
-    if is_hmi:
-        header["CDELT1"] = -header["CDELT1"]
-        header["CDELT2"] = -header["CDELT2"]
-
-    smap = sunpy.map.Map(data, header)
-
-    if is_hmi:
-        smap = smap.rotate(angle=180 * u.Unit("deg"))
-
-    return smap
+        return smap
