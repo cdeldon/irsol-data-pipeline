@@ -19,8 +19,8 @@ from astropy.visualization import ImageNormalize, SqrtStretch
 from loguru import logger
 from sunpy.coordinates.sun import angular_radius
 
-from irsol_data_pipeline.slit_images.config import FOV_ARCSEC, SDO_DATA_LABELS
-from irsol_data_pipeline.slit_images.coordinates import SlitGeometry
+from irsol_data_pipeline.core.slit_images.config import FOV_ARCSEC, SDO_DATA_LABELS
+from irsol_data_pipeline.core.slit_images.coordinates import SlitGeometry
 
 
 def render_slit_preview(
@@ -66,7 +66,7 @@ def render_slit_preview(
             )
         except ValueError:
             logger.warning(
-                "Cannot define crop for panel {}, skipping", SDO_DATA_LABELS[i]
+                "Cannot define crop for panel, skipping", panel=SDO_DATA_LABELS[i]
             )
             continue
 
@@ -172,7 +172,7 @@ def render_slit_preview(
 
     plt.savefig(str(output_path))
     plt.close(fig)
-    logger.info("Slit preview saved to {}", output_path)
+    logger.info("Slit preview saved", output_path=output_path)
 
 
 def _plot_panel(

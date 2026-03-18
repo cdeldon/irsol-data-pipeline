@@ -28,7 +28,9 @@ from irsol_data_pipeline.pipeline.filesystem import (
     raw_dir_for_day,
     reduced_dir_for_day,
 )
-from irsol_data_pipeline.slit_images.processor import generate_slit_images_for_day
+from irsol_data_pipeline.pipeline.slit_images_processor import (
+    generate_slit_images_for_day,
+)
 
 
 @task(task_run_name="generate-slit-images-for-day/{day_path.name}")

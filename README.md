@@ -513,7 +513,7 @@ Generate a slit preview image for a single measurement without Prefect:
 
 ```python
 from pathlib import Path
-from irsol_data_pipeline.slit_images.processor import generate_slit_image
+from irsol_data_pipeline.core.slit_images.processor import generate_slit_image
 
 generate_slit_image(
     measurement_path=Path("/path/to/reduced/6302_m1.dat"),
@@ -570,7 +570,7 @@ for day in scan_result.observation_days:
 ```python
 from pathlib import Path
 from irsol_data_pipeline.pipeline.filesystem import discover_observation_days
-from irsol_data_pipeline.slit_images.processor import generate_slit_images_for_day
+from irsol_data_pipeline.core.slit_images.processor import generate_slit_images_for_day
 
 root = Path("/path/to/data")
 days = discover_observation_days(root)
@@ -769,7 +769,7 @@ plot_profile(
 from pathlib import Path
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.core.models import MeasurementMetadata
-from irsol_data_pipeline.slit_images.coordinates import compute_slit_geometry
+from irsol_data_pipeline.core.slit_images.coordinates import compute_slit_geometry
 
 stokes, info = dat_io.read(Path("6302_m1.dat"))
 metadata = MeasurementMetadata.from_info_array(info)
@@ -784,7 +784,7 @@ print(f"Slit angle (solar frame): {slit.angle_solar:.3f} rad")
 
 ```python
 from pathlib import Path
-from irsol_data_pipeline.slit_images.processor import generate_slit_image
+from irsol_data_pipeline.core.slit_images.processor import generate_slit_image
 
 generate_slit_image(
     measurement_path=Path("data/2025/20250312/reduced/6302_m1.dat"),

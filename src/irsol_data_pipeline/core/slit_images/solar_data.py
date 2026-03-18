@@ -18,13 +18,13 @@ import sunpy.map
 from astropy.io import fits
 from loguru import logger
 
-from irsol_data_pipeline.orchestration.decorators import task
-from irsol_data_pipeline.slit_images.config import (
+from irsol_data_pipeline.core.slit_images.config import (
     DRMS_KEYS,
     JSOC_BASE_URL,
     MAX_MISSING_PIXELS,
     SDO_DATA_PRODUCTS,
 )
+from irsol_data_pipeline.orchestration.decorators import task
 
 
 def _fetch_sdo_map_for_product_wavelength(
@@ -246,8 +246,8 @@ def _download_and_load_map(
             try:
                 resp = requests.get(url, timeout=120)
                 resp.raise_for_status()
-            except requests.RequestException as exc:
-                logger.error("Failed to download SDO data", url=url, error=str(exc))
+            except requests.RequestException:
+                logger.exception("Failed to download SDO data", url=url)
                 return None
 
             if target is not None:
@@ -260,8 +260,8 @@ def _download_and_load_map(
 
         try:
             data, header = fits.getdata(str(target), header=True)
-        except Exception as exc:
-            logger.error("Error reading FITS file", target=target, error=str(exc))
+        except Exception:
+            logger.exception("Error reading FITS file", target=target)
             return None
 
         for k, v in metadata.items():

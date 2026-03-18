@@ -17,6 +17,8 @@ from irsol_data_pipeline.core.models import (
     MeasurementMetadata,
     ObservationDay,
 )
+from irsol_data_pipeline.core.slit_images.coordinates import compute_slit_geometry
+from irsol_data_pipeline.core.slit_images.solar_data import fetch_sdo_maps
 from irsol_data_pipeline.exceptions import SlitImageGenerationError
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import processing_metadata as processing_metadata_io
@@ -27,9 +29,7 @@ from irsol_data_pipeline.pipeline.filesystem import (
     processed_output_path,
     sdo_cache_dir_for_day,
 )
-from irsol_data_pipeline.slit_images.coordinates import compute_slit_geometry
-from irsol_data_pipeline.slit_images.renderer import render_slit_preview
-from irsol_data_pipeline.slit_images.solar_data import fetch_sdo_maps
+from irsol_data_pipeline.plotting import plot_slit
 
 
 def generate_slit_image(
@@ -137,17 +137,18 @@ def _generate_slit_image_task(
             # 4. Render the 6-panel image
             logger.info("Rendering slit preview image")
             processed_dir.mkdir(parents=True, exist_ok=True)
-            render_slit_preview(
+            plot_slit(
                 maps=maps,
                 slit=slit_geometry,
                 output_path=output_path,
             )
 
-            logger.success("Slit preview generated: {}", output_path)
+            logger.success("Slit preview generated", output_path=output_path)
 
         except Exception as exc:
-            logger.error(
-                "Slit preview generation failed for {}: {}", meas_path.name, exc
+            logger.exception(
+                "Slit preview generation failed",
+                file=meas_path.name,
             )
             processed_dir.mkdir(parents=True, exist_ok=True)
             processing_metadata_io.write_error(
@@ -200,7 +201,7 @@ def generate_slit_images_for_day(
         for meas_path in measurement_files:
             if is_slit_preview_generated(day.processed_dir, meas_path.name):
                 logger.debug(
-                    "Slit preview already exists for {}, skipping", meas_path.name
+                    "Slit preview already exists, skipping", file=meas_path.name
                 )
                 skipped += 1
                 continue
@@ -217,17 +218,14 @@ def generate_slit_images_for_day(
             except Exception as exc:
                 failed += 1
                 errors.append(f"{meas_path.name}: {exc}")
-                logger.error(
-                    "Failed to generate slit image for {}: {}", meas_path.name, exc
-                )
+                logger.exception("Failed to generate slit image", file=meas_path.name)
 
         logger.info(
-            "Slit image generation complete for day {}:"
-            " processed={}, skipped={}, failed={}",
-            day.name,
-            processed,
-            skipped,
-            failed,
+            "Slit image generation complete",
+            day=day.name,
+            processed=processed,
+            skipped=skipped,
+            failed=failed,
         )
         return DayProcessingResult(
             day_name=day.name,

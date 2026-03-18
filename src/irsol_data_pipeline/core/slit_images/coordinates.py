@@ -17,12 +17,12 @@ from loguru import logger
 from sunpy.coordinates.sun import P, angular_radius
 
 from irsol_data_pipeline.core.models import MeasurementMetadata
-from irsol_data_pipeline.slit_images.config import (
+from irsol_data_pipeline.core.slit_images.config import (
     DEFAULT_TELESCOPE_SPEC,
     DEROTATOR_COORDINATE_SYSTEMS,
     TELESCOPE_SPECS,
 )
-from irsol_data_pipeline.slit_images.z3readbd import read_z3bd_header
+from irsol_data_pipeline.core.slit_images.z3readbd import read_z3bd_header
 
 
 @dataclass(frozen=True)
@@ -252,12 +252,12 @@ def _get_image_center(
 
     raw_path = Path(str(raw_file_path))
     if not raw_path.is_file():
-        logger.debug("Raw z3bd file not found: {}", raw_path)
+        logger.debug("Raw z3bd file not found", path=raw_path)
         return sdc_center
 
     header = read_z3bd_header(raw_path)
     if header is None:
-        logger.debug("Could not read z3bd header from: {}", raw_path)
+        logger.debug("Could not read z3bd header", path=raw_path)
         return sdc_center
 
     lg_cx = header.get("LG_CXM")
@@ -266,7 +266,7 @@ def _get_image_center(
     if lg_cx is not None and lg_cy is not None:
         cx, cy = float(lg_cx), float(lg_cy)
         if cx != 0.0 or cy != 0.0:
-            logger.info("Using limbguider coordinates: ({}, {})", cx, cy)
+            logger.info("Using limbguider coordinates", cx=cx, cy=cy)
             return (cx, cy)
         logger.debug("Limbguider coordinates are zero, falling back to SDC")
 

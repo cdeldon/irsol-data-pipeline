@@ -98,11 +98,13 @@ def main() -> None:
         max_delta_policy=max_delta_policy,
     )
 
-    logger.info("Measurement processed: {}", measurement_path)
-    logger.info("Output directory: {}", output_dir)
+    logger.info("Measurement processed", path=measurement_path)
+    logger.info("Output directory", output_dir=output_dir)
     logger.success(
-        "Generated FITS: {}",
-        processed_output_path(output_dir, measurement_path.name, kind="corrected_fits"),
+        "Generated FITS",
+        path=processed_output_path(
+            output_dir, measurement_path.name, kind="corrected_fits"
+        ),
     )
 
 
