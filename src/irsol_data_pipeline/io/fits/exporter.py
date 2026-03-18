@@ -3,6 +3,8 @@
 Serializes in-memory ``StokesParameters`` + ``MeasurementMetadata`` into a
 multi-extension FITS product with WCS, observatory metadata, and optional
 wavelength calibration header values.
+
+Note: the implementation of this export is taken from https://github.com/irsol-locarno/fits-generator/blob/master/datapipeline.py
 """
 
 from __future__ import annotations
@@ -30,12 +32,6 @@ IRSOL_LOCATION = EarthLocation(
     lat=46.176906 * u.Unit("deg"),
     lon=8.788521 * u.Unit("deg"),
     height=503.4 * u.Unit("m"),
-)
-
-GREGOR_LOCATION = EarthLocation(
-    lat=28.3014 * u.Unit("deg"),
-    lon=-16.5097 * u.Unit("deg"),
-    height=2390.0 * u.Unit("m"),
 )
 
 
@@ -71,7 +67,7 @@ def write_stokes_fits(
             info=info,
             calibration=calibration,
         )
-        hdu_list.writeto(str(output_path), overwrite=True)
+        hdu_list.writeto(output_path, output_verify="ignore", overwrite=True)
         logger.debug("Stokes FITS written")
     return output_path
 
@@ -220,10 +216,11 @@ def _fill_primary_header(header: fits.Header, metadata: MeasurementMetadata) -> 
     header["PIXSIZEX"] = (22.5, "[micrometer], CCD pixel size x")
     header["PIXSIZEY"] = (90, "[micrometer], CCD pixel size y")
 
-    if metadata.camera.temperature is not None:
-        header["CAMTEMP"] = (metadata.camera.temperature, "Camera temp in celsius")
-    if metadata.solar_p0 is not None:
-        header["SOLAR_P0"] = (metadata.solar_p0, "Sun-Earth angle")
+    header["CAMTEMP"] = (metadata.camera.temperature, "Camera temp in celsius")
+    header["SOLAR_P0"] = (metadata.solar_p0, "Sun-Earth angle")
+    if header["SOLAR_P0"] is None:
+        t = Time(metadata.datetime_start)
+        header["SOLAR_P0"] = sun.P(t).value
 
 
 def _fill_data_header(
@@ -265,27 +262,20 @@ def _fill_data_header(
     if metadata.datetime_end is not None:
         end_time = Time(metadata.datetime_end)
         header["DATE-END"] = (end_time.fits, "End date/time of observation")
+    else:
+        header["DATE-END"] = (None, "End date/time of observation")
 
     # Telescope and instrument
     header["TELESCOP"] = (metadata.telescope_name, "Telescope")
 
     telescope = metadata.telescope_name
     if telescope in ("IRSOL", "Gregory IRSOL"):
-        location = IRSOL_LOCATION
+        header["OBSGEO-X"], header["OBSGEO-Y"], header["OBSGEO-Z"] = (
+            (4372553.12987083, "[m] IRSOL location (ITRS)"),
+            (676011.48111147, "[m] IRSOL location (ITRS)"),
+            (4579249.177649, "[m] IRSOL location (ITRS)"),
+        )
         y_scaling = 1.3
-        gcrs = location.get_gcrs(obstime=obs_time)
-        header["OBSGEO-X"] = (
-            gcrs.cartesian.x.to_value(u.Unit("m")),
-            "[m] IRSOL location (ITRS)",
-        )
-        header["OBSGEO-Y"] = (
-            gcrs.cartesian.y.to_value(u.Unit("m")),
-            "[m] IRSOL location (ITRS)",
-        )
-        header["OBSGEO-Z"] = (
-            gcrs.cartesian.z.to_value(u.Unit("m")),
-            "[m] IRSOL location (ITRS)",
-        )
         slit = metadata.spectrograph.slit
         if slit is not None and slit != -1:
             header["SLIT_WID"] = (
@@ -293,27 +283,31 @@ def _fill_data_header(
                 f"[arcsec] ({slit} mm), slit width",
             )
         else:
+            # default value if not given in infos
             header["SLIT_WID"] = (0.474, "[arcsec] (0.06 mm), slit width")
     elif telescope == "GREGOR":
-        location = GREGOR_LOCATION
         y_scaling = 1.0
-        gcrs = location.get_gcrs(obstime=obs_time)
-        header["OBSGEO-X"] = (
-            gcrs.cartesian.x.to_value(u.Unit("m")),
-            "[m] GREGOR location (ITRS)",
-        )
-        header["OBSGEO-Y"] = (
-            gcrs.cartesian.y.to_value(u.Unit("m")),
-            "[m] GREGOR location (ITRS)",
-        )
-        header["OBSGEO-Z"] = (
-            gcrs.cartesian.z.to_value(u.Unit("m")),
-            "[m] GREGOR location (ITRS)",
+        header["OBSGEO-X"], header["OBSGEO-Y"], header["OBSGEO-Z"] = (
+            (5390388.83418317, "[m] GREGOR location (ITRS)"),
+            (-1597803.41550836, "[m] GREGOR location (ITRS)"),
+            (3007217.8184646, "[m] GREGOR location (ITRS)"),
         )
         header["SLIT_WID"] = (0.29, "[arcsec] (0.07mm), slit width")
     else:
-        location = IRSOL_LOCATION
-        y_scaling = 1.3
+        logger.warning(
+            "WARNING: Could not identify telescope, falling back to GREGOR",
+            telescope=header["TELESCOP"],
+        )
+        header["OBSGEO-X"], header["OBSGEO-Y"], header["OBSGEO-Z"] = (
+            (5390388.83418317, "[m] GREGOR location (ITRS)"),
+            (-1597803.41550836, "[m] GREGOR location (ITRS)"),
+            (3007217.8184646, "[m] GREGOR location (ITRS)"),
+        )
+        y_scaling = 1.0  # arcsec/pixel
+        header["SLIT_WID"] = (
+            0.29,
+            "[arcsec] (0.07mm), slit width",
+        )  # fixed slit width for GREGOR
 
     header["INSTRUME"] = (metadata.instrument, "Observing instrument")
     header["DATATYPE"] = (metadata.type, "Type of measurement")
@@ -325,15 +319,22 @@ def _fill_data_header(
     # Exposure info
     if metadata.images:
         nsumexp = sum(metadata.images)
-        header["NSUMEXP"] = (nsumexp, "Number of summed exposures")
+    else:
+        nsumexp = None
+    header["NSUMEXP"] = (nsumexp, "Number of summed exposures")
+
     if metadata.integration_time is not None:
         header["TEXPOSUR"] = (metadata.integration_time, "[s] single exposure time")
-        nsumexp_value = header.get("NSUMEXP")
-        if isinstance(nsumexp_value, (int, float)):
-            header["XPOSURE"] = (
-                metadata.integration_time * int(nsumexp_value),
-                "[s] total exposure time",
-            )
+    else:
+        header["TEXPOSUR"] = (None, "[s] single exposure time")
+
+    if metadata.integration_time is not None and nsumexp is not None:
+        header["XPOSURE"] = (
+            metadata.integration_time * nsumexp,
+            "[s] total exposure time",
+        )
+    else:
+        header["XPOSURE"] = (None, "[s] total exposure time")
 
     header["CAMERA"] = (metadata.camera.identity, "Camera identity")
     header["CCD"] = (metadata.camera.ccd, "Camera sensor identity")
@@ -344,75 +345,107 @@ def _fill_data_header(
 
     # WCS
     header["WCSNAME"] = "Helioprojective-cartesian"
-    slit_height = data.shape[0]
+    # TODO add CRDERn, stretch on error
 
-    header["CNAME1"] = "spatial"
+    fabry_perrot = False  # TODO detect from infos if fabry perrot is used
+    # with fabry perrot we have 2 spatial axis
+    if fabry_perrot:
+        x_scaling = 0.325  # zimpol camera intensity scaling
+        header["CNAME1"] = metadata.image_type_x or "spatial"
+        header["CRPIX1"] = (1.0, "Reference pixel of 0 point")
+        fp_width = data.shape[1]  # TODO verify that we didn't swap axis
+        header["CRPIX1"] = (
+            (fp_width / 2) + 1.0,
+            "Reference pixel of 0 point",
+        )  # center of the camera
+        header["CRDER1"] = (
+            1.5,
+            "[arcsec] Error on telescope tracking",
+        )  # estimated error
+
+        header["CNAME3"] = "spectral"
+    else:
+        # no FP, fake axis
+        # no scaling needed as the axis is fake
+        x_scaling = 1.0  # arcsec/pixel
+        header["CNAME1"] = "spatial"
+        header["CRDER1"] = (
+            0.0,
+            "[arcsec] Error on telescope tracking",
+        )  # no error since it is fake
+
+        header["CNAME3"] = metadata.image_type_x or "spectral"
+
+    # TODO handle slit scanner at GREGOR
+    # fake width axis (with FP it is real)
+    # x axis
     header["CTYPE1"] = ("HPLN-TAN", "Coordinate along axis 1")
     header["CUNIT1"] = ("arcsec", "Unit along axis 1")
-    header["CRDER1"] = (0.0, "[arcsec] Error on telescope tracking")
     header["CSYER1"] = (10.0, "[arcsec] Estimated error on telescope pointing")
 
-    header["CNAME2"] = "spatial"
-    header["CTYPE2"] = ("HPLT-TAN", "Coordinate along axis 2")
-    header["CUNIT2"] = ("arcsec", "Unit along axis 2")
-    header["CRPIX2"] = ((slit_height / 2) + 1.0, "Reference pixel of 0 point")
-    header["CRDER2"] = (1.5, "[arcsec] Error on telescope tracking")
-    header["CSYER2"] = (10.0, "[arcsec] Estimated error on telescope pointing")
+    # slit length
+    # y axis
+    slit_height = data.shape[0]  # in pixels
+    header["CNAME2"] = metadata.image_type_y or "spectral"
+    header["CTYPE2"] = "HPLT-TAN", "Coordinate along axis 2"
+    header["CUNIT2"] = "arcsec", "Unit along axis 2"
+    header["CRPIX2"] = (slit_height / 2) + 1.0, "Reference pixel of 0 point"
+    header["CRDER2"] = 1.5, "[arcsec] Error on telescope tracking"
+    header["CSYER2"] = 10.0, "[arcsec] Estimated error on telescope pointing"
 
-    header["CNAME3"] = "spectral"
-    header["CTYPE3"] = ("AWAV", "Coordinate along axis 3")
-    header["CUNIT3"] = ("angstrom", "Unit along axis 3")
-    header["CRPIX3"] = (1.0, "Reference pixel of 0 point")
+    # wavelength axis
+    header["CTYPE3"] = "AWAV", "Coordinate along axis 3"
+    header["CUNIT3"] = "angstrom", "Unit along axis 3"
+    header["CRPIX3"] = 1.0, "Reference pixel of 0 point"
 
     if a1 is not None and a0 is not None:
         header["CDELT3"] = (a1, "Increment per pixel")
+        header["CRDER3"] = (a1_err, "[angstrom] Error on wavelength fitting scale")
         header["CRVAL3"] = (a0, "[angstrom] Wavelength at reference pixel")
-        if a1_err is not None:
-            header["CRDER3"] = (a1_err, "[angstrom] Error on wavelength fitting scale")
-        if a0_err is not None:
-            header["CSYER3"] = (a0_err, "[angstrom] Error on wavelength fitting shift")
+        header["CSYER3"] = (a0_err, "[angstrom] Error on wavelength fitting shift")
         header["WAVEMIN"] = (round(a0, 2), "Minimum wavelength in data")
-        naxis1_value = si_hdu.header.get("NAXIS1", data.shape[1])
-        naxis1 = (
-            int(naxis1_value)
-            if isinstance(naxis1_value, (int, float))
-            else data.shape[1]
+
+        header["WAVEMAX"] = (
+            round(a1 * float(si_hdu.header["NAXIS1"]) + a0, 2),
+            "Maximum wavelength in data",
         )
-        header["WAVEMAX"] = (round(a1 * naxis1 + a0, 2), "Maximum wavelength in data")
         header["WAVECAL"] = (1, "Wavelength calibration done")
     else:
         header["CDELT3"] = (1.0, "Increment per pixel")
         header["CRVAL3"] = (0.0, "Value at reference pixel")
+        header["CRDER3"] = (
+            0.0,
+            "Error on wavelength fitting",
+        )  # no error as not fit happened
         header["WAVEMIN"] = (metadata.wavelength - 1.0, "Minimum wavelength in data")
         header["WAVEMAX"] = (metadata.wavelength + 1.0, "Maximum wavelength in data")
 
+    # specify that we don't have any wavelength calibration based on movement
+    # as per SVO 3.2
     header["SPECSYS"] = ("TOPOCENT", "Spectral reference frame")
     header["VELOSYS"] = (0.0, "[m/s] Reference velocity")
 
     # Polarization
-    if metadata.derotator.position_angle is not None:
-        derot_offset = metadata.derotator.offset or 0.0
-        header["POLCCONV"] = (
-            "(+HPLT,-HPLN,+HPRZ)",
-            "Reference system for Stokes vectors",
-        )
-        header["POLCANGL"] = (
-            90 + metadata.derotator.position_angle + derot_offset,
-            "[deg] angle between +Q and solar north",
-        )
+    header["POLCCONV"] = (
+        "(+HPLT,-HPLN,+HPRZ)",
+        "Reference system for Stokes vectors",
+    )
+    derotator_angle = metadata.derotator.position_angle or 0.0
+    derot_offset = metadata.derotator.offset or 0.0
+    header["POLCANGL"] = (
+        90 + derotator_angle + derot_offset,
+        "[deg] angle between +Q and solar north",
+    )
 
     # Slit rotation and coordinate transformation
     sun_p0 = sun.P(obs_time).value
     sun_p0_rad = -sun_p0 * (np.pi / 180)
 
-    x_scaling = 1.0
-    if metadata.derotator.position_angle is not None:
-        angle = metadata.derotator.position_angle * (np.pi / 180) + (np.pi / 2)
-        if metadata.derotator.coordinate_system == 0:
-            angle = angle - sun_p0_rad
-    else:
-        angle = 0.0
+    angle = derotator_angle * (np.pi / 180) + (np.pi / 2)  # 90 deg rotation
+    if metadata.derotator.coordinate_system == 0:
+        angle = angle - sun_p0
 
+    # TODO handle slit scanner
     header["CDELT1"] = (x_scaling, "[arcsec/pixel] scaling")
     header["CDELT2"] = (y_scaling, "[arcsec/pixel] scaling")
     header["CD1_1"] = (x_scaling * np.cos(angle), "[arcsec/pixel] X scaling")
@@ -420,8 +453,12 @@ def _fill_data_header(
     header["CD2_1"] = (x_scaling * np.sin(angle), "[arcsec/pixel] X scaling")
     header["CD2_2"] = (y_scaling * np.cos(angle), "[arcsec/pixel] Y scaling")
 
+    # TODO spectral axis transformation
+
+    # compute values from position of IRSOL
+    # TODO adapt for GREGOR, actually doesn't change much (0.01 arcsec error)
     # Solar coordinates
-    gcrs_coord = location.get_gcrs(obstime=obs_time)
+    gcrs_coord = IRSOL_LOCATION.get_gcrs(obstime=obs_time)
     hgsr_coord = gcrs_coord.transform_to(
         frames.HeliographicStonyhurst(obstime=obs_time)
     )
@@ -430,6 +467,7 @@ def _fill_data_header(
         frames.HeliographicCarrington(obstime=obs_time, observer=observer)
     )
 
+    # values from position
     header["RSUN_REF"] = (695700000.0, "[m] Standard solar radius")
     header["DSUN_REF"] = (149597870700.0, "[m] Standard Sun-Earth distance")
     header["RSUN_OBS"] = (
@@ -468,7 +506,16 @@ def _fill_data_header(
                 "[arcsec] HPLT coordinate at reference pixel",
             )
         except (ValueError, IndexError):
-            pass
+            logger.warning(
+                "Impossible to compute CRVAL1 and CRVAL2 due to incorrect solar disc coordinates",
+                solar_disc_coordinates=metadata.solar_disc_coordinates,
+            )
+    else:
+        logger.warning(
+            "Setting CRVAL1 and CRVAL2 to 'None' as no solar disc coordinates were provided"
+        )
+        header["CRVAL1"] = (None, "[arcsec] HPLN coordinate at reference pixel")
+        header["CRVAL2"] = (None, "[[arcsec] HPLT coordinate at reference pixel")
 
 
 def _add_data_statistics(header: fits.Header, data: np.ndarray) -> None:
@@ -502,4 +549,7 @@ def _make_title(metadata: MeasurementMetadata) -> str:
         time_str = metadata.datetime_start.strftime("%Y%m%d_%H%M%S")
         return f"{time_str}_{metadata.name}.fits"
     except Exception:
+        logger.warning(
+            "Impossible to determine title for measurement, using default measurement title"
+        )
         return "measurement.fits"
