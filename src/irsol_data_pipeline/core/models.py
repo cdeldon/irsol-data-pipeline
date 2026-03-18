@@ -237,6 +237,7 @@ class MeasurementMetadata(BaseModel):
     observer: str = ""
     wavelength: int
     name: str
+    # Datetimes are parsed and already in UTC timezone. The original raw string is kept in _raw for reference.
     datetime_start: datetime.datetime = Field(validation_alias="datetime")
     datetime_end: Optional[datetime.datetime] = None
     type: str
