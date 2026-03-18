@@ -33,6 +33,26 @@ from irsol_data_pipeline.pipeline.slit_images_processor import (
 )
 
 
+@task(task_run_name="scan-observation-days/{root}")
+def scan_observation_days_task(root: Path) -> list[ObservationDay]:
+    """Prefect task: discover all observation days under the dataset root."""
+    observation_days = discover_observation_days(root)
+    summary_lines = [
+        "# Slit Image Generation Scan",
+        "",
+        f"**Root**: `{root}`",
+        f"**Observation days**: {len(observation_days)}",
+    ]
+    if observation_days:
+        summary_lines += ["", "## Days found", ""]
+        summary_lines += [f"- `{day.name}`" for day in observation_days]
+    create_prefect_markdown_report(
+        content="\n".join(summary_lines),
+        description="Slit image generation scan summary",
+    )
+    return observation_days
+
+
 @task(task_run_name="generate-slit-images-for-day/{day_path.name}")
 def run_day_slit_generation_task(
     day_path: Path,
@@ -81,27 +101,15 @@ def generate_slit_images(
     dataset_root = Path(root)
     logger.info("Starting slit image generation", root=root)
 
-    observation_days = discover_observation_days(dataset_root)
+    observation_days = scan_observation_days_task(root=dataset_root)
+    logger.info(
+        "Scan complete",
+        days=len(observation_days),
+    )
+
     if not observation_days:
         logger.info("No observation days found")
         return []
-
-    logger.info(
-        "Found {} observation days, generating slit previews",
-        len(observation_days),
-    )
-
-    # Build summary report
-    summary_lines = [
-        "# Slit Image Generation Scan",
-        "",
-        f"**Root**: `{root}`",
-        f"**Observation days**: {len(observation_days)}",
-    ]
-    create_prefect_markdown_report(
-        content="\n".join(summary_lines),
-        description="Slit image generation scan summary",
-    )
 
     day_paths = [day.path for day in observation_days]
 
