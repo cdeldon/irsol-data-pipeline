@@ -158,15 +158,21 @@ irsol-data-pipeline/
 │   └── plot_fits_profile.py                      # Visualise a processed FITS file
 │
 ├── src/irsol_data_pipeline/
-│   ├── core/                      # Scientific logic — no I/O, no orchestration
-│   │   ├── models.py              # All shared data types (Pydantic models)
+│   ├── core/                      # Domain models, correction, calibration, slit-image primitives
+│   │   ├── models.py              # Shared Pydantic data models
 │   │   ├── config.py              # Shared constants, defaults, and environment variables
 │   │   ├── correction/
 │   │   │   ├── analyzer.py        # Analyse a flat-field → produces correction artefacts
 │   │   │   └── corrector.py       # Apply the correction to a measurement
-│   │   └── calibration/
-│   │       ├── autocalibrate.py   # Wavelength calibration logic
-│   │       └── refdata/           # Bundled reference solar spectra (.npy files)
+│   │   ├── calibration/
+│   │   │   ├── autocalibrate.py   # Wavelength calibration logic
+│   │   │   └── refdata/           # Bundled reference solar spectra (.npy files)
+│   │   └── slit_images/
+│   │       ├── config.py          # Observatory location, telescope specs, SDO query params
+│   │       ├── coordinates.py     # Slit geometry: Earth→Solar frame, mu, endpoints
+│   │       ├── solar_data.py      # Fetch SDO/AIA and SDO/HMI images via DRMS
+│   │       ├── renderer.py        # 6-panel slit-preview rendering logic
+│   │       └── z3readbd.py        # ZIMPOL3 binary header reader (for limbguider data)
 │   │
 │   ├── io/                        # File reading and writing — no science logic
 │   │   ├── dat/
@@ -178,22 +184,16 @@ irsol-data-pipeline/
 │   │   │   ├── exporter.py        # Serialise FlatFieldCorrection to .pkl
 │   │   │   └── importer.py        # Load FlatFieldCorrection from .pkl
 │   │   └── processing_metadata/
-│   │       └── exporter.py        # Write *_metadata.json and *_error.json
+│   │       ├── exporter.py        # Write *_metadata.json and *_error.json
+│   │       └── importer.py        # Read metadata and error JSON files
 │   │
-│   ├── pipeline/                  # Orchestration of scientific steps (no Prefect dependency)
+│   ├── pipeline/                  # High-level processing logic, still usable without Prefect
 │   │   ├── filesystem.py          # Dataset discovery + canonical path helpers
 │   │   ├── scanner.py             # Find observation days with pending measurements
 │   │   ├── flatfield_cache.py     # Build and query the flat-field correction cache
 │   │   ├── day_processor.py       # Process all measurements in one observation day
-│   │   └── measurement_processor.py  # Process a single measurement end-to-end
-│   │
-│   ├── slit_images/               # Slit image generation — SDO context images with slit overlay
-│   │   ├── config.py              # Observatory location, telescope specs, SDO query params
-│   │   ├── coordinates.py         # Slit geometry: Earth→Solar frame, mu, endpoints
-│   │   ├── solar_data.py          # Fetch SDO/AIA and SDO/HMI images via DRMS
-│   │   ├── renderer.py            # 6-panel matplotlib renderer
-│   │   ├── processor.py           # Pipeline-level: process single measurement or full day
-│   │   └── z3readbd.py            # ZIMPOL3 binary header reader (for limbguider data)
+│   │   ├── measurement_processor.py  # Process a single measurement end-to-end
+│   │   └── slit_images_processor.py  # Orchestrate slit preview generation for measurements/days
 │   │
 │   ├── orchestration/             # Prefect-specific wiring (flows, decorators, logging)
 │   │   ├── decorators.py          # Conditional @task/@flow (no-ops without PREFECT_ENABLED)
@@ -206,7 +206,8 @@ irsol-data-pipeline/
 │   │       └── delete_old_prefect_data.py # Maintenance flow
 │   │
 │   ├── plotting/
-│   │   └── profile.py             # Matplotlib Stokes profile plots
+│   │   ├── profile.py             # Matplotlib Stokes profile plots
+│   │   └── slit.py                # Slit preview plotting wrapper
 │   ├── exceptions.py              # All custom exception types
 │   ├── logging_config.py          # Loguru configuration
 │   └── version.py                 # Package version string
@@ -224,32 +225,32 @@ The codebase is deliberately split into independent layers — you can use lower
 ```mermaid
 graph TB
     A["<b>core</b>
-	Pure science logic
-	(correction, calibration, models)"]
+	Domain models and reusable logic
+	(correction, calibration, slit geometry, SDO fetch)"]
     B["<b>io</b>
 	File reading and writing
 	(dat, fits, flatfield, metadata)"]
     C["<b>pipeline</b>
-	Flat-field pipeline steps
-	(scan, build cache, process day/measurement)"]
-    C2["<b>slit_images</b>
-	Slit image pipeline
-	(coordinates, SDO fetch, render)"]
+	High-level processing steps
+	(scan, build cache, process day/measurement, slit previews)"]
+    C2["<b>plotting</b>
+	Matplotlib output helpers
+	(Stokes profiles, slit previews)"]
     D["<b>orchestration</b>
 	Prefect flows and scheduling"]
     E["<b>entrypoints</b>
 	CLI scripts"]
 
     A --> B
+    A --> C
     B --> C
-    B --> C2
+    A --> C2
     C --> D
-    C2 --> D
     D --> E
 ```
 
-> **Key design rule**: The `core/`, `io/`, and `slit_images/` layers have no knowledge of Prefect.
-> This means you can import and call them directly as plain Python functions — no Prefect context required.
+> **Key design rule**: Only `orchestration/` is Prefect-specific.
+> The rest of the package, including slit-image generation code split across `core/`, `pipeline/`, and `plotting/`, remains importable and callable as plain Python.
 
 
 ## 4. Installation
@@ -513,7 +514,7 @@ Generate a slit preview image for a single measurement without Prefect:
 
 ```python
 from pathlib import Path
-from irsol_data_pipeline.core.slit_images.processor import generate_slit_image
+from irsol_data_pipeline.pipeline.slit_images_processor import generate_slit_image
 
 generate_slit_image(
     measurement_path=Path("/path/to/reduced/6302_m1.dat"),
@@ -570,7 +571,7 @@ for day in scan_result.observation_days:
 ```python
 from pathlib import Path
 from irsol_data_pipeline.pipeline.filesystem import discover_observation_days
-from irsol_data_pipeline.core.slit_images.processor import generate_slit_images_for_day
+from irsol_data_pipeline.pipeline.slit_images_processor import generate_slit_images_for_day
 
 root = Path("/path/to/data")
 days = discover_observation_days(root)
@@ -784,7 +785,7 @@ print(f"Slit angle (solar frame): {slit.angle_solar:.3f} rad")
 
 ```python
 from pathlib import Path
-from irsol_data_pipeline.core.slit_images.processor import generate_slit_image
+from irsol_data_pipeline.pipeline.slit_images_processor import generate_slit_image
 
 generate_slit_image(
     measurement_path=Path("data/2025/20250312/reduced/6302_m1.dat"),
