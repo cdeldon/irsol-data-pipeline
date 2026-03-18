@@ -21,7 +21,6 @@ from irsol_data_pipeline.exceptions import SlitImageGenerationError
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import processing_metadata as processing_metadata_io
 from irsol_data_pipeline.orchestration.decorators import task
-from irsol_data_pipeline.orchestration.utils import create_image_artifact
 from irsol_data_pipeline.pipeline.filesystem import (
     discover_measurement_files,
     is_slit_preview_generated,
@@ -142,11 +141,6 @@ def _generate_slit_image_task(
                 maps=maps,
                 slit=slit_geometry,
                 output_path=output_path,
-            )
-            create_image_artifact(
-                output_path,
-                title=f"Slit preview for {meas_path.name}",
-                key=f"slit_preview_{meas_path.name}",
             )
 
             logger.success("Slit preview generated: {}", output_path)
