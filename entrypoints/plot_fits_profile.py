@@ -78,7 +78,7 @@ def main() -> None:
         a1=a1,
     )
 
-    logger.success("Saved profile plot: {}", output_path)
+    logger.success("Saved profile plot", output_path=output_path)
 
 
 if __name__ == "__main__":

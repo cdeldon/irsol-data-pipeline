@@ -6,7 +6,8 @@ help:
 	@echo "  test  - Run pytest with coverage"
 	@echo "  prefect/dashboard - Start the Prefect dashboard"
 	@echo "  prefect/reset - Reset the Prefect database"
-	@echo "  prefect/serve-flat-field-correction-pipeline - Serve processing deployment"
+	@echo "  prefect/serve-flat-field-correction-pipeline - Serve flat-field correction deployment"
+	@echo "  prefect/serve-slit-image-pipeline - Serve slit image generation deployment"
 	@echo "  prefect/serve-maintenance-pipeline - Serve maintenance deployment"
 	@echo "  clean - Removes temporary python artifacts"
 
@@ -31,6 +32,9 @@ prefect/serve-maintenance-pipeline:
 
 prefect/serve-flat-field-correction-pipeline:
 	PREFECT_ENABLED=true uv run entrypoints/serve_flat_field_correction_pipeline.py
+
+prefect/serve-slit-image-pipeline:
+	PREFECT_ENABLED=true uv run entrypoints/serve_slit_image_pipeline.py
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
