@@ -18,6 +18,9 @@ dependencies = [
     "pydantic>=2.0",
     "loguru>=0.7.0",
     "typer>=0.24.1",
+    "drms>=0.7.0",
+    "requests>=2.28.0",
+    "matplotlib>=3.7.0",
 ]
 
 [build-system]

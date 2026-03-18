@@ -23,6 +23,9 @@ from irsol_data_pipeline.core.config import (
     PROFILE_ORIGINAL_PNG_SUFFIX,
     RAW_DIRNAME,
     REDUCED_DIRNAME,
+    SDO_CACHE_DIRNAME,
+    SLIT_PREVIEW_ERROR_JSON_SUFFIX,
+    SLIT_PREVIEW_PNG_SUFFIX,
 )
 from irsol_data_pipeline.core.models import ObservationDay
 from irsol_data_pipeline.orchestration.decorators import task
@@ -44,6 +47,8 @@ ProcessedOutputKind = Literal[
     "flatfield_correction_data",
     "profile_corrected_png",
     "profile_original_png",
+    "slit_preview_png",
+    "slit_preview_error_json",
 ]
 
 _PROCESSED_SUFFIX_BY_KIND: dict[ProcessedOutputKind, str] = {
@@ -53,6 +58,8 @@ _PROCESSED_SUFFIX_BY_KIND: dict[ProcessedOutputKind, str] = {
     "flatfield_correction_data": FLATFIELD_CORRECTION_DATA_SUFFIX,
     "profile_corrected_png": PROFILE_CORRECTED_PNG_SUFFIX,
     "profile_original_png": PROFILE_ORIGINAL_PNG_SUFFIX,
+    "slit_preview_png": SLIT_PREVIEW_PNG_SUFFIX,
+    "slit_preview_error_json": SLIT_PREVIEW_ERROR_JSON_SUFFIX,
 }
 
 
@@ -75,6 +82,11 @@ def processed_cache_dir_for_day(day_path: Path) -> Path:
     """Return the canonical processed cache directory for an observation day
     path."""
     return processed_dir_for_day(day_path) / CACHE_DIRNAME
+
+
+def sdo_cache_dir_for_day(day_path: Path) -> Path:
+    """Return the SDO FITS cache directory for an observation day path."""
+    return processed_dir_for_day(day_path) / SDO_CACHE_DIRNAME
 
 
 def processed_dir_for_measurement(measurement_path: Path) -> Path:
@@ -264,3 +276,23 @@ def is_measurement_processed(processed_dir: Path, source_name: str) -> bool:
             is_processed=is_processed,
         )
         return is_processed
+
+
+def is_slit_preview_generated(processed_dir: Path, source_name: str) -> bool:
+    """Check whether a slit preview has already been generated.
+
+    A slit preview is considered generated if either a
+    ``*_slit_preview.png`` or ``*_slit_preview_error.json`` file exists.
+
+    Args:
+        processed_dir: Path to the processed/ folder.
+        source_name: Source .dat filename.
+
+    Returns:
+        True if slit preview already exists.
+    """
+    preview = processed_output_path(processed_dir, source_name, kind="slit_preview_png")
+    error = processed_output_path(
+        processed_dir, source_name, kind="slit_preview_error_json"
+    )
+    return preview.exists() or error.exists()

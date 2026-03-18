@@ -352,6 +352,28 @@ class MeasurementMetadata(BaseModel):
         object.__setattr__(instance, "_raw", raw)
         return instance
 
+    @property
+    def solar_x(self) -> Optional[float]:
+        """Solar disc X coordinate in arcsec, parsed from
+        ``solar_disc_coordinates``."""
+        if self.solar_disc_coordinates is None:
+            return None
+        parts = self.solar_disc_coordinates.strip().split()
+        if len(parts) < 2:
+            return None
+        return float(parts[0])
+
+    @property
+    def solar_y(self) -> Optional[float]:
+        """Solar disc Y coordinate in arcsec, parsed from
+        ``solar_disc_coordinates``."""
+        if self.solar_disc_coordinates is None:
+            return None
+        parts = self.solar_disc_coordinates.strip().split()
+        if len(parts) < 2:
+            return None
+        return float(parts[1])
+
     def get_raw(self, key: str) -> Optional[str]:
         """Access any raw metadata key that is not explicitly modeled."""
         return self._raw.get(key)

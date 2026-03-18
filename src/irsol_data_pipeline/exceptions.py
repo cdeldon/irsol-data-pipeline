@@ -72,3 +72,7 @@ class FlatfieldCorrectionError(IrsolDataPipelineException, RuntimeError):
 class FlatfieldCorrectionImportError(FlatfieldCorrectionError):
     """Exception raised when an error occurs during flat-fild correction file
     reading."""
+
+
+class SlitImageGenerationError(IrsolDataPipelineException, RuntimeError):
+    """Exception raised when slit image generation fails."""
