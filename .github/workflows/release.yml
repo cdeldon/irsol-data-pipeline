@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  release:
+    name: Build and publish package
+    runs-on: ubuntu-latest
+    # Source - https://stackoverflow.com/a/68414395
+    # Posted by antonmos, modified by community. See post 'Timeline' for change history
+    # Retrieved 2026-03-19, License - CC BY-SA 4.0
+
+    if: ${{ always() && format('refs/heads/{0}', github.event.repository.default_branch) == github.ref }}
+    permissions:
+      contents: read
+      id-token: write
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/irsol-data-pipeline
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build distribution
+        run: uv build
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
