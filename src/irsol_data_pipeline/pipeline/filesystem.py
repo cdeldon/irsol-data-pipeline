@@ -113,7 +113,7 @@ def flatfield_correction_cache_path(flatfield_path: Path) -> Path:
     return processed_cache_dir_for_day(day_path) / cache_filename
 
 
-@task(task_run_name="discover-observation-days-for-{root.name}")
+@task(task_run_name="dataset/discover-days/{root.name}")
 def discover_observation_days(root: Path) -> list[ObservationDay]:
     """Scan the dataset root and discover all observation day folders.
 

@@ -1,8 +1,14 @@
-"""Prefect 3.x orchestration flows for slit image generation.
+"""Prefect 3.x orchestration flows for the slit image generation pipeline.
 
 Two flows:
-1. generate_slit_images — Scans dataset root and generates slit previews for all days
-2. generate_daily_slit_images — Generates slit previews for a single observation day
+1. generate_slit_images (slit-images-full) — Scans dataset root and generates slit
+   previews for all observation days.
+2. generate_daily_slit_images (slit-images-daily) — Generates slit previews for a
+   single observation day.
+
+Naming convention: slit-images/<scope>[/<context>]
+  Flows:  slit-images-full / slit-images-daily
+  Tasks:  slit-images/<verb>-<noun>/<context>
 """
 
 from __future__ import annotations
@@ -33,7 +39,7 @@ from irsol_data_pipeline.pipeline.slit_images_processor import (
 )
 
 
-@task(task_run_name="scan-observation-days/{root}")
+@task(task_run_name="slit-images/scan-dataset/{root}")
 def scan_observation_days_task(root: Path) -> list[ObservationDay]:
     """Prefect task: discover all observation days under the dataset root."""
     observation_days = discover_observation_days(root)
@@ -53,7 +59,7 @@ def scan_observation_days_task(root: Path) -> list[ObservationDay]:
     return observation_days
 
 
-@task(task_run_name="generate-slit-images-for-day/{day_path.name}")
+@task(task_run_name="slit-images/generate-day/{day_path.name}")
 def run_day_slit_generation_task(
     day_path: Path,
     jsoc_email: str,
@@ -68,7 +74,8 @@ def run_day_slit_generation_task(
 
 
 @flow(
-    flow_run_name="generate-slit-images/{root}",
+    name="slit-images-full",
+    flow_run_name="slit-images/full/{root}",
     description="Scans the dataset and generates slit preview images for all observation days",
 )
 def generate_slit_images(
@@ -144,7 +151,8 @@ def generate_slit_images(
 
 
 @flow(
-    flow_run_name="generate-daily-slit-images/{day_path.name}",
+    name="slit-images-daily",
+    flow_run_name="slit-images/daily/{day_path.name}",
     description="Generates slit preview images for a single observation day",
 )
 def generate_daily_slit_images(

@@ -77,12 +77,15 @@ Output writing is concentrated in `src/irsol_data_pipeline/io/`. To add a new fo
 All Prefect flows live in `src/irsol_data_pipeline/orchestration/flows/`. To add a new one:
 
 1. Create a new file, e.g. `orchestration/flows/my_new_flow.py`.
-2. Import and apply the conditional decorators:
+2. Import and apply the conditional decorators, following the **naming convention** (see below):
 
 ```python
 from irsol_data_pipeline.orchestration.decorators import flow, task
 
-@flow(flow_run_name="my-new-flow/{param}")
+@flow(
+    name="my-pipeline-full",
+    flow_run_name="my-pipeline/full/{param}",
+)
 def my_new_flow(param: str) -> None:
     ...
 ```
@@ -94,8 +97,8 @@ from prefect import serve
 from irsol_data_pipeline.orchestration.flows.my_new_flow import my_new_flow
 
 deployment = my_new_flow.to_deployment(
-    name="my-new-deployment",
-    cron="0 2 * * *",   # daily at 02:00
+    name="my-pipeline-full",  # <pipeline-prefix>-<scope>: e.g. my-pipeline-full, my-pipeline-daily
+    cron="0 2 * * *",  # daily at 02:00
 )
 serve(deployment)
 ```
@@ -106,6 +109,68 @@ serve(deployment)
 prefect/serve-my-new-flow:
     PREFECT_ENABLED=true uv run entrypoints/serve_my_new_flow.py
 ```
+
+### Flow and task naming convention
+
+All flows and tasks follow a `<pipeline-prefix>/<scope-or-action>[/<dynamic-context>]` hierarchy so that names are self-explanatory at a glance in the Prefect UI and CLI.
+
+**Pipeline prefixes**
+
+| Prefix | Pipeline |
+|---|---|
+| `ff-correction` | Flat-field correction pipeline |
+| `slit-images` | Slit image generation pipeline |
+| `maintenance` | Maintenance / housekeeping pipeline |
+| `dataset` | Shared dataset-discovery tasks |
+
+**Flow names** (`name=` in `@flow`) — used in the Prefect UI and in CLI trigger commands:
+
+| Flow name | Scope |
+|---|---|
+| `ff-correction-full` | Full dataset (all pending measurements) |
+| `ff-correction-daily` | Single observation day |
+| `slit-images-full` | Full dataset (all days) |
+| `slit-images-daily` | Single observation day |
+| `maintenance-cleanup` | Delete old Prefect flow runs |
+
+**Flow run names** (`flow_run_name=` in `@flow`) — per-run instance name shown in history, always includes a dynamic context at the end:
+
+```
+ff-correction/full/{root}
+ff-correction/daily/{day_path.name}
+slit-images/full/{root}
+slit-images/daily/{day_path.name}
+maintenance/cleanup/{hours}h
+```
+
+**Deployment names** (`.to_deployment(name=...)`) — follow `<pipeline-prefix>/<scope>`. Combined with the flow name they form the CLI trigger `<flow-name>/<pipeline-prefix>/<scope>`:
+
+| Deployment name | CLI trigger | Meaning |
+|---|---|---|
+| `flat-field-correction-full` | `ff-correction-full/flat-field-correction-full` | Scheduled full-dataset run |
+| `flat-field-correction-daily` | `ff-correction-daily/flat-field-correction-daily` | On-demand single-day run |
+| `slit-images-full` | `slit-images-full/slit-images-full` | Scheduled full-dataset run |
+| `slit-images-daily` | `slit-images-daily/slit-images-daily` | On-demand single-day run |
+| `cleanup` | `maintenance-cleanup/cleanup` | Scheduled maintenance run |
+
+**Task run names** (`task_run_name=` in `@task`) — follow `<pipeline-prefix>/<verb>-<noun>[/<context>]`:
+
+```
+ff-correction/scan-dataset/{root}
+ff-correction/process-day/{day_path.name}
+ff-correction/analyze-flatfield/{path.name}
+ff-correction/build-cache
+ff-correction/process-measurement/{meas_path.name}
+slit-images/scan-dataset/{root}
+slit-images/generate-day/{day_path.name}
+slit-images/generate-measurement/{meas_path.name}
+slit-images/fetch-sdo-maps/{start_time}-{end_time}
+maintenance/retrieve-old-runs
+maintenance/delete-run/{flow_run_id}
+dataset/discover-days/{root.name}
+```
+
+When adding a new pipeline, pick a short, descriptive prefix (all lowercase, hyphen-separated) and apply it consistently to all its flows and tasks.
 
 ## Running scientific logic outside of Prefect
 
