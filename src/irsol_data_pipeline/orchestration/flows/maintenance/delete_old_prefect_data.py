@@ -6,6 +6,8 @@ dedicated maintenance deployment, separate from science-processing
 deployments.
 """
 
+from __future__ import annotations
+
 import datetime
 from uuid import UUID
 
@@ -19,7 +21,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 from irsol_data_pipeline.orchestration.patch_logging import setup_logging
 from irsol_data_pipeline.orchestration.variables import (
     PrefectVariableName,
-    get_variable,
+    aget_variable,
 )
 
 
@@ -69,13 +71,15 @@ async def delete_flow_runs_older_than(
 
     Args:
         hours: Optional retention duration in hours. If unset (0), the Prefect
-            Variable ``cache-expiration-hours`` is used.
+            Variable ``flow-run-expiration-hours`` is used.
     Returns:
         True if any flow runs were deleted, False if no old flow runs were found.
     """
     setup_logging()
     hours = hours or float(
-        get_variable(PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS, default="672")
+        await aget_variable(
+            PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS, default="672"
+        )
     )
     dt = datetime.timedelta(hours=hours)
     old_flow_run_ids = await retrieve_old_flow_ids(dt)

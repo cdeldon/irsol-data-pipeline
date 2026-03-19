@@ -37,3 +37,25 @@ def get_variable(name: PrefectVariableName, default: Any = None) -> Any:
         else:
             logger.debug("Resolved Prefect Variable")
         return value
+
+
+async def aget_variable(name: PrefectVariableName, default: Any = None) -> Any:
+    """Asynchronously retrieve a Prefect Variable by name with logging.
+
+    Args:
+        name: The canonical variable name to look up.
+        default: Value returned when the variable is not set in Prefect.
+
+    Returns:
+        The stored variable value, or ``default`` when not found.
+    """
+    with logger.contextualize(variable=name.value):
+        value = await Variable.aget(name.value, default=default)
+        if value == default:
+            logger.warning(
+                "Prefect Variable not set, using default",
+                default=default,
+            )
+        else:
+            logger.debug("Resolved Prefect Variable")
+        return value
