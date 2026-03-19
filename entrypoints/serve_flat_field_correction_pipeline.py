@@ -23,9 +23,9 @@ def main():
         description="Run the flat field correction pipeline on all unprocessed measurements.",
         cron="0 1 * * *",  # Daily at 1am
         tags=[
-            DeploymentTopicTag.FLAT_FIELD_CORRECTION,
-            DeploymentScheduleTag.DAILY,
-            DeploymentAutomationTag.SCHEDULED,
+            DeploymentTopicTag.FLAT_FIELD_CORRECTION.value,
+            DeploymentScheduleTag.DAILY.value,
+            DeploymentAutomationTag.SCHEDULED.value,
         ],
     )
 
@@ -33,8 +33,8 @@ def main():
         name="flat-field-correction/daily",
         description="Run the flat field correction pipeline on a specific day folder.",
         tags=[
-            DeploymentTopicTag.FLAT_FIELD_CORRECTION,
-            DeploymentAutomationTag.MANUAL,
+            DeploymentTopicTag.FLAT_FIELD_CORRECTION.value,
+            DeploymentAutomationTag.MANUAL.value,
         ],
     )
 

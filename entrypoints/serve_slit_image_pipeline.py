@@ -25,9 +25,9 @@ def main():
         description="Generate slit preview images for all unprocessed measurements.",
         cron="0 4 * * *",  # Daily at 4am
         tags=[
-            DeploymentTopicTag.SLIT_IMAGE_GENERATION,
-            DeploymentScheduleTag.DAILY,
-            DeploymentAutomationTag.SCHEDULED,
+            DeploymentTopicTag.SLIT_IMAGES.value,
+            DeploymentScheduleTag.DAILY.value,
+            DeploymentAutomationTag.SCHEDULED.value,
         ],
     )
 
@@ -35,8 +35,8 @@ def main():
         name="slit-images/daily",
         description="Generate slit preview images for a specific observation day.",
         tags=[
-            DeploymentTopicTag.SLIT_IMAGE_GENERATION,
-            DeploymentAutomationTag.MANUAL,
+            DeploymentTopicTag.SLIT_IMAGES.value,
+            DeploymentAutomationTag.MANUAL.value,
         ],
     )
 

@@ -18,9 +18,9 @@ def main():
         description="Delete Prefect flow runs older than a retention duration.",
         cron="0 0 * * *",  # Daily at midnight
         tags=[
-            DeploymentTopicTag.MAINTENANCE,
-            DeploymentScheduleTag.DAILY,
-            DeploymentAutomationTag.SCHEDULED,
+            DeploymentTopicTag.MAINTENANCE.value,
+            DeploymentScheduleTag.DAILY.value,
+            DeploymentAutomationTag.SCHEDULED.value,
         ],
     )
 
