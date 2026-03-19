@@ -1,16 +1,130 @@
-"""Tests for core metadata abstraction."""
+"""Tests for core models."""
 
 import datetime
+from pathlib import Path
 
 import numpy as np
+import pytest
 
 from irsol_data_pipeline.core.models import (
+    CalibrationResult,
+    FlatField,
+    Measurement,
     MeasurementMetadata,
+    StokesParameters,
     _decode_info,
     _parse_zimpol_datetime,
 )
+from tests.unit.utils import make_dat_array_info
 
-from .utils import make_dat_array_info
+
+class TestCalibrationResult:
+    @staticmethod
+    def make_calibration_result(
+        pixel_scale: float, wavelength_offset: float
+    ) -> CalibrationResult:
+        return CalibrationResult(
+            pixel_scale=pixel_scale,
+            wavelength_offset=wavelength_offset,
+            pixel_scale_error=-1,
+            wavelength_offset_error=-1,
+            reference_file="",
+        )
+
+    @pytest.mark.parametrize(
+        "pixel_scale,wavelength_offset,pixel,expected",
+        [
+            (10, 3405, 0, 3405),  # pixel 0 should give wavelength_offset
+            (10, 3405, 1, 3415),  # pixel 1 should give wavelength_offset + pixel_scale
+            (
+                10,
+                3405,
+                -1,
+                3395,
+            ),  # pixel -1 should give wavelength_offset - pixel_scale
+            (
+                10,
+                3405,
+                4,
+                3445,
+            ),  # pixel 4 should give wavelength_offset + 4 * pixel_scale
+        ],
+    )
+    def test_pixel_to_wavelength(
+        self,
+        pixel_scale: float,
+        wavelength_offset: float,
+        pixel: float,
+        expected: float,
+    ):
+        calibration_result = self.make_calibration_result(
+            pixel_scale, wavelength_offset
+        )
+        wavelength = calibration_result.pixel_to_wavelength(pixel)
+        assert wavelength == expected
+
+    @pytest.mark.parametrize(
+        "pixel_scale,wavelength_offset,wavelength,expected",
+        [
+            (10, 3405, 3405, 0),  # wavelength equal to offset should give pixel 0
+            (10, 3405, 3415, 1),  # wavelength 10 above offset should give pixel 1
+            (10, 3405, 3395, -1),  # wavelength 10 below offset should give pixel -1
+            (10, 3405, 3445, 4),  # wavelength 40 above offset should give pixel 4
+        ],
+    )
+    def test_wavelength_to_pixel(
+        self,
+        pixel_scale: float,
+        wavelength_offset: float,
+        wavelength: float,
+        expected: float,
+    ):
+        calibration_result = self.make_calibration_result(
+            pixel_scale, wavelength_offset
+        )
+        pixel = calibration_result.wavelength_to_pixel(wavelength)
+        assert pixel == expected
+
+
+class TestStokesParameters:
+    def test_creation(self, sample_stokes: StokesParameters):
+        assert sample_stokes.i.shape == (50, 200)
+        assert sample_stokes.q.shape == (50, 200)
+
+    def test_unpacking(self, sample_stokes: StokesParameters):
+        i, q, u, v = sample_stokes
+        assert i.shape == (50, 200)
+
+
+class TestMeasurement:
+    def test_properties(
+        self,
+        sample_measurement_metadata: MeasurementMetadata,
+        sample_stokes: StokesParameters,
+    ):
+        m = Measurement(
+            source_path=Path("/data/5886_m13.dat"),
+            metadata=sample_measurement_metadata,
+            stokes=sample_stokes,
+        )
+        assert m.wavelength == 5886
+        assert m.name == "5886_m13"
+        assert isinstance(m.timestamp, datetime.datetime)
+
+
+class TestFlatField:
+    def test_properties(
+        self,
+        sample_measurement_metadata: MeasurementMetadata,
+        sample_stokes: StokesParameters,
+    ):
+        ff = FlatField(
+            source_path=Path("/data/ff5886_m13.dat"),
+            metadata=sample_measurement_metadata,
+            stokes=sample_stokes,
+        )
+        assert ff.wavelength == 5886
+        assert isinstance(ff.timestamp, datetime.datetime)
 
 
 class TestDecodeInfo:
@@ -150,3 +264,7 @@ class TestMeasurementMetadata:
         assert sample_measurement_metadata.flatfield_status is False
         assert sample_measurement_metadata.global_noise is not None
         assert sample_measurement_metadata.global_mean is not None
+
+        # -- computed properties --
+        assert sample_measurement_metadata.solar_x == 344.5
+        assert sample_measurement_metadata.solar_y == 447.0
