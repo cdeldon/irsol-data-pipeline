@@ -1,18 +1,18 @@
-from enum import StrEnum
+import enum
 
 
-class DeploymentTopicTag(StrEnum):
+class DeploymentTopicTag(enum.Enum):
     FLAT_FIELD_CORRECTION = "flat-field-correction"
     SLIT_IMAGES = "slit-images"
     MAINTENANCE = "maintenance"
 
 
-class DeploymentScheduleTag(StrEnum):
+class DeploymentScheduleTag(enum.Enum):
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
 
 
-class DeploymentAutomationTag(StrEnum):
+class DeploymentAutomationTag(enum.Enum):
     SCHEDULED = "scheduled"
     MANUAL = "manual"
