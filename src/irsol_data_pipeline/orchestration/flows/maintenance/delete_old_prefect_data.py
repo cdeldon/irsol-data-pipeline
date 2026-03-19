@@ -6,11 +6,9 @@ dedicated maintenance deployment, separate from science-processing
 deployments.
 """
 
-import asyncio
 import datetime
 from uuid import UUID
 
-import typer
 from loguru import logger
 from prefect import flow, task
 from prefect.client.orchestration import get_client
@@ -19,8 +17,10 @@ from prefect.server.schemas.sorting import FlowRunSort
 from prefect.task_runners import ThreadPoolTaskRunner
 
 from irsol_data_pipeline.orchestration.patch_logging import setup_logging
-
-app = typer.Typer()
+from irsol_data_pipeline.orchestration.variables import (
+    PrefectVariableName,
+    get_variable,
+)
 
 
 @task(task_run_name="maintenance/delete-run/{flow_run_id}")
@@ -62,58 +62,27 @@ async def retrieve_old_flow_ids(dt: datetime.timedelta) -> list[UUID]:
     task_runner=ThreadPoolTaskRunner(max_workers=4),
     flow_run_name="maintenance/cleanup/{hours}h",
 )
-async def delete_flow_runs_older_than(hours: float, interactive: bool = True) -> bool:
+async def delete_flow_runs_older_than(
+    hours: float = 0.0,
+) -> bool:
     """Delete Prefect flow runs older than a retention duration.
 
     Args:
-        hours: Retention duration in hours. Runs older than `now - hours` are deleted.
-        interactive: If True, show IDs and require confirmation before delete.
+        hours: Optional retention duration in hours. If unset (0), the Prefect
+            Variable ``cache-expiration-hours`` is used.
+    Returns:
+        True if any flow runs were deleted, False if no old flow runs were found.
     """
     setup_logging()
+    hours = hours or float(
+        get_variable(PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS, default="672")
+    )
     dt = datetime.timedelta(hours=hours)
     old_flow_run_ids = await retrieve_old_flow_ids(dt)
     if not old_flow_run_ids:
-        typer.echo("No flow runs found older than the specified cutoff.")
+        logger.info("No flow runs found older than the specified cutoff.")
         return False
-    if interactive:
-        typer.echo(
-            f"Found {len(old_flow_run_ids)} flow run(s) older than {dt} to delete:"
-        )
-        for fid in old_flow_run_ids:
-            typer.echo(f"  - {fid}")
-        typer.confirm(
-            f"\nDelete these {len(old_flow_run_ids)} flow run(s)?", abort=True
-        )
+
     delete_flow_run_id.map(old_flow_run_ids).result()
-    typer.echo("Deletion completed")
+    logger.success("Deletion completed")
     return True
-
-
-@app.command()
-def main(
-    hours: float = typer.Option(
-        24 * 7 * 4,
-        "--hours",
-        help="Delete flow runs older than this many hours. Defaults to 4 weeks.",
-    ),
-    no_interactive: bool = typer.Option(
-        False,
-        "--no-interactive",
-        help="Skip confirmation prompt and delete immediately.",
-    ),
-):
-    """CLI entrypoint to run maintenance cleanup once.
-
-    Args:
-        hours: Retention window in hours.
-        no_interactive: Disable confirmation prompt when set.
-    """
-    result = asyncio.run(
-        delete_flow_runs_older_than(hours, interactive=not no_interactive)
-    )
-    if not result:
-        raise typer.Exit()
-
-
-if __name__ == "__main__":
-    app()
