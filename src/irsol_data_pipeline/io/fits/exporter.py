@@ -27,6 +27,7 @@ from irsol_data_pipeline.core.models import (
     MeasurementMetadata,
     StokesParameters,
 )
+from irsol_data_pipeline.version import __version__
 
 IRSOL_LOCATION = EarthLocation(
     lat=46.176906 * u.Unit("deg"),
@@ -183,6 +184,10 @@ def _build_hdu_list(
     title = _make_title(metadata)
     for hdu in [hdu_primary, si_hdu, sq_hdu, su_hdu, sv_hdu]:
         hdu.header["FILENAME"] = title
+        _add_software_metadata(
+            header=hdu.header,
+            software_version=__version__,
+        )
 
     # Checksums
     for hdu in [si_hdu, sq_hdu, su_hdu, sv_hdu]:
@@ -541,6 +546,14 @@ def _add_data_statistics(header: fits.Header, data: np.ndarray) -> None:
                 0.0,
                 f"{perc}th percentile normalized data value",
             )
+
+
+def _add_software_metadata(
+    header: fits.Header,
+    software_version: str,
+) -> None:
+    """Add software versioning information to a FITS header."""
+    header["SWVER"] = (software_version, "irsol_data_pipeline package version")
 
 
 def _make_title(metadata: MeasurementMetadata) -> str:
