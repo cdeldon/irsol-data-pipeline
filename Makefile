@@ -26,7 +26,7 @@ prefect/setup:
 prefect/dashboard: prefect/setup
 	uv run prefect server start
 
-prefect/configure: prefect/dashboard
+prefect/configure:
 	uv run entrypoints/bootstrap_variables.py
 
 prefect/reset:
