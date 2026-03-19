@@ -188,8 +188,8 @@ This registers two deployments:
 
 | Deployment name | Schedule | What it does |
 |---|---|---|
-| `run-flat-field-correction-pipeline` | Daily at 01:00 | Scans the whole dataset and processes all pending measurements |
-| `run-daily-flat-field-correction-pipeline` | On demand | Processes a single observation day directory |
+| `ff-correction-full/flat-field-correction-full` | Daily at 01:00 | Scans the whole dataset and processes all pending measurements |
+| `ff-correction-daily/flat-field-correction-daily` | On demand | Processes a single observation day directory |
 
 **Trigger a run manually:**
 
@@ -199,11 +199,11 @@ From the CLI:
 
 ```bash
 # Full dataset
-uv run prefect deployment run 'process-unprocessed-measurements/run-flat-field-correction-pipeline'
+uv run prefect deployment run 'ff-correction-full/flat-field-correction-full'
 
 # Single day
 uv run prefect deployment run \
-    'process-unprocessed-daily-measurements/run-daily-flat-field-correction-pipeline' \
+    'ff-correction-daily/flat-field-correction-daily' \
     --param day_path=/path/to/data/2025/20250312
 ```
 

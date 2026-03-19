@@ -23,7 +23,7 @@ from irsol_data_pipeline.orchestration.patch_logging import setup_logging
 app = typer.Typer()
 
 
-@task(task_run_name="delete-flow-run-with-id-{flow_run_id}")
+@task(task_run_name="maintenance/delete-run/{flow_run_id}")
 async def delete_flow_run_id(flow_run_id: UUID) -> UUID:
     """Delete a Prefect flow run by its ID."""
     async with get_client() as client:
@@ -32,7 +32,7 @@ async def delete_flow_run_id(flow_run_id: UUID) -> UUID:
     return flow_run_id
 
 
-@task
+@task(task_run_name="maintenance/retrieve-old-runs")
 async def retrieve_old_flow_ids(dt: datetime.timedelta) -> list[UUID]:
     """Return IDs of flow runs that ended before the provided cutoff.
 
@@ -58,8 +58,9 @@ async def retrieve_old_flow_ids(dt: datetime.timedelta) -> list[UUID]:
 
 
 @flow(
+    name="maintenance-cleanup",
     task_runner=ThreadPoolTaskRunner(max_workers=4),
-    flow_run_name="delete-flow-runs-older-than-{hours}-hours",
+    flow_run_name="maintenance/cleanup/{hours}h",
 )
 async def delete_flow_runs_older_than(hours: float, interactive: bool = True) -> bool:
     """Delete Prefect flow runs older than a retention duration.

@@ -1,8 +1,14 @@
-"""Prefect 3.x orchestration flows.
+"""Prefect 3.x orchestration flows for the flat-field correction pipeline.
 
 Two flows:
-1. process_unprocessed_measurements — Scans dataset root and triggers day processing
-2. process_daily_unprocessed_measurements — Processes a single observation day
+1. process_unprocessed_measurements (ff-correction-full) — Scans dataset root and
+   processes all days with pending measurements.
+2. process_daily_unprocessed_measurements (ff-correction-daily) — Processes a single
+   observation day.
+
+Naming convention: ff-correction/<scope>[/<context>]
+  Flows:  ff-correction-full / ff-correction-daily
+  Tasks:  ff-correction/<verb>-<noun>/<context>
 
 The orchestration layer contains NO scientific logic — it only
 calls pipeline functions and handles flow/task coordination.
@@ -41,7 +47,7 @@ from irsol_data_pipeline.pipeline.scanner import (
 )
 
 
-@task(task_run_name="find-observations-to-process/{root}")
+@task(task_run_name="ff-correction/scan-dataset/{root}")
 def scan_dataset_task(root: Path) -> ScanResult:
     """Prefect task: scan the dataset root."""
     scan_result = scan_dataset(root)
@@ -54,7 +60,7 @@ def scan_dataset_task(root: Path) -> ScanResult:
 
 
 @task(
-    task_run_name="{day_path.name}",
+    task_run_name="ff-correction/process-day/{day_path.name}",
 )
 def run_day_processing_subflow_task(
     day_path: Path,
@@ -68,7 +74,8 @@ def run_day_processing_subflow_task(
 
 
 @flow(
-    flow_run_name="process-unprocessed-measurements/{root}",
+    name="ff-correction-full",
+    flow_run_name="ff-correction/full/{root}",
     description="Scans the dataset and processes all days with pending measurements",
 )
 def process_unprocessed_measurements(
@@ -146,7 +153,8 @@ def process_unprocessed_measurements(
 
 
 @flow(
-    flow_run_name="process-unprocessed-daily-measurements/{day_path.name}",
+    name="ff-correction-daily",
+    flow_run_name="ff-correction/daily/{day_path.name}",
     description="Processes a single observation day",
 )
 def process_daily_unprocessed_measurements(

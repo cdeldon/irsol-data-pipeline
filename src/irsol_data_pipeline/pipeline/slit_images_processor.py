@@ -75,7 +75,7 @@ def generate_slit_image(
 
 
 @task(
-    task_run_name="generate-slit-image/{meas_path.name}",
+    task_run_name="slit-images/generate-measurement/{meas_path.name}",
     retries=2,
     retry_delay_seconds=30,
 )

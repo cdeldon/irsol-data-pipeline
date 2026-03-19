@@ -44,16 +44,16 @@ This registers one deployment:
 
 | Deployment name | Schedule | What it does |
 |---|---|---|
-| `delete-old-prefect-flow-runs` | Daily at 00:00 | Deletes flow runs older than the retention window |
+| `maintenance-cleanup/cleanup` | Daily at 00:00 | Deletes flow runs older than the retention window |
 
 **Trigger a run manually:**
 
-From the UI at `http://127.0.0.1:4200` → **Deployments** → `delete-old-prefect-flow-runs` → **Quick Run**.
+From the UI at `http://127.0.0.1:4200` → **Deployments** → `maintenance-cleanup/cleanup` → **Quick Run**.
 
 From the CLI:
 
 ```bash
-uv run prefect deployment run 'delete-flow-runs-older-than/delete-old-prefect-flow-runs'
+uv run prefect deployment run 'maintenance-cleanup/cleanup'
 ```
 
 **Runtime parameters:**
@@ -69,7 +69,7 @@ Override `hours` at run time from the UI or CLI, or edit the default in `entrypo
 
 ```python
 delete_old_prefect_data_deployment = delete_flow_runs_older_than.to_deployment(
-    name="delete-old-prefect-flow-runs",
+    name="cleanup",
     parameters={"hours": 24 * 7 * 2, "interactive": False},  # 2 weeks
     ...
 )
