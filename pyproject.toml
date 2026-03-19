@@ -2,7 +2,7 @@
 name = "irsol-data-pipeline"
 dynamic = ["version"]
 description = "Solar observation data processing pipeline for IRSOL"
-readme = "README.md"
+readme = { text = "Solar observation data processing pipeline for IRSOL", content-type = "text/markdown" }
 authors = [{ name = "Carlo Del Don", email = "deldoc@usi.ch" }]
 requires-python = ">=3.10"
 dependencies = [
@@ -27,6 +27,18 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/irsol_data_pipeline"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/tests",
+    "/htmlcov",
+    "/documentation",
+    "/README.md",
+    "/uv.lock",
+]
 
 [tool.uv-dynamic-versioning]
 fallback-version = "0.0.0"
