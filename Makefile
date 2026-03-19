@@ -20,7 +20,7 @@ test:
 prefect/setup:
 	uv run prefect config set PREFECT_API_URL=http://localhost:4200/api
 	uv run prefect config set PREFECT_SERVER_ANALYTICS_ENABLED=false
-	uv run entrypoints/boostrap_variables.py
+	uv run entrypoints/bootstrap_variables.py
 
 prefect/dashboard: prefect/setup
 	uv run prefect server start
