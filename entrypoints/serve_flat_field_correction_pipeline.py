@@ -18,7 +18,7 @@ def main():
     root_path = Path(__file__).parent.parent
 
     process_unprocessed_measurment_deployment = process_unprocessed_measurements.to_deployment(
-        name="flat-field-correction/full",
+        name="flat-field-correction-full",
         parameters={"root": str(root_path / "data")},
         description="Run the flat field correction pipeline on all unprocessed measurements.",
         cron="0 1 * * *",  # Daily at 1am
@@ -30,7 +30,7 @@ def main():
     )
 
     process_daily_unprocessed_measurement_deployment = process_daily_unprocessed_measurements.to_deployment(
-        name="flat-field-correction/daily",
+        name="flat-field-correction-daily",
         description="Run the flat field correction pipeline on a specific day folder.",
         tags=[
             DeploymentTopicTag.FLAT_FIELD_CORRECTION.value,
