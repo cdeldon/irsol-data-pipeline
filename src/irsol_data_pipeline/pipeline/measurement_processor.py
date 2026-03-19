@@ -82,7 +82,7 @@ def _plot_data(
 
 
 @task(
-    task_run_name="process-measurement/{meas_path.name}",
+    task_run_name="ff-correction/process-measurement/{meas_path.name}",
     retries=2,
     retry_delay_seconds=10,
     retry_condition_fn=retry_condition_except_on_exceptions(

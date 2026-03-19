@@ -88,7 +88,7 @@ def _fetch_sdo_maps_for_product(
     ]
 
 
-@task(task_run_name="fetch-sdo-maps/{start_time}-{end_time}")
+@task(task_run_name="slit-images/fetch-sdo-maps/{start_time}-{end_time}")
 def fetch_sdo_maps(
     start_time: datetime.datetime,
     end_time: datetime.datetime,

@@ -15,7 +15,7 @@ def main():
     root_path = Path(__file__).parent.parent
 
     generate_slit_images_deployment = generate_slit_images.to_deployment(
-        name="run-slit-image-pipeline",
+        name="full",
         parameters={"root": str(root_path / "data")},
         description="Generate slit preview images for all unprocessed measurements.",
         cron="0 4 * * *",  # Daily at 4am
@@ -23,7 +23,7 @@ def main():
     )
 
     generate_daily_slit_images_deployment = generate_daily_slit_images.to_deployment(
-        name="run-daily-slit-image-pipeline",
+        name="daily",
         description="Generate slit preview images for a specific observation day.",
         tags=["slit-images"],
     )
