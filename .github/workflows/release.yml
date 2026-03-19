@@ -7,20 +7,14 @@ on:
 
 jobs:
   release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     name: Build and publish package
     runs-on: ubuntu-latest
-    # Source - https://stackoverflow.com/a/68414395
-    # Posted by antonmos, modified by community. See post 'Timeline' for change history
-    # Retrieved 2026-03-19, License - CC BY-SA 4.0
-
-    permissions:
-      contents: read
-      id-token: write
-
     environment:
       name: pypi
       url: https://pypi.org/p/irsol-data-pipeline
-
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v5
 
