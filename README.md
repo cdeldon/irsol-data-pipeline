@@ -1,5 +1,7 @@
 # IRSOL Data Pipeline
 
+[![CI](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml)
+
 IRSOL Data Pipeline processes reduced ZIMPOL spectro-polarimetric observations and produces calibrated scientific outputs and operational artifacts.
 
 The repository contains three independent pipelines over the same dataset root.
