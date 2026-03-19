@@ -97,7 +97,7 @@ from prefect import serve
 from irsol_data_pipeline.orchestration.flows.my_new_flow import my_new_flow
 
 deployment = my_new_flow.to_deployment(
-    name="my-pipeline/full",  # <pipeline-prefix>/<scope>: full | daily | cleanup
+    name="my-pipeline-full",  # <pipeline-prefix>-<scope>: e.g. my-pipeline-full, my-pipeline-daily
     cron="0 2 * * *",  # daily at 02:00
 )
 serve(deployment)
@@ -147,10 +147,10 @@ maintenance/cleanup/{hours}h
 
 | Deployment name | CLI trigger | Meaning |
 |---|---|---|
-| `flat-field-correction/full` | `ff-correction-full/flat-field-correction/full` | Scheduled full-dataset run |
-| `flat-field-correction/daily` | `ff-correction-daily/flat-field-correction/daily` | On-demand single-day run |
-| `slit-images/full` | `slit-images-full/slit-images/full` | Scheduled full-dataset run |
-| `slit-images/daily` | `slit-images-daily/slit-images/daily` | On-demand single-day run |
+| `flat-field-correction-full` | `ff-correction-full/flat-field-correction-full` | Scheduled full-dataset run |
+| `flat-field-correction-daily` | `ff-correction-daily/flat-field-correction-daily` | On-demand single-day run |
+| `slit-images-full` | `slit-images-full/slit-images-full` | Scheduled full-dataset run |
+| `slit-images-daily` | `slit-images-daily/slit-images-daily` | On-demand single-day run |
 | `cleanup` | `maintenance-cleanup/cleanup` | Scheduled maintenance run |
 
 **Task run names** (`task_run_name=` in `@task`) — follow `<pipeline-prefix>/<verb>-<noun>[/<context>]`:

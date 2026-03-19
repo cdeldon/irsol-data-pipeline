@@ -32,7 +32,7 @@ graph LR
 ```
 
 - **Prefect Server**: stores flow run history, schedules, and artefacts in a local SQLite database.
-- **Processing Worker**: serves the `flat-field-correction/full` and `flat-field-correction/daily` deployments.
+- **Processing Worker**: serves the `flat-field-correction-full` and `flat-field-correction-daily` deployments.
 - **Maintenance Worker**: serves the `cleanup` deployment.
 
 > The workers contact the Prefect server and poll for scheduled or manually triggered runs. If a worker is stopped, its deployments will not execute even if the server is running.
@@ -71,11 +71,11 @@ From the command line (with the Prefect server running):
 
 ```bash
 # Trigger the full dataset pipeline
-uv run prefect deployment run 'ff-correction-full/flat-field-correction/full'
+uv run prefect deployment run 'ff-correction-full/flat-field-correction-full'
 
 # Trigger a single-day run with a specific day path
 uv run prefect deployment run \
-    'ff-correction-daily/flat-field-correction/daily' \
+    'ff-correction-daily/flat-field-correction-daily' \
     --param day_path=/path/to/data/2025/20250312
 ```
 
