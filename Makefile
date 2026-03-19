@@ -22,7 +22,7 @@ prefect/setup:
 	uv run prefect config set PREFECT_SERVER_ANALYTICS_ENABLED=false
 	uv run entrypoints/bootstrap_variables.py
 
-prefect/dashboard: prefect/setup
+prefect/dashboard:
 	uv run prefect server start
 
 prefect/reset:
