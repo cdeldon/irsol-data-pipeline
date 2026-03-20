@@ -1,4 +1,4 @@
-"""Unit tests for slit image generation orchestration flows."""
+"""Unit tests for slit image generation prefect flows."""
 
 from __future__ import annotations
 

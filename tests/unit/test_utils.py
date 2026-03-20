@@ -1,8 +1,8 @@
-"""Tests for orchestration utility helpers."""
+"""Tests for prefect utility helpers."""
 
 from __future__ import annotations
 
-from irsol_data_pipeline.orchestration.utils import _flatten_dict
+from irsol_data_pipeline.prefect.utils import _flatten_dict
 
 
 class TestFlattenDict:

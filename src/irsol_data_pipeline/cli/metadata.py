@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from irsol_data_pipeline.orchestration.flows.tags import PrefectDeploymentTopicTag
-from irsol_data_pipeline.orchestration.variables import PrefectVariableName
+from irsol_data_pipeline.prefect.flows.tags import PrefectDeploymentTopicTag
+from irsol_data_pipeline.prefect.variables import PrefectVariableName
 
 OutputFormat = Literal["table", "json"]
 PrefectFlowGroupName = Literal[

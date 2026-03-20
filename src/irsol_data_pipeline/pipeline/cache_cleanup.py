@@ -2,8 +2,8 @@
 
 Contains the pure filesystem operations for discovering and removing stale
 ``.pkl`` files from the per-day cache directories (``processed/_cache`` and
-``processed/_sdo_cache``).  All orchestration concerns live in the
-``orchestration/flows/maintenance`` layer.
+``processed/_sdo_cache``).  All prefect concerns live in the
+``prefect/flows/maintenance`` layer.
 """
 
 from __future__ import annotations
@@ -172,7 +172,7 @@ def build_cache_cleanup_report(
 
     Args:
         root: Dataset root path used as context in the report header.
-        results: Per-day cleanup results produced by the orchestration flow.
+        results: Per-day cleanup results produced by the prefect flow.
         hours: Retention window (hours) that was applied during cleanup.
 
     Returns:

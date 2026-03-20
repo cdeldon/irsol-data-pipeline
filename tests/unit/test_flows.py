@@ -1,4 +1,4 @@
-"""Tests for orchestration flow helpers."""
+"""Tests for prefect flow helpers."""
 
 from pathlib import Path
 

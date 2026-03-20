@@ -19,9 +19,9 @@ from irsol_data_pipeline.core.correction.analyzer import analyze_flatfield
 from irsol_data_pipeline.core.models import FlatFieldCorrection, MeasurementMetadata
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import flatfield as flatfield_io
-from irsol_data_pipeline.orchestration.decorators import task
-from irsol_data_pipeline.orchestration.utils import create_prefect_json_report
 from irsol_data_pipeline.pipeline.filesystem import flatfield_correction_cache_path
+from irsol_data_pipeline.prefect.decorators import task
+from irsol_data_pipeline.prefect.utils import create_prefect_json_report
 
 
 class FlatFieldCache:

@@ -24,7 +24,7 @@ from irsol_data_pipeline.core.slit_images.config import (
     MAX_MISSING_PIXELS,
     SDO_DATA_PRODUCTS,
 )
-from irsol_data_pipeline.orchestration.decorators import task
+from irsol_data_pipeline.prefect.decorators import task
 
 
 def _fetch_sdo_map_for_product_wavelength(

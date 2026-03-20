@@ -4,7 +4,7 @@
 
 Prefect is the orchestration layer used to run pipeline logic as managed flows and tasks.
 
-In this codebase, scientific logic remains in `core/` and `pipeline/`, while Prefect concerns (flow wiring, deployment schedules, runtime variables, and reports) live in `orchestration/` and the package CLI modules under `src/irsol_data_pipeline/cli/`.
+In this codebase, scientific logic remains in `core/` and `pipeline/`, while Prefect concerns (flow wiring, deployment schedules, runtime variables, and reports) live in `prefect/` and the package CLI modules under `src/irsol_data_pipeline/cli/`.
 
 ```mermaid
 flowchart LR
@@ -49,10 +49,10 @@ from pathlib import Path
 
 from loguru import logger
 
-from irsol_data_pipeline.orchestration.decorators import flow, task
-from irsol_data_pipeline.orchestration.patch_logging import setup_logging
-from irsol_data_pipeline.orchestration.utils import create_prefect_markdown_report
-from irsol_data_pipeline.orchestration.variables import (
+from irsol_data_pipeline.prefect.decorators import flow, task
+from irsol_data_pipeline.prefect.patch_logging import setup_logging
+from irsol_data_pipeline.prefect.utils import create_prefect_markdown_report
+from irsol_data_pipeline.prefect.variables import (
     PrefectVariableName,
     get_variable,
 )
@@ -121,7 +121,7 @@ def serve_demo() -> None:
 
     from prefect import serve
 
-    from irsol_data_pipeline.orchestration.flows.demo_pipeline import demo_pipeline_full
+    from irsol_data_pipeline.prefect.flows.demo_pipeline import demo_pipeline_full
 
     root_path = Path.cwd()
 

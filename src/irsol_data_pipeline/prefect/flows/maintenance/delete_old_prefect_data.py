@@ -13,13 +13,13 @@ from uuid import UUID
 
 from loguru import logger
 from prefect import flow, task
-from prefect.client.orchestration import get_client
+from prefect.client.prefect import get_client
 from prefect.server.schemas.filters import FlowRunFilter, FlowRunFilterEndTime
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.task_runners import ThreadPoolTaskRunner
 
-from irsol_data_pipeline.orchestration.patch_logging import setup_logging
-from irsol_data_pipeline.orchestration.variables import (
+from irsol_data_pipeline.prefect.patch_logging import setup_logging
+from irsol_data_pipeline.prefect.variables import (
     PrefectVariableName,
     aget_variable,
 )
