@@ -165,7 +165,7 @@ systemctl status irsol-prefect-serve-maintenance.service
 2. Check Prefect API health:
 
 ```bash
-curl -fsS http://127.0.0.1:4200/api/health
+idp prefect status
 ```
 
 3. Check runtime metadata quickly:

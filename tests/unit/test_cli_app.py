@@ -7,11 +7,13 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
+import requests
 from cyclopts import App
 from cyclopts.exceptions import ValidationError
 
 from irsol_data_pipeline.cli import _meta, app
 from irsol_data_pipeline.cli.commands.prefect_command import start_prefect_server
+from irsol_data_pipeline.prefect.config import PREFECT_PROFILE_SETTINGS
 
 
 class TestCliApp:
@@ -91,7 +93,102 @@ class TestCliApp:
         assert "start" in output
         assert "reset-database" in output
         assert "flows" in output
+        assert "status" in output
         assert "variables" in output
+
+    def test_prefect_status_json_when_dashboard_is_reachable(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with patch(
+            "irsol_data_pipeline.cli.commands.prefect_command.status_command.requests.get"
+        ) as mock_get:
+            mock_get.return_value.ok = True
+            mock_get.return_value.status_code = 200
+
+            result = app(
+                ["prefect", "status", "--format", "json", "--no-banner"],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        payload = json.loads(capsys.readouterr().out)
+
+        assert result == 0
+        assert payload == {
+            "dashboard_url": "http://127.0.0.1:4200",
+            "detail": "Prefect dashboard is reachable on the expected port.",
+            "healthcheck_url": "http://127.0.0.1:4200/api/health",
+            "host": "127.0.0.1",
+            "http_status": 200,
+            "port": 4200,
+            "reachable": True,
+            "status": "running",
+        }
+        mock_get.assert_called_once_with(
+            "http://127.0.0.1:4200/api/health",
+            timeout=5.0,
+        )
+
+    def test_prefect_status_returns_one_when_dashboard_is_unreachable(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with patch(
+            "irsol_data_pipeline.cli.commands.prefect_command.status_command.requests.get",
+            side_effect=requests.ConnectionError("connection refused"),
+        ):
+            result = app(
+                ["prefect", "status", "--format", "json", "--no-banner"],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        payload = json.loads(capsys.readouterr().out)
+
+        assert result == 1
+        assert payload["status"] == "unreachable"
+        assert payload["reachable"] is False
+        assert payload["http_status"] is None
+        assert "connection refused" in payload["detail"]
+
+    def test_prefect_status_accepts_host_and_port_overrides(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with patch(
+            "irsol_data_pipeline.cli.commands.prefect_command.status_command.requests.get"
+        ) as mock_get:
+            mock_get.return_value.ok = True
+            mock_get.return_value.status_code = 200
+
+            result = app(
+                [
+                    "prefect",
+                    "status",
+                    "--format",
+                    "json",
+                    "--no-banner",
+                    "--host",
+                    "prefect.internal",
+                    "--port",
+                    "4300",
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        payload = json.loads(capsys.readouterr().out)
+
+        assert result == 0
+        assert payload["dashboard_url"] == "http://prefect.internal:4300"
+        assert payload["healthcheck_url"] == "http://prefect.internal:4300/api/health"
+        assert payload["host"] == "prefect.internal"
+        assert payload["port"] == 4300
+        mock_get.assert_called_once_with(
+            "http://prefect.internal:4300/api/health",
+            timeout=5.0,
+        )
 
     def test_prefect_flows_list_json(self, capsys: pytest.CaptureFixture[str]) -> None:
         app(
@@ -251,9 +348,12 @@ class TestCliApp:
         assert result == 3
 
     def test_prefect_start_sets_local_prefect_config_before_server_start(self) -> None:
-        with patch(
-            "irsol_data_pipeline.cli.commands.prefect_command.subprocess.run"
-        ) as mock_run:
+        with (
+            patch("prefect.settings.profiles.update_current_profile") as mock_update,
+            patch(
+                "irsol_data_pipeline.cli.commands.prefect_command.subprocess.run"
+            ) as mock_run,
+        ):
             mock_run.side_effect = [
                 subprocess.CompletedProcess(args=[], returncode=0),
             ]
@@ -262,14 +362,18 @@ class TestCliApp:
                 start_prefect_server()
 
         assert exc_info.value.code == 0
+        mock_update.assert_called_once_with(PREFECT_PROFILE_SETTINGS)
         assert mock_run.call_args_list == [
             ((["prefect", "server", "start"],), {"check": False}),
         ]
 
     def test_prefect_start_propagates_server_exit_code(self) -> None:
-        with patch(
-            "irsol_data_pipeline.cli.commands.prefect_command.subprocess.run"
-        ) as mock_run:
+        with (
+            patch("prefect.settings.profiles.update_current_profile") as mock_update,
+            patch(
+                "irsol_data_pipeline.cli.commands.prefect_command.subprocess.run"
+            ) as mock_run,
+        ):
             mock_run.side_effect = [
                 subprocess.CompletedProcess(args=[], returncode=7),
             ]
@@ -278,3 +382,4 @@ class TestCliApp:
                 start_prefect_server()
 
         assert exc_info.value.code == 7
+        mock_update.assert_called_once_with(PREFECT_PROFILE_SETTINGS)

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from typing import Any, cast
 
 from cyclopts import App
+
+from irsol_data_pipeline.prefect.config import PREFECT_PROFILE_SETTINGS
 
 prefect_app = App(name="prefect", help="Run Prefect server commands.")
 
@@ -21,12 +24,7 @@ def start_prefect_server() -> None:
 
     from prefect.settings.profiles import update_current_profile
 
-    update_current_profile(
-        {
-            "PREFECT_API_URL": "http://localhost:4200/api",
-            "PREFECT_SERVER_ANALYTICS_ENABLED": "false",
-        }
-    )
+    update_current_profile(cast(dict[Any, Any], PREFECT_PROFILE_SETTINGS))
 
     result = subprocess.run(["prefect", "server", "start"], check=False)
     sys.exit(result.returncode)
@@ -42,6 +40,12 @@ prefect_app.command(
     "irsol_data_pipeline.cli.commands.prefect_command.flows_command:flows_app",
     name="flows",
     help="List and serve Prefect flow groups.",
+)
+
+prefect_app.command(
+    "irsol_data_pipeline.cli.commands.prefect_command.status_command:status",
+    name="status",
+    help="Check whether the local Prefect dashboard is reachable.",
 )
 
 prefect_app.command(
