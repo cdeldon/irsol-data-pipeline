@@ -15,18 +15,14 @@ dependencies = [
     "prefect>=3.0.0",
     "pydantic>=2.0",
     "loguru>=0.7.0",
-    "typer>=0.24.1",
+    "cyclopts>=4.8.0",
     "drms>=0.7.0",
     "requests>=2.28.0",
     "matplotlib>=3.7.0",
 ]
 
 [project.scripts]
-irsol-configure = "irsol_data_pipeline.cli.bootstrap_variables:app"
-irsol-dashboard = "irsol_data_pipeline.cli.dashboard:main"
-irsol-serve-flat-field-correction = "irsol_data_pipeline.cli.serve_flat_field_correction:main"
-irsol-serve-slit-images = "irsol_data_pipeline.cli.serve_slit_images:main"
-irsol-serve-maintenance = "irsol_data_pipeline.cli.serve_maintenance:main"
+idp = "irsol_data_pipeline.cli.app:app"
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
@@ -41,7 +37,7 @@ packages = ["src/irsol_data_pipeline"]
 [tool.hatch.build.targets.sdist]
 exclude = [
     "/documentation",
-    "/entrypoints/dev",
+    "/entrypoints",
     "/htmlcov",
     "/README.md",
     "/tests",

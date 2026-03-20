@@ -75,11 +75,12 @@ src/irsol_data_pipeline/
 │           ├── delete_old_prefect_data.py
 │           └── delete_old_cache_files.py
 ├── cli/
-│   ├── bootstrap_variables.py
-│   ├── dashboard.py
-│   ├── serve_flat_field_correction.py
-│   ├── serve_maintenance.py
-│   └── serve_slit_images.py
+│   ├── app.py
+│   ├── common.py
+│   ├── flows.py
+│   ├── info.py
+│   ├── metadata.py
+│   └── variables.py
 ├── plotting/
 │   ├── profile.py
 │   └── slit.py
@@ -90,9 +91,9 @@ src/irsol_data_pipeline/
 
 ## Command Layout
 
-- `src/irsol_data_pipeline/cli/` contains the real implementation for package-installed commands such as `irsol-dashboard` and the Prefect serve commands.
-- `entrypoints/` remains in the repository for local development convenience and backwards compatibility with existing `uv run entrypoints/...` usage.
-- The files in `entrypoints/` are thin wrappers that delegate to the corresponding modules in `src/irsol_data_pipeline/cli/`.
+- `src/irsol_data_pipeline/cli/` contains the Cyclopts-based unified CLI implementation.
+- `app.py` defines the root command and mounts lazy-loaded sub-apps for `flows` and `variables`.
+- `flows.py`, `variables.py`, and `info.py` implement operator-facing commands, while `metadata.py` and `common.py` centralize shared registries and helpers.
 
 ## Execution Paths
 
@@ -109,7 +110,7 @@ src/irsol_data_pipeline/
 - `io/` does not perform scientific transformations.
 - `pipeline/` contains process logic but no Prefect deployment definitions.
 - `orchestration/` owns flow wiring and deployment construction.
-- `cli/` owns package-installed command implementations for serving, dashboard startup, and Prefect variable bootstrapping.
-- `entrypoints/` exposes thin compatibility shims over `cli/` for repository-local execution.
+- `cli/` owns package-installed command implementations for serving, inspection, and Prefect variable bootstrapping.
+- `entrypoints/` contains development scripts for local testing and experimentation.
 
 For direct Python usage patterns, see [library-usage.md](library-usage.md).
