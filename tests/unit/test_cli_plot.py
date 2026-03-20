@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from cyclopts.exceptions import ValidationError
 
-from irsol_data_pipeline.cli.app import app
+from irsol_data_pipeline.cli import app
 from irsol_data_pipeline.core.models import StokesParameters
 
 

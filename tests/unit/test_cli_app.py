@@ -10,15 +10,15 @@ import pytest
 from cyclopts import App
 from cyclopts.exceptions import ValidationError
 
-from irsol_data_pipeline.cli.app import _meta, app
-from irsol_data_pipeline.cli.prefect_command import start_prefect_server
+from irsol_data_pipeline.cli import _meta, app
+from irsol_data_pipeline.cli.commands.prefect_command import start_prefect_server
 
 
 class TestCliApp:
     def test_meta_defaults_to_info(self) -> None:
         with (
-            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
-            patch("irsol_data_pipeline.cli.app.app") as mock_app,
+            patch("irsol_data_pipeline.cli.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app") as mock_app,
         ):
             _meta("info")
 
@@ -27,8 +27,8 @@ class TestCliApp:
 
     def test_meta_verbose_one_gives_debug(self) -> None:
         with (
-            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
-            patch("irsol_data_pipeline.cli.app.app"),
+            patch("irsol_data_pipeline.cli.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app"),
         ):
             _meta("info", verbose=1)
 
@@ -36,8 +36,8 @@ class TestCliApp:
 
     def test_meta_verbose_two_gives_trace(self) -> None:
         with (
-            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
-            patch("irsol_data_pipeline.cli.app.app"),
+            patch("irsol_data_pipeline.cli.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app"),
         ):
             _meta("info", verbose=2)
 
@@ -45,8 +45,8 @@ class TestCliApp:
 
     def test_meta_log_level_overrides(self) -> None:
         with (
-            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
-            patch("irsol_data_pipeline.cli.app.app"),
+            patch("irsol_data_pipeline.cli.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app"),
         ):
             _meta("info", log_level="WARNING")
 
@@ -54,8 +54,8 @@ class TestCliApp:
 
     def test_meta_verbose_and_log_level_are_mutually_exclusive(self) -> None:
         with (
-            patch("irsol_data_pipeline.cli.app.setup_logging"),
-            patch("irsol_data_pipeline.cli.app.app"),
+            patch("irsol_data_pipeline.cli.setup_logging"),
+            patch("irsol_data_pipeline.cli.app"),
         ):
             with pytest.raises(SystemExit) as exc_info:
                 _meta("info", verbose=1, log_level="DEBUG")
@@ -146,7 +146,7 @@ class TestCliApp:
         }
 
         with patch(
-            "irsol_data_pipeline.cli.info.safe_read_prefect_variable",
+            "irsol_data_pipeline.cli.commands.info_command.safe_read_prefect_variable",
             side_effect=value_by_name.__getitem__,
         ):
             app(
@@ -176,7 +176,7 @@ class TestCliApp:
         }
 
         with patch(
-            "irsol_data_pipeline.cli.variables.safe_read_prefect_variable",
+            "irsol_data_pipeline.cli.commands.prefect_command.variables_command.safe_read_prefect_variable",
             side_effect=value_by_name.__getitem__,
         ):
             app(
@@ -203,7 +203,7 @@ class TestCliApp:
                 side_effect=["", "", "", "n", "", "n"],
             ),
             patch(
-                "irsol_data_pipeline.cli.variables._render_variable_entries",
+                "irsol_data_pipeline.cli.commands.prefect_command.variables_command._render_variable_entries",
                 return_value=None,
             ),
         ):
@@ -237,7 +237,7 @@ class TestCliApp:
                 ],
             ),
             patch(
-                "irsol_data_pipeline.cli.variables._render_variable_entries",
+                "irsol_data_pipeline.cli.commands.prefect_command.variables_command._render_variable_entries",
                 return_value=None,
             ),
         ):
@@ -252,7 +252,7 @@ class TestCliApp:
 
     def test_prefect_start_sets_local_prefect_config_before_server_start(self) -> None:
         with patch(
-            "irsol_data_pipeline.cli.prefect_command.subprocess.run"
+            "irsol_data_pipeline.cli.commands.prefect_command.subprocess.run"
         ) as mock_run:
             mock_run.side_effect = [
                 subprocess.CompletedProcess(args=[], returncode=0),
@@ -268,7 +268,7 @@ class TestCliApp:
 
     def test_prefect_start_propagates_server_exit_code(self) -> None:
         with patch(
-            "irsol_data_pipeline.cli.prefect_command.subprocess.run"
+            "irsol_data_pipeline.cli.commands.prefect_command.subprocess.run"
         ) as mock_run:
             mock_run.side_effect = [
                 subprocess.CompletedProcess(args=[], returncode=7),

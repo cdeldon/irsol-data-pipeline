@@ -39,13 +39,13 @@ prefect_app.command(
 )
 
 prefect_app.command(
-    "irsol_data_pipeline.cli.flows:flows_app",
+    "irsol_data_pipeline.cli.commands.prefect_command.flows_command:flows_app",
     name="flows",
     help="List and serve Prefect flow groups.",
 )
 
 prefect_app.command(
-    "irsol_data_pipeline.cli.variables:variables_app",
+    "irsol_data_pipeline.cli.commands.prefect_command.variables_command:variables_app",
     name="variables",
     help="List and configure Prefect variables.",
 )

@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-idp = "irsol_data_pipeline.cli.app:main"
+idp = "irsol_data_pipeline.cli:main"
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
