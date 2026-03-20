@@ -1,6 +1,6 @@
 """Tests for retry condition helpers used by Prefect tasks."""
 
-from irsol_data_pipeline.orchestration.retry import (
+from irsol_data_pipeline.prefect.retry import (
     retry_condition_except_on_exceptions,
 )
 

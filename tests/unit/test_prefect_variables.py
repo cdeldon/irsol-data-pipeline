@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from irsol_data_pipeline.exceptions import DatasetRootNotConfiguredError
-from irsol_data_pipeline.orchestration.variables import resolve_dataset_root
+from irsol_data_pipeline.prefect.variables import resolve_dataset_root
 
 
 class TestResolveDatasetRoot:
@@ -19,7 +19,7 @@ class TestResolveDatasetRoot:
 
     def test_uses_prefect_variable_when_root_missing(self) -> None:
         with patch(
-            "irsol_data_pipeline.orchestration.variables.get_variable",
+            "irsol_data_pipeline.prefect.variables.get_variable",
             return_value="/srv/data",
         ):
             result = resolve_dataset_root("")
@@ -28,7 +28,7 @@ class TestResolveDatasetRoot:
 
     def test_raises_when_neither_root_nor_variable_are_available(self) -> None:
         with patch(
-            "irsol_data_pipeline.orchestration.variables.get_variable",
+            "irsol_data_pipeline.prefect.variables.get_variable",
             return_value="",
         ):
             with pytest.raises(DatasetRootNotConfiguredError):

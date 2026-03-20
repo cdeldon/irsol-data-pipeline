@@ -2,9 +2,9 @@
 
 ## Design Goals
 
-- Keep scientific logic reusable without orchestration runtime.
+- Keep scientific logic reusable without prefect runtime.
 - Isolate I/O formats from science algorithms.
-- Keep Prefect concerns inside `orchestration/`, with package-installed command implementations in `cli/`.
+- Keep Prefect concerns inside `prefect/`, with package-installed command implementations in `cli/`.
 
 ## High-Level Structure
 
@@ -61,7 +61,7 @@ src/irsol_data_pipeline/
 │   ├── day_processor.py
 │   ├── slit_images_processor.py
 │   └── cache_cleanup.py
-├── orchestration/
+├── prefect/
 │   ├── decorators.py
 │   ├── patch_logging.py
 │   ├── retry.py
@@ -100,16 +100,16 @@ src/irsol_data_pipeline/
 | Path | Trigger | Main modules |
 |---|---|---|
 | Single measurement | `entrypoints/process_single_measurement.py` | `pipeline/measurement_processor.py`, `core/correction`, `core/calibration`, `io/fits` |
-| Flat-field batch | Prefect flow `ff-correction-full` / `ff-correction-daily` | `orchestration/flows/flat_field_correction.py`, `pipeline/day_processor.py` |
-| Slit preview batch | Prefect flow `slit-images-full` / `slit-images-daily` | `orchestration/flows/slit_image_generation.py`, `pipeline/slit_images_processor.py` |
-| Maintenance | Prefect flow `maintenance-cleanup` / `maintenance-cache-cleanup` | `orchestration/flows/maintenance/*`, `pipeline/cache_cleanup.py` |
+| Flat-field batch | Prefect flow `ff-correction-full` / `ff-correction-daily` | `prefect/flows/flat_field_correction.py`, `pipeline/day_processor.py` |
+| Slit preview batch | Prefect flow `slit-images-full` / `slit-images-daily` | `prefect/flows/slit_image_generation.py`, `pipeline/slit_images_processor.py` |
+| Maintenance | Prefect flow `maintenance-cleanup` / `maintenance-cache-cleanup` | `prefect/flows/maintenance/*`, `pipeline/cache_cleanup.py` |
 
 ## Boundaries
 
 - `core/` has no file-format policy and no scheduling policy.
 - `io/` does not perform scientific transformations.
 - `pipeline/` contains process logic but no Prefect deployment definitions.
-- `orchestration/` owns flow wiring and deployment construction.
+- `prefect/` owns flow wiring and deployment construction.
 - `cli/` owns package-installed command implementations for serving, inspection, and Prefect variable bootstrapping.
 - `entrypoints/` contains development scripts for local testing and experimentation.
 

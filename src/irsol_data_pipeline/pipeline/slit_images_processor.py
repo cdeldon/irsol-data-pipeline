@@ -21,7 +21,6 @@ from irsol_data_pipeline.core.slit_images.solar_data import fetch_sdo_maps
 from irsol_data_pipeline.exceptions import SlitImageGenerationError
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import processing_metadata as processing_metadata_io
-from irsol_data_pipeline.orchestration.decorators import task
 from irsol_data_pipeline.pipeline.filesystem import (
     discover_measurement_files,
     is_slit_preview_generated,
@@ -29,6 +28,7 @@ from irsol_data_pipeline.pipeline.filesystem import (
     sdo_cache_dir_for_day,
 )
 from irsol_data_pipeline.plotting import plot_slit
+from irsol_data_pipeline.prefect.decorators import task
 
 
 @task(

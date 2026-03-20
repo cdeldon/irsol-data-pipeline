@@ -8,7 +8,7 @@ decorated function unchanged.
 
 Usage::
 
-    from irsol_data_pipeline.orchestration.decorators import task, flow
+    from irsol_data_pipeline.prefect.decorators import task, flow
 
     @task(name="my-task", retries=2)
     def do_work():

@@ -10,7 +10,7 @@ Naming convention: ff-correction/<scope>[/<context>]
   Flows:  ff-correction-full / ff-correction-daily
   Tasks:  ff-correction/<verb>-<noun>/<context>
 
-The orchestration layer contains NO scientific logic — it only
+The prefect layer contains NO scientific logic — it only
 calls pipeline functions and handles flow/task coordination.
 """
 
@@ -29,9 +29,6 @@ from irsol_data_pipeline.core.models import (
     MaxDeltaPolicy,
     ObservationDay,
 )
-from irsol_data_pipeline.orchestration.patch_logging import setup_logging
-from irsol_data_pipeline.orchestration.utils import create_prefect_markdown_report
-from irsol_data_pipeline.orchestration.variables import resolve_dataset_root
 from irsol_data_pipeline.pipeline.day_processor import (
     process_observation_day,
 )
@@ -45,6 +42,9 @@ from irsol_data_pipeline.pipeline.scanner import (
     build_scan_report_markdown,
     scan_dataset,
 )
+from irsol_data_pipeline.prefect import create_prefect_markdown_report
+from irsol_data_pipeline.prefect.patch_logging import setup_logging
+from irsol_data_pipeline.prefect.variables import resolve_dataset_root
 
 
 @task(task_run_name="ff-correction/scan-dataset/{root}")

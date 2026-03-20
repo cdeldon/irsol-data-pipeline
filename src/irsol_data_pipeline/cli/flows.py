@@ -146,11 +146,11 @@ def _build_flat_field_deployments() -> list[Any]:
 
     del serve
 
-    from irsol_data_pipeline.orchestration.flows.flat_field_correction import (
+    from irsol_data_pipeline.prefect.flows.flat_field_correction import (
         process_daily_unprocessed_measurements,
         process_unprocessed_measurements,
     )
-    from irsol_data_pipeline.orchestration.flows.tags import (
+    from irsol_data_pipeline.prefect.flows.tags import (
         DeploymentAutomationTag,
         DeploymentScheduleTag,
         PrefectDeploymentTopicTag,
@@ -188,11 +188,11 @@ def _build_slit_image_deployments() -> list[Any]:
         Deployment objects for the slit-image group.
     """
 
-    from irsol_data_pipeline.orchestration.flows.slit_image_generation import (
+    from irsol_data_pipeline.prefect.flows.slit_image_generation import (
         generate_daily_slit_images,
         generate_slit_images,
     )
-    from irsol_data_pipeline.orchestration.flows.tags import (
+    from irsol_data_pipeline.prefect.flows.tags import (
         DeploymentAutomationTag,
         DeploymentScheduleTag,
         PrefectDeploymentTopicTag,
@@ -227,13 +227,13 @@ def _build_maintenance_deployments() -> list[Any]:
         Deployment objects for the maintenance group.
     """
 
-    from irsol_data_pipeline.orchestration.flows.maintenance.delete_old_cache_files import (
+    from irsol_data_pipeline.prefect.flows.maintenance.delete_old_cache_files import (
         delete_old_cache_files,
     )
-    from irsol_data_pipeline.orchestration.flows.maintenance.delete_old_prefect_data import (
+    from irsol_data_pipeline.prefect.flows.maintenance.delete_old_prefect_data import (
         delete_flow_runs_older_than,
     )
-    from irsol_data_pipeline.orchestration.flows.tags import (
+    from irsol_data_pipeline.prefect.flows.tags import (
         DeploymentAutomationTag,
         DeploymentScheduleTag,
         PrefectDeploymentTopicTag,

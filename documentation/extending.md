@@ -38,10 +38,10 @@ Pass a custom `spectroflat.Config` into `analyze_flatfield(...)` from `core/corr
 
 ## 5. Add a New Prefect Flow
 
-Use project decorators from `irsol_data_pipeline.orchestration.decorators`.
+Use project decorators from `irsol_data_pipeline.prefect.decorators`.
 
 ```python
-from irsol_data_pipeline.orchestration.decorators import flow
+from irsol_data_pipeline.prefect.decorators import flow
 
 
 @flow(name="my-pipeline-full", flow_run_name="my-pipeline/full/{root}")
@@ -62,7 +62,7 @@ Serve with a command module under `src/irsol_data_pipeline/cli/` and `.to_deploy
 
 ## 7. Add Dynamic Runtime Parameters
 
-1. Add variable enum in `orchestration/variables.py`.
+1. Add variable enum in `prefect/variables.py`.
 2. Register prompt metadata in `src/irsol_data_pipeline/cli/metadata.py` and interactive behavior in `src/irsol_data_pipeline/cli/variables.py`.
 3. Resolve flow parameter first, then Prefect Variable fallback.
 

@@ -13,7 +13,7 @@ flowchart LR
     FF["Flat-field correction\nFITS + metadata + profile PNGs"]
     SI["Slit image generation\nSDO context PNGs"]
     MT["Maintenance\nPrefect run cleanup + cache cleanup"]
-    PF["Prefect orchestration\nUI + schedules + manual runs"]
+    PF["Prefect prefect\nUI + schedules + manual runs"]
 
     DAT --> FF
     DAT --> SI

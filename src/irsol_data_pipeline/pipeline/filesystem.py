@@ -28,7 +28,7 @@ from irsol_data_pipeline.core.config import (
     SLIT_PREVIEW_PNG_SUFFIX,
 )
 from irsol_data_pipeline.core.models import ObservationDay
-from irsol_data_pipeline.orchestration.decorators import task
+from irsol_data_pipeline.prefect.decorators import task
 
 # Pattern: <wavelength>_m<id>.dat  (e.g. 6302_m1.dat)
 OBSERVATION_PATTERN = re.compile(r"^(\d+)_m(\d+)\.dat$")

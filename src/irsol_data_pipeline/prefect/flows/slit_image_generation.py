@@ -24,13 +24,6 @@ from irsol_data_pipeline.core.models import (
     DayProcessingResult,
     ObservationDay,
 )
-from irsol_data_pipeline.orchestration.patch_logging import setup_logging
-from irsol_data_pipeline.orchestration.utils import create_prefect_markdown_report
-from irsol_data_pipeline.orchestration.variables import (
-    PrefectVariableName,
-    get_variable,
-    resolve_dataset_root,
-)
 from irsol_data_pipeline.pipeline.filesystem import (
     discover_observation_days,
     processed_dir_for_day,
@@ -39,6 +32,13 @@ from irsol_data_pipeline.pipeline.filesystem import (
 )
 from irsol_data_pipeline.pipeline.slit_images_processor import (
     generate_slit_images_for_day,
+)
+from irsol_data_pipeline.prefect.patch_logging import setup_logging
+from irsol_data_pipeline.prefect.utils import create_prefect_markdown_report
+from irsol_data_pipeline.prefect.variables import (
+    PrefectVariableName,
+    get_variable,
+    resolve_dataset_root,
 )
 
 

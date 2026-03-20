@@ -29,7 +29,7 @@ src/irsol_data_pipeline/
 ├── core/          # Domain models (Pydantic), config constants, calibration, correction
 ├── io/            # Importers and exporters (dat, fits, flatfield, processing_metadata)
 ├── pipeline/      # High-level processing logic (scanner, day_processor, measurement_processor)
-├── orchestration/ # Prefect flows/tasks, conditional decorators, retry helpers, logging bridge
+├── prefect/ # Prefect flows/tasks, conditional decorators, retry helpers, logging bridge
 └── plotting/      # Matplotlib-based Stokes profile plots
 ```
 
@@ -57,16 +57,16 @@ Always raise the most specific domain exception (`FitsImportError`, `DatImportEr
 - Use `@field_validator(..., mode="before")` for input coercions (e.g. datetime strings, yes/no booleans).
 
 ### Prefect Tasks and Flows
-Use the project's **conditional decorators** from `irsol_data_pipeline.orchestration.decorators`, not directly from `prefect`:
+Use the project's **conditional decorators** from `irsol_data_pipeline.prefect.decorators`, not directly from `prefect`:
 ```python
-from irsol_data_pipeline.orchestration.decorators import flow, task
+from irsol_data_pipeline.prefect.decorators import flow, task
 
 @task(retries=2, retry_delay_seconds=10)
 def my_task(): ...
 ```
 These are transparent no-ops when `PREFECT_ENABLED` is not set, allowing the pipeline to run as plain Python.
 
-You're only supposed to use and import `prefect` only within the `orchestration/` module. No `prefect` imports or decorators should be used in `core/`, `io/`, `pipeline/`, or `plotting/`.
+You're only supposed to use and import `prefect` only within the `prefect/` module. No `prefect` imports or decorators should be used in `core/`, `io/`, `pipeline/`, or `plotting/`.
 
 ### IO Importers / Exporters
 Each `io/<format>/importer.py` and `io/<format>/exporter.py` must raise its corresponding typed exception on failure (`FitsImportError`, `DatImportError`, `FlatfieldCorrectionImportError`, etc.).

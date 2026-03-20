@@ -3,7 +3,7 @@ import string
 from pathlib import Path
 from typing import Callable
 
-from irsol_data_pipeline.orchestration.decorators import prefect_enabled
+from irsol_data_pipeline.prefect.decorators import prefect_enabled
 
 
 def sanitize_artifact_title(title: str) -> str:
