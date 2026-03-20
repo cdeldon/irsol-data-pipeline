@@ -20,11 +20,15 @@ from loguru import logger
 from irsol_data_pipeline.core.models import CacheCleanupDayResult, ObservationDay
 from irsol_data_pipeline.orchestration.decorators import flow, task
 from irsol_data_pipeline.orchestration.patch_logging import setup_logging
+from irsol_data_pipeline.orchestration.utils import create_prefect_markdown_report
 from irsol_data_pipeline.orchestration.variables import (
     PrefectVariableName,
     get_variable,
 )
-from irsol_data_pipeline.pipeline.cache_cleanup import cleanup_day_cache_files
+from irsol_data_pipeline.pipeline.cache_cleanup import (
+    build_cache_cleanup_report,
+    cleanup_day_cache_files,
+)
 from irsol_data_pipeline.pipeline.filesystem import (
     discover_observation_days,
     processed_dir_for_day,
@@ -123,12 +127,21 @@ def delete_old_cache_files(
         delete_old_day_cache_files(day_path=day.path, hours=hours) for day in days
     ]
 
+    report = build_cache_cleanup_report(root=root_path, results=results, hours=hours)
+    create_prefect_markdown_report(
+        content=report,
+        description="Cache cleanup summary: deleted and retained .pkl files per observation day",
+        key=f"cache-cleanup-report-{root_path.name}",
+    )
+
     logger.success(
         "Cache cleanup completed",
         day_count=len(results),
         checked_files=sum(r.checked_files for r in results),
         deleted_files=sum(r.deleted_files for r in results),
+        deleted_bytes=sum(r.deleted_bytes for r in results),
         skipped_recent_files=sum(r.skipped_recent_files for r in results),
+        skipped_bytes=sum(r.skipped_bytes for r in results),
         failed_files=sum(r.failed_files for r in results),
     )
     return results

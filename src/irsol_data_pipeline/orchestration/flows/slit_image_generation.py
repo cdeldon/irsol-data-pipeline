@@ -58,6 +58,7 @@ def scan_observation_days_task(root: Path) -> list[ObservationDay]:
     create_prefect_markdown_report(
         content="\n".join(summary_lines),
         description="Slit image generation scan summary",
+        key=f"slit-image-generation-scan-{root.name}",
     )
     return observation_days
 

@@ -55,6 +55,7 @@ def scan_dataset_task(root: Path) -> ScanResult:
     create_prefect_markdown_report(
         content=markdown,
         description="Dataset scan summary: pending and already processed measurements",
+        key=f"ff-correction-scan-report-{root.name}",
     )
     return scan_result
 
