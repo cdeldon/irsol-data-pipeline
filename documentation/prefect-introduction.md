@@ -95,6 +95,7 @@ def demo_pipeline_full(
     create_prefect_markdown_report(
         content="\n".join(["# Demo pipeline summary", "", *[f"- {r}" for r in results]]),
         description="Demo run summary",
+        key="demo-pipeline-summary",
     )
     logger.success("Demo pipeline complete", days=len(results))
     return results

@@ -13,13 +13,14 @@ def sanitize_artifact_title(title: str) -> str:
     return "".join(c for c in title if c in allowed_chars)
 
 
-def create_prefect_markdown_report(content: str, description: str):
+def create_prefect_markdown_report(content: str, description: str, key: str):
     if prefect_enabled():
         from prefect.artifacts import create_markdown_artifact
 
         create_markdown_artifact(
             markdown=content,
             description=description,
+            key=sanitize_artifact_title(key),
         )
 
 

@@ -529,8 +529,11 @@ class CacheCleanupDayResult(BaseModel):
         day_name: Observation day folder name.
         checked_files: Number of ``.pkl`` files found in cache directories.
         deleted_files: Number of stale files successfully deleted.
+        deleted_bytes: Total size in bytes of all successfully deleted files.
         skipped_recent_files: Number of recent files kept because they are
             still within the retention window.
+        skipped_bytes: Total size in bytes of all files kept within the retention
+            window.
         failed_files: Number of files that could not be deleted due to an
             OS error.
     """
@@ -540,7 +543,9 @@ class CacheCleanupDayResult(BaseModel):
     day_name: str
     checked_files: int = 0
     deleted_files: int = 0
+    deleted_bytes: int = 0
     skipped_recent_files: int = 0
+    skipped_bytes: int = 0
     failed_files: int = 0
 
 
