@@ -42,8 +42,8 @@ from irsol_data_pipeline.pipeline.scanner import (
     build_scan_report_markdown,
     scan_dataset,
 )
-from irsol_data_pipeline.prefect import create_prefect_markdown_report
 from irsol_data_pipeline.prefect.patch_logging import setup_logging
+from irsol_data_pipeline.prefect.utils import create_prefect_markdown_report
 from irsol_data_pipeline.prefect.variables import resolve_dataset_root
 
 

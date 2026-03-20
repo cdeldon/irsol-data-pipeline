@@ -10,9 +10,7 @@ from cyclopts.exceptions import ValidationError
 from rich.table import Table
 
 from irsol_data_pipeline.cli.common import (
-    ensure_prefect_enabled,
     get_console,
-    print_banner,
     print_json,
 )
 from irsol_data_pipeline.cli.metadata import (
@@ -290,18 +288,13 @@ def _build_deployments_for_group(group_name: PrefectFlowGroupName) -> list[Any]:
 def list_flows(
     topic: PrefectFlowGroupName | None = None,
     format: OutputFormat = "table",
-    no_banner: bool = False,
 ) -> None:
     """List discoverable flow groups and their served deployments.
 
     Args:
         topic: Optional flow-group filter.
         format: Output format for the report.
-        no_banner: Suppress the runtime banner.
     """
-
-    ensure_prefect_enabled()
-    print_banner(output_format=format, no_banner=no_banner)
 
     groups = PREFECT_FLOW_GROUPS
     if topic is not None:
@@ -318,18 +311,13 @@ def list_flows(
 def serve_flows(
     *flow_groups: PrefectFlowGroupName,
     all: bool = False,
-    no_banner: bool = False,
 ) -> None:
     """Register and serve one or more flow groups.
 
     Args:
         flow_groups: Flow groups to serve.
         all: Serve all available flow groups.
-        no_banner: Suppress the runtime banner.
     """
-
-    ensure_prefect_enabled()
-    print_banner(no_banner=no_banner)
 
     selected_groups = _normalize_selected_groups(flow_groups, all_groups=all)
 

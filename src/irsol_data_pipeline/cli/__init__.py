@@ -7,6 +7,7 @@ from typing import Annotated
 
 from cyclopts import App, Parameter
 
+from irsol_data_pipeline.cli.common import ensure_prefect_enabled
 from irsol_data_pipeline.logging_config import LOG_LEVEL, setup_logging
 from irsol_data_pipeline.version import __version__
 
@@ -78,6 +79,7 @@ def _meta(
         else _VERBOSE_TO_LOG_LEVEL.get(verbose, "TRACE")
     )
     setup_logging(level=level, force=True)
+    ensure_prefect_enabled()
     app(tokens)
 
 

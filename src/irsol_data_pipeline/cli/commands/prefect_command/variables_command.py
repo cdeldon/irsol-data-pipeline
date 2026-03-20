@@ -9,17 +9,15 @@ from cyclopts import App
 from rich.table import Table
 
 from irsol_data_pipeline.cli.common import (
-    ensure_prefect_enabled,
     get_console,
-    print_banner,
     print_json,
-    safe_read_prefect_variable,
 )
 from irsol_data_pipeline.cli.metadata import (
     PREFECT_VARIABLES,
     OutputFormat,
     PrefectVariableMetadata,
 )
+from irsol_data_pipeline.prefect.variables import get_variable
 
 variables_app = App(name="variables", help="List and configure Prefect variables.")
 
@@ -34,7 +32,6 @@ class VariableReportEntry:
         required: Whether the variable is required.
         default_value: Configured default value.
         tags: Topic tags associated with the variable.
-        status: Processing status string.
     """
 
     name: str
@@ -42,7 +39,6 @@ class VariableReportEntry:
     required: bool
     default_value: str | None
     tags: tuple[str, ...]
-    status: str
 
 
 def _format_tags(tags: tuple[str, ...]) -> str:
@@ -52,26 +48,12 @@ def _format_tags(tags: tuple[str, ...]) -> str:
         tags: Topic tags to format.
 
     Returns:
-        Comma-separated tag string or `-` when empty.
+        New-line separated tag string or `-` when empty.
     """
 
     if not tags:
         return "-"
-    return ", ".join(tags)
-
-
-def _read_current_value(variable_name: str) -> Any:
-    """Read a current Prefect variable value.
-
-    Args:
-        variable_name: Prefect variable name.
-
-    Returns:
-        The stored variable value, or None when unset.
-    """
-
-    value, _ = safe_read_prefect_variable(variable_name)
-    return value
+    return "\n".join(tags)
 
 
 def _get_variable_entries() -> list[VariableReportEntry]:
@@ -83,7 +65,7 @@ def _get_variable_entries() -> list[VariableReportEntry]:
 
     entries: list[VariableReportEntry] = []
     for variable in PREFECT_VARIABLES:
-        current_value, status = safe_read_prefect_variable(variable.prefect_name.value)
+        current_value = get_variable(variable.prefect_name)
         entries.append(
             VariableReportEntry(
                 name=variable.prefect_name.value,
@@ -91,7 +73,6 @@ def _get_variable_entries() -> list[VariableReportEntry]:
                 required=variable.required,
                 default_value=variable.default_value,
                 tags=tuple(tag.value for tag in variable.topic_tags),
-                status=status,
             )
         )
     return entries
@@ -110,7 +91,6 @@ def _render_variable_entries(entries: list[VariableReportEntry]) -> None:
     table.add_column("Required", style="magenta", no_wrap=True)
     table.add_column("Default", style="white")
     table.add_column("Tags", style="green")
-    table.add_column("Status", style="white", no_wrap=True)
 
     for entry in entries:
         table.add_row(
@@ -119,7 +99,6 @@ def _render_variable_entries(entries: list[VariableReportEntry]) -> None:
             "yes" if entry.required else "no",
             entry.default_value or "-",
             _format_tags(entry.tags),
-            entry.status,
         )
 
     get_console().print(table)
@@ -141,7 +120,6 @@ def _serialize_variable_entries(entries: list[VariableReportEntry]) -> dict[str,
                 "default_value": entry.default_value,
                 "name": entry.name,
                 "required": entry.required,
-                "status": entry.status,
                 "tags": list(entry.tags),
                 "value": entry.value,
             }
@@ -193,17 +171,12 @@ def _confirm(prompt_text: str, *, default: bool = False) -> bool:
 @variables_app.command(name="list")
 def list_variables(
     format: OutputFormat = "table",
-    no_banner: bool = False,
 ) -> None:
     """List current Prefect variable values and metadata.
 
     Args:
         format: Output format for the report.
-        no_banner: Suppress the runtime banner.
     """
-
-    ensure_prefect_enabled()
-    print_banner(output_format=format, no_banner=no_banner)
 
     entries = _get_variable_entries()
     if format == "json":
@@ -216,20 +189,15 @@ def list_variables(
 @variables_app.command(name="configure")
 def configure_variables(
     update_existing: bool = False,
-    no_banner: bool = False,
 ) -> int:
     """Interactively configure Prefect variables.
 
     Args:
         update_existing: Prompt before updating variables that already exist.
-        no_banner: Suppress the runtime banner.
 
     Returns:
         Exit code for the command.
     """
-
-    ensure_prefect_enabled()
-    print_banner(no_banner=no_banner)
 
     from prefect.variables import Variable
 
@@ -258,7 +226,6 @@ def configure_variables(
                         required=config.required,
                         default_value=config.default_value,
                         tags=tuple(tag.value for tag in config.topic_tags),
-                        status="already-set",
                     )
                 )
                 continue
@@ -279,7 +246,6 @@ def configure_variables(
                         required=config.required,
                         default_value=config.default_value,
                         tags=tuple(tag.value for tag in config.topic_tags),
-                        status="kept-existing",
                     )
                 )
                 continue
@@ -296,7 +262,6 @@ def configure_variables(
                         required=config.required,
                         default_value=config.default_value,
                         tags=tuple(tag.value for tag in config.topic_tags),
-                        status="skipped",
                     )
                 )
                 continue
@@ -314,7 +279,6 @@ def configure_variables(
                         required=config.required,
                         default_value=config.default_value,
                         tags=tuple(tag.value for tag in config.topic_tags),
-                        status="skipped",
                     )
                 )
                 continue
@@ -333,7 +297,6 @@ def configure_variables(
                     required=config.required,
                     default_value=config.default_value,
                     tags=tuple(tag.value for tag in config.topic_tags),
-                    status="updated" if existing_value is not None else "set",
                 )
             )
             print(
@@ -349,7 +312,6 @@ def configure_variables(
                     required=config.required,
                     default_value=config.default_value,
                     tags=tuple(tag.value for tag in config.topic_tags),
-                    status="failed",
                 )
             )
 

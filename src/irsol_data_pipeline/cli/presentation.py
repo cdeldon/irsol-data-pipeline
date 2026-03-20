@@ -91,16 +91,25 @@ def _detect_operating_system() -> str:
     return " ".join(part for part in (operating_system, release, machine) if part)
 
 
+def distribution_versions() -> dict[str, str]:
+    """Get the versions of relevant distributions.
+
+    Returns:
+        Mapping of distribution names to their resolved versions.
+    """
+    return {
+        distribution_name: resolve_distribution_version(distribution_name)
+        for distribution_name in sorted(_DISTRIBUTIONS)
+    }
+
+
 def build_runtime_presentation() -> str:
     """Build the CLI runtime presentation banner.
 
     Returns:
         Multi-line banner containing package and runtime version information.
     """
-    versions = {
-        distribution_name: resolve_distribution_version(distribution_name)
-        for distribution_name in _DISTRIBUTIONS
-    }
+    versions = distribution_versions()
     label_width = max(len(distribution_name) for distribution_name in _DISTRIBUTIONS)
 
     lines = [

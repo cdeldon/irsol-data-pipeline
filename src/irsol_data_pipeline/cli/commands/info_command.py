@@ -7,17 +7,19 @@ from typing import Any
 from rich.table import Table
 
 from irsol_data_pipeline.cli.common import (
-    ensure_prefect_enabled,
     get_console,
-    print_banner,
     print_json,
-    safe_read_prefect_variable,
 )
 from irsol_data_pipeline.cli.metadata import (
     PREFECT_FLOW_GROUPS,
     PREFECT_VARIABLES,
     OutputFormat,
 )
+from irsol_data_pipeline.cli.presentation import (
+    distribution_versions,
+    print_runtime_presentation,
+)
+from irsol_data_pipeline.prefect.variables import get_variable
 from irsol_data_pipeline.version import __version__
 
 
@@ -41,12 +43,15 @@ def _build_info_payload() -> dict[str, Any]:
         "prefect_variables": [
             {
                 "name": variable.prefect_name.value,
-                "status": safe_read_prefect_variable(variable.prefect_name.value)[1],
-                "value": safe_read_prefect_variable(variable.prefect_name.value)[0],
+                "value": get_variable(variable.prefect_name),
             }
             for variable in PREFECT_VARIABLES
         ],
         "version": __version__,
+        "distributions": [
+            {"name": name, "version": version}
+            for name, version in distribution_versions().items()
+        ],
     }
 
 
@@ -62,6 +67,18 @@ def _render_info_table(payload: dict[str, Any]) -> None:
     runtime_table.add_column("Value", style="white")
     runtime_table.add_row("Version", str(payload["version"]))
     get_console().print(runtime_table)
+
+    distributions_table = Table(
+        title="Distributions", show_header=True, header_style="bold cyan"
+    )
+    distributions_table.add_column("Name", style="white", no_wrap=True)
+    distributions_table.add_column("Version", style="white")
+    for distribution in payload["distributions"]:
+        distributions_table.add_row(
+            str(distribution["name"]),
+            str(distribution["version"]),
+        )
+    get_console().print(distributions_table)
 
     flows_table = Table(title="Flow Groups", show_header=True, header_style="bold cyan")
     flows_table.add_column("Group", style="white", no_wrap=True)
@@ -79,31 +96,26 @@ def _render_info_table(payload: dict[str, Any]) -> None:
         title="Prefect Variables", show_header=True, header_style="bold cyan"
     )
     variables_table.add_column("Variable", style="white", no_wrap=True)
-    variables_table.add_column("Status", style="magenta", no_wrap=True)
     variables_table.add_column("Value", style="white")
     for variable in payload["prefect_variables"]:
         variables_table.add_row(
             str(variable["name"]),
-            str(variable["status"]),
             str(variable["value"] if variable["value"] is not None else "<unset>"),
         )
     get_console().print(variables_table)
 
 
-def info(format: OutputFormat = "table", no_banner: bool = False) -> None:
+def info(format: OutputFormat = "table") -> None:
     """Display runtime, flow-group, and variable status information.
 
     Args:
         format: Output format for the report.
-        no_banner: Suppress the runtime banner.
     """
-
-    ensure_prefect_enabled()
-    print_banner(output_format=format, no_banner=no_banner)
 
     payload = _build_info_payload()
     if format == "json":
         print_json(payload)
         return
 
+    print_runtime_presentation()
     _render_info_table(payload)

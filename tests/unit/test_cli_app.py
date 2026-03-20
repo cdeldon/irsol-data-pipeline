@@ -14,6 +14,7 @@ from cyclopts.exceptions import ValidationError
 from irsol_data_pipeline.cli import _meta, app
 from irsol_data_pipeline.cli.commands.prefect_command import start_prefect_server
 from irsol_data_pipeline.prefect.config import PREFECT_PROFILE_SETTINGS
+from irsol_data_pipeline.prefect.variables import PrefectVariableName
 
 
 class TestCliApp:
@@ -106,7 +107,7 @@ class TestCliApp:
             mock_get.return_value.status_code = 200
 
             result = app(
-                ["prefect", "status", "--format", "json", "--no-banner"],
+                ["prefect", "status", "--format", "json"],
                 exit_on_error=False,
                 print_error=False,
                 result_action="return_value",
@@ -138,7 +139,7 @@ class TestCliApp:
             side_effect=requests.ConnectionError("connection refused"),
         ):
             result = app(
-                ["prefect", "status", "--format", "json", "--no-banner"],
+                ["prefect", "status", "--format", "json"],
                 exit_on_error=False,
                 print_error=False,
                 result_action="return_value",
@@ -167,7 +168,6 @@ class TestCliApp:
                     "status",
                     "--format",
                     "json",
-                    "--no-banner",
                     "--host",
                     "prefect.internal",
                     "--port",
@@ -190,9 +190,103 @@ class TestCliApp:
             timeout=5.0,
         )
 
+    def test_prefect_status_deep_analysis_json(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with (
+            patch(
+                "irsol_data_pipeline.cli.commands.prefect_command.status_command.requests.get"
+            ) as mock_get,
+            patch(
+                "irsol_data_pipeline.cli.commands.prefect_command.status_command._analyze_running_flows_and_tasks"
+            ) as mock_analyze,
+        ):
+            mock_get.return_value.ok = True
+            mock_get.return_value.status_code = 200
+            mock_analyze.return_value.model_dump.return_value = {
+                "detail": "Collected running flow and task details from Prefect SDK.",
+                "flow_run_count": 1,
+                "running_task_count": 2,
+                "running_flows": [
+                    {
+                        "flow_id": "f-1",
+                        "flow_name": "ff-correction-full",
+                        "flow_run_id": "fr-1",
+                        "flow_run_name": "ff-run-1",
+                        "running_task_count": 2,
+                        "running_task_names": ["process-measurement", "scan-day"],
+                        "state": "Running",
+                    }
+                ],
+            }
+
+            result = app(
+                [
+                    "prefect",
+                    "status",
+                    "--format",
+                    "json",
+                    "--deep-analysis",
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        payload = json.loads(capsys.readouterr().out)
+
+        assert result == 0
+        assert payload["deep_analysis"]["flow_run_count"] == 1
+        assert payload["deep_analysis"]["running_task_count"] == 2
+        assert payload["deep_analysis"]["running_flows"][0] == {
+            "flow_id": "f-1",
+            "flow_name": "ff-correction-full",
+            "flow_run_id": "fr-1",
+            "flow_run_name": "ff-run-1",
+            "running_task_count": 2,
+            "running_task_names": ["process-measurement", "scan-day"],
+            "state": "Running",
+        }
+
+    def test_prefect_status_deep_analysis_reports_failure(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with (
+            patch(
+                "irsol_data_pipeline.cli.commands.prefect_command.status_command.requests.get"
+            ) as mock_get,
+            patch(
+                "irsol_data_pipeline.cli.commands.prefect_command.status_command._analyze_running_flows_and_tasks",
+                side_effect=RuntimeError("sdk unavailable"),
+            ),
+        ):
+            mock_get.return_value.ok = True
+            mock_get.return_value.status_code = 200
+
+            result = app(
+                [
+                    "prefect",
+                    "status",
+                    "--format",
+                    "json",
+                    "--deep-analysis",
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        payload = json.loads(capsys.readouterr().out)
+
+        assert result == 0
+        assert payload["deep_analysis"]["flow_run_count"] == 0
+        assert payload["deep_analysis"]["running_task_count"] == 0
+        assert payload["deep_analysis"]["running_flows"] == []
+        assert "Failed to run deep analysis" in payload["deep_analysis"]["detail"]
+
     def test_prefect_flows_list_json(self, capsys: pytest.CaptureFixture[str]) -> None:
         app(
-            ["prefect", "flows", "list", "--format", "json", "--no-banner"],
+            ["prefect", "flows", "list", "--format", "json"],
             exit_on_error=False,
             print_error=False,
             result_action="return_value",
@@ -212,7 +306,7 @@ class TestCliApp:
     def test_prefect_flows_serve_requires_selection(self) -> None:
         with pytest.raises(ValidationError):
             app(
-                ["prefect", "flows", "serve", "--no-banner"],
+                ["prefect", "flows", "serve"],
                 exit_on_error=False,
                 print_error=False,
                 result_action="return_value",
@@ -227,7 +321,6 @@ class TestCliApp:
                     "serve",
                     "--all",
                     "flat-field-correction",
-                    "--no-banner",
                 ],
                 exit_on_error=False,
                 print_error=False,
@@ -236,18 +329,18 @@ class TestCliApp:
 
     def test_info_json(self, capsys: pytest.CaptureFixture[str]) -> None:
         value_by_name = {
-            "data-root-path": ("/srv/data", "set"),
-            "jsoc-email": ("operator@example.com", "set"),
-            "cache-expiration-hours": ("672", "set"),
-            "flow-run-expiration-hours": ("<unset>", "unset"),
+            PrefectVariableName.DATA_ROOT_PATH: "/srv/data",
+            PrefectVariableName.JSOC_EMAIL: "operator@example.com",
+            PrefectVariableName.CACHE_EXPIRATION_HOURS: "672",
+            PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS: "<unset>",
         }
 
         with patch(
-            "irsol_data_pipeline.cli.commands.info_command.safe_read_prefect_variable",
+            "irsol_data_pipeline.prefect.variables.get_variable",
             side_effect=value_by_name.__getitem__,
         ):
             app(
-                ["info", "--format", "json", "--no-banner"],
+                ["info", "--format", "json"],
                 exit_on_error=False,
                 print_error=False,
                 result_action="return_value",
@@ -258,7 +351,6 @@ class TestCliApp:
         assert payload["version"]
         assert payload["prefect_variables"][0] == {
             "name": "data-root-path",
-            "status": "set",
             "value": "/srv/data",
         }
 
@@ -266,18 +358,18 @@ class TestCliApp:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         value_by_name = {
-            "data-root-path": ("/srv/data", "set"),
-            "jsoc-email": ("observer@example.com", "set"),
-            "cache-expiration-hours": ("672", "set"),
-            "flow-run-expiration-hours": ("<unset>", "unset"),
+            PrefectVariableName.DATA_ROOT_PATH: "/srv/data",
+            PrefectVariableName.JSOC_EMAIL: "observer@example.com",
+            PrefectVariableName.CACHE_EXPIRATION_HOURS: "672",
+            PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS: "<unset>",
         }
 
         with patch(
-            "irsol_data_pipeline.cli.commands.prefect_command.variables_command.safe_read_prefect_variable",
+            "irsol_data_pipeline.prefect.variables.get_variable",
             side_effect=value_by_name.__getitem__,
         ):
             app(
-                ["prefect", "variables", "list", "--format", "json", "--no-banner"],
+                ["prefect", "variables", "list", "--format", "json"],
                 exit_on_error=False,
                 print_error=False,
                 result_action="return_value",
@@ -287,7 +379,7 @@ class TestCliApp:
 
         assert payload["variables"][0]["value"] == "/srv/data"
         assert payload["variables"][1]["value"] == "observer@example.com"
-        assert payload["variables"][3]["status"] == "unset"
+        assert payload["variables"][3]["value"] == "<unset>"
 
     def test_prefect_variables_configure_returns_zero_when_skipping_all(
         self,
@@ -305,7 +397,7 @@ class TestCliApp:
             ),
         ):
             result = app(
-                ["prefect", "variables", "configure", "--no-banner"],
+                ["prefect", "variables", "configure"],
                 exit_on_error=False,
                 print_error=False,
                 result_action="return_value",
@@ -339,7 +431,7 @@ class TestCliApp:
             ),
         ):
             result = app(
-                ["prefect", "variables", "configure", "--no-banner"],
+                ["prefect", "variables", "configure"],
                 exit_on_error=False,
                 print_error=False,
                 result_action="return_value",

@@ -9,6 +9,7 @@ from typing import Any
 
 from rich.console import Console
 
+from irsol_data_pipeline.cli.metadata import OutputFormat
 from irsol_data_pipeline.cli.presentation import build_runtime_presentation
 
 
@@ -23,7 +24,7 @@ def ensure_prefect_enabled() -> None:
     os.environ.setdefault("PREFECT_ENABLED", "true")
 
 
-def should_print_banner(output_format: str, no_banner: bool) -> bool:
+def should_print_banner(output_format: OutputFormat, no_banner: bool) -> bool:
     """Determine whether to render the runtime banner.
 
     Args:
@@ -37,7 +38,9 @@ def should_print_banner(output_format: str, no_banner: bool) -> bool:
     return not no_banner and output_format != "json"
 
 
-def print_banner(*, output_format: str = "table", no_banner: bool = False) -> None:
+def print_banner(
+    *, output_format: OutputFormat = "table", no_banner: bool = False
+) -> None:
     """Print the runtime banner when appropriate.
 
     Args:
@@ -67,28 +70,3 @@ def get_console() -> Console:
     """
 
     return Console()
-
-
-def safe_read_prefect_variable(variable_name: str) -> tuple[Any, str]:
-    """Read a Prefect variable without crashing read-only commands.
-
-    Args:
-        variable_name: Prefect variable name.
-
-    Returns:
-        A tuple of `(value, status)` where status is one of `set`, `unset`, or
-        `unavailable`.
-    """
-
-    ensure_prefect_enabled()
-
-    from prefect.variables import Variable
-
-    try:
-        value = Variable.get(variable_name, default=None)
-    except Exception:
-        return "<unavailable>", "unavailable"
-
-    if value is None:
-        return "<unset>", "unset"
-    return value, "set"
