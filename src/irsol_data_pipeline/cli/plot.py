@@ -30,7 +30,10 @@ _SLIT_INPUT = Parameter(
         dir_okay=False,
     )
 )
-_PNG_OUTPUT = Parameter(validator=validators.Path(ext="png", dir_okay=False))
+_OUTPUT_PATH_OPTION = Parameter(
+    name="output-path",
+    validator=validators.Path(ext="png", dir_okay=False),
+)
 
 
 def _resolve_output_path(output_path: Path) -> Path:
@@ -123,18 +126,20 @@ def _load_stokes_and_calibration(
 )
 def profile(
     input_file_path: Annotated[Path, _MEASUREMENT_INPUT],
-    output_path: Annotated[Path | None, _PNG_OUTPUT] = None,
+    /,
+    *,
+    output_path_option: Annotated[Path | None, _OUTPUT_PATH_OPTION] = None,
     show: bool = False,
 ) -> None:
     """Render a Stokes profile plot from a raw ZIMPOL measurement file.
 
     Args:
         input_file_path: Existing input measurement file to load.
-        output_path: Optional output .png file to write.
+        output_path_option: Optional output .png file passed with `--output-path`.
         show: Display the rendered figure after saving it.
     """
 
-    if output_path is None and not show:
+    if output_path_option is None and not show:
         raise ValidationError("One of --show and --output-path must be set.")
 
     _configure_backend_for_show(show)
@@ -143,7 +148,9 @@ def profile(
 
     input_path = input_file_path.expanduser().resolve()
     resolved_output_path = (
-        _resolve_output_path(output_path) if output_path is not None else None
+        _resolve_output_path(output_path_option)
+        if output_path_option is not None
+        else None
     )
     stokes, a0, a1 = _load_stokes_and_calibration(input_path)
     if a0 is not None and a1 is not None:
@@ -164,28 +171,34 @@ def profile(
 
 
 @plot_app.command(
-    name="sli",
+    name="slit",
     help="Load a .dat file and render its slit context image.",
 )
-def sli(
+def slit(
     input_file_path: Annotated[Path, _SLIT_INPUT],
     jsoc_email: str,
-    output_path: Annotated[Path | None, _PNG_OUTPUT] = None,
+    output_path_option: Annotated[Path | None, _OUTPUT_PATH_OPTION] = None,
     show: bool = False,
+    cache_dir: Annotated[
+        Path | None, validators.Path(dir_okay=True, file_okay=False)
+    ] = None,
 ) -> None:
     """Render a six-panel slit context image from a raw measurement file.
 
     Args:
         input_file_path: Existing input .dat measurement file to load.
         jsoc_email: JSOC email for DRMS queries.
-        output_path: Optional output .png file to write.
+        output_path_option: Optional output .png file passed with `--output-path`.
         show: Display the rendered figure after saving it.
+        cache_dir: Optional cache directory for SDO data, if not provided, as temporary directoy is used.
     """
 
-    if output_path is None and not show:
+    if output_path_option is None and not show:
         raise ValidationError("One of --show and --output-path must be set.")
 
     _configure_backend_for_show(show)
+
+    from tempfile import gettempdir
 
     from irsol_data_pipeline.core.slit_images.coordinates import compute_slit_geometry
     from irsol_data_pipeline.core.slit_images.solar_data import fetch_sdo_maps
@@ -194,7 +207,9 @@ def sli(
 
     input_path = input_file_path.expanduser().resolve()
     resolved_output_path = (
-        _resolve_output_path(output_path) if output_path is not None else None
+        _resolve_output_path(output_path_option)
+        if output_path_option is not None
+        else None
     )
 
     _, info = dat_io.read(input_path)
@@ -210,6 +225,7 @@ def sli(
         start_time=slit_geometry.start_time,
         end_time=slit_geometry.end_time,
         jsoc_email=jsoc_email,
+        cache_dir=cache_dir or Path(gettempdir()) / "sdo_cache",
     )
 
     if all(sdo_map is None for _, sdo_map in maps):
