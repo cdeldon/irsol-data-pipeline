@@ -1,0 +1,94 @@
+"""Shared helpers for the Cyclopts-based CLI."""
+
+from __future__ import annotations
+
+import json
+import os
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+from rich.console import Console
+
+from irsol_data_pipeline.cli.presentation import build_runtime_presentation
+
+
+def ensure_prefect_enabled() -> None:
+    """Enable Prefect-backed behavior for CLI commands.
+
+    The project uses conditional Prefect decorators in several modules.
+    Setting this environment variable before importing those modules
+    ensures the CLI always exercises the Prefect-enabled path.
+    """
+
+    os.environ.setdefault("PREFECT_ENABLED", "true")
+
+
+def should_print_banner(output_format: str, no_banner: bool) -> bool:
+    """Determine whether to render the runtime banner.
+
+    Args:
+        output_format: Requested command output format.
+        no_banner: Explicit user request to suppress the banner.
+
+    Returns:
+        True when the banner should be rendered.
+    """
+
+    return not no_banner and output_format != "json"
+
+
+def print_banner(*, output_format: str = "table", no_banner: bool = False) -> None:
+    """Print the runtime banner when appropriate.
+
+    Args:
+        output_format: Requested command output format.
+        no_banner: Explicit user request to suppress the banner.
+    """
+
+    if should_print_banner(output_format=output_format, no_banner=no_banner):
+        print(build_runtime_presentation(), end="\n\n")
+
+
+def print_json(data: Mapping[str, Any] | Sequence[Mapping[str, Any]]) -> None:
+    """Print stable JSON output for automation.
+
+    Args:
+        data: JSON-serializable mapping or sequence of mappings.
+    """
+
+    print(json.dumps(data, indent=2, sort_keys=True))
+
+
+def get_console() -> Console:
+    """Return the shared Rich console instance for operator output.
+
+    Returns:
+        Rich console for human-readable reports.
+    """
+
+    return Console()
+
+
+def safe_read_prefect_variable(variable_name: str) -> tuple[Any, str]:
+    """Read a Prefect variable without crashing read-only commands.
+
+    Args:
+        variable_name: Prefect variable name.
+
+    Returns:
+        A tuple of `(value, status)` where status is one of `set`, `unset`, or
+        `unavailable`.
+    """
+
+    ensure_prefect_enabled()
+
+    from prefect.variables import Variable
+
+    try:
+        value = Variable.get(variable_name, default=None)
+    except Exception:
+        return "<unavailable>", "unavailable"
+
+    if value is None:
+        return "<unset>", "unset"
+    return value, "set"

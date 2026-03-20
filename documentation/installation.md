@@ -42,16 +42,24 @@ This installs `irsol-data-pipeline` from the Python Package Index (PyPI) like an
 Installed package commands:
 
 ```bash
-irsol-configure
-irsol-dashboard
-irsol-serve-flat-field-correction
-irsol-serve-slit-images
-irsol-serve-maintenance
+idp --help
+idp info
+idp --install-completion
+idp variables configure
+idp flows list
+idp flows serve flat-field-correction
 ```
 
-These commands are implemented in `src/irsol_data_pipeline/cli/`. Repository
-files under `entrypoints/` are thin wrappers for development-time use from a
-checkout.
+These commands are implemented in `src/irsol_data_pipeline/cli/`.
+
+Shell completion can be installed explicitly with:
+
+```bash
+idp --install-completion
+```
+
+Cyclopts installs completion for the current shell and updates shell startup
+configuration when needed.
 
 ## Available Make targets
 
@@ -67,4 +75,4 @@ make clean                                     # Remove __pycache__ and .pyc fil
 ```
 
 These `make` targets are mainly for repository-local development. When the
-project is installed as a package, use the `irsol-*` commands above instead.
+project is installed as a package, use `idp`.

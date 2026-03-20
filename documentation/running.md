@@ -25,11 +25,10 @@ flowchart TD
 Bootstrap or refresh:
 
 ```bash
-irsol-configure
+idp variables configure
 ```
 
-The package-installed command is the canonical interface. The repository-local
-script under `entrypoints/` is a thin wrapper around the same implementation.
+The package-installed unified CLI is the canonical interface.
 
 | Variable name | Typical flow parameter |
 |---|---|
@@ -40,18 +39,17 @@ script under `entrypoints/` is a thin wrapper around the same implementation.
 ## Local Prefect Commands
 
 ```bash
-irsol-dashboard
-irsol-serve-flat-field-correction
-irsol-serve-slit-images
-irsol-serve-maintenance
+uv run prefect server start
+idp flows serve flat-field-correction
+idp flows serve slit-images
+idp flows serve maintenance
 
 ```
 
-When the project is installed from a package, use the `irsol-*` commands.
-Inside a repository checkout, the `make` targets and `entrypoints/` wrappers
-continue to work and call the same underlying code.
+When the project is installed from a package, use `idp`. Inside a repository
+checkout, the `make` targets call the same underlying CLI.
 
-Run each `irsol-serve-*` command as a separate long-lived process. For the
+Run each `idp flows serve ...` command as a separate long-lived process. For the
 design rationale and operational trade-offs versus a single combined serve
 process, see [prefect-production.md](prefect-production.md#why-three-serve-processes).
 

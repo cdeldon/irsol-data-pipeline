@@ -4,7 +4,7 @@
 
 Prefect is the orchestration layer used to run pipeline logic as managed flows and tasks.
 
-In this codebase, scientific logic remains in `core/` and `pipeline/`, while Prefect concerns (flow wiring, deployment schedules, runtime variables, and reports) live in `orchestration/` and the package CLI modules under `src/irsol_data_pipeline/cli/`. The repository-level `entrypoints/` files are thin wrappers kept for local development and backwards compatibility.
+In this codebase, scientific logic remains in `core/` and `pipeline/`, while Prefect concerns (flow wiring, deployment schedules, runtime variables, and reports) live in `orchestration/` and the package CLI modules under `src/irsol_data_pipeline/cli/`.
 
 ```mermaid
 flowchart LR
@@ -106,7 +106,13 @@ def demo_pipeline_full(
 ```python
 from __future__ import annotations
 
-def main() -> None:
+from cyclopts import App
+
+serve_app = App(name="demo")
+
+
+@serve_app.command(name="serve")
+def serve_demo() -> None:
     import os
 
     os.environ.setdefault("PREFECT_ENABLED", "true")
@@ -134,10 +140,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    serve_app()
 ```
 
-In the real project, this code lives in `src/irsol_data_pipeline/cli/`. Any corresponding file under `entrypoints/` is only a thin wrapper that imports and runs the CLI module.
+In the real project, this code lives in `src/irsol_data_pipeline/cli/` and is mounted under the unified `idp` command tree.
 
 ### 3. Trigger behavior
 

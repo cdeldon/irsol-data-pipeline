@@ -1595,6 +1595,7 @@ source = { editable = "." }
 dependencies = [
     { name = "astropy", version = "6.1.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "astropy", version = "7.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "cyclopts" },
     { name = "drms" },
     { name = "loguru" },
     { name = "matplotlib" },
@@ -1609,7 +1610,6 @@ dependencies = [
     { name = "sunpy", version = "6.0.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sunpy", version = "7.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*' or python_full_version == '3.14.*'" },
     { name = "sunpy", version = "7.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.15' or (python_full_version >= '3.12' and python_full_version < '3.14')" },
-    { name = "typer" },
 ]
 
 [package.dev-dependencies]
@@ -1622,6 +1622,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "astropy", specifier = ">=5.0" },
+    { name = "cyclopts", specifier = ">=4.8.0" },
     { name = "drms", specifier = ">=0.7.0" },
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "matplotlib", specifier = ">=3.7.0" },
@@ -1633,7 +1634,6 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.10.0" },
     { name = "spectroflat", specifier = ">=2.1.0" },
     { name = "sunpy", specifier = ">=5.0" },
-    { name = "typer", specifier = ">=0.24.1" },
 ]
 
 [package.metadata.requires-dev]

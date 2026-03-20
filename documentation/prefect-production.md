@@ -21,16 +21,15 @@ flowchart LR
 Commands:
 
 ```bash
-irsol-dashboard
-irsol-serve-flat-field-correction
-irsol-serve-slit-images
-irsol-serve-maintenance
+uv run prefect server start
+idp flows serve flat-field-correction
+idp flows serve slit-images
+idp flows serve maintenance
 
 ```
 
-The `irsol-*` commands are the package-installed production interface. The
-`make` targets remain convenient wrappers when operating from a repository
-checkout.
+The package-installed production interface is `idp`. The `make` targets remain
+convenient wrappers when operating from a repository checkout.
 
 ## Why Three Serve Processes
 

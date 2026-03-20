@@ -6,11 +6,11 @@ help:
 	@echo "  test  - Run pytest with coverage"
 	@echo "  prefect/setup - Configure Prefect for local development and execution"
 	@echo "  prefect/dashboard - Start the Prefect dashboard"
-	@echo "  prefect/configure - Bootstrap Prefect Variables from the command line"
+	@echo "  prefect/configure - Configure Prefect Variables through the unified CLI"
 	@echo "  prefect/reset - Reset the Prefect database"
-	@echo "  prefect/serve-flat-field-correction-pipeline - Serve flat-field correction deployment"
-	@echo "  prefect/serve-slit-image-pipeline - Serve slit image generation deployment"
-	@echo "  prefect/serve-maintenance-pipeline - Serve maintenance deployment"
+	@echo "  prefect/serve-flat-field-correction-pipeline - Serve flat-field correction flow group"
+	@echo "  prefect/serve-slit-image-pipeline - Serve slit image generation flow group"
+	@echo "  prefect/serve-maintenance-pipeline - Serve maintenance flow group"
 	@echo "  clean - Removes temporary python artifacts"
 
 lint:
@@ -27,19 +27,19 @@ prefect/dashboard: prefect/setup
 	uv run prefect server start
 
 prefect/configure:
-	uv run entrypoints/bootstrap_variables.py
+	uv run idp variables configure
 
 prefect/reset:
 	uv run prefect server database reset
 
 prefect/serve-maintenance-pipeline:
-	PREFECT_ENABLED=true uv run entrypoints/serve_prefect_maintenance.py
+	uv run idp flows serve maintenance
 
 prefect/serve-flat-field-correction-pipeline:
-	PREFECT_ENABLED=true uv run entrypoints/serve_flat_field_correction_pipeline.py
+	uv run idp flows serve flat-field-correction
 
 prefect/serve-slit-image-pipeline:
-	PREFECT_ENABLED=true uv run entrypoints/serve_slit_image_pipeline.py
+	uv run idp flows serve slit-images
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
