@@ -50,6 +50,7 @@ def setup_logging(
     log_file: str = "solar_pipeline.log",
     rotation: str = "10 MB",
     retention: str = "1 week",
+    force: bool = False,
 ) -> None:
     """Configure loguru sinks for the pipeline.
 
@@ -58,10 +59,11 @@ def setup_logging(
         log_file: Path to the rotating log file.
         rotation: When to rotate the log file (e.g. "10 MB", "1 day").
         retention: How long to keep rotated logs (e.g. "1 week", "30 days").
+        force: Reconfigure logging even if setup was already called.
     """
     global _configured
 
-    if _configured:
+    if _configured and not force:
         return
 
     # Reset the logger

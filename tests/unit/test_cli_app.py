@@ -9,10 +9,57 @@ import pytest
 from cyclopts import App
 from cyclopts.exceptions import ValidationError
 
-from irsol_data_pipeline.cli.app import app
+from irsol_data_pipeline.cli.app import _meta, app
 
 
 class TestCliApp:
+    def test_meta_defaults_to_info(self) -> None:
+        with (
+            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app.app") as mock_app,
+        ):
+            _meta("info")
+
+        mock_setup.assert_called_once_with(level="INFO", force=True)
+        mock_app.assert_called_once_with(("info",))
+
+    def test_meta_verbose_one_gives_debug(self) -> None:
+        with (
+            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app.app"),
+        ):
+            _meta("info", verbose=1)
+
+        mock_setup.assert_called_once_with(level="DEBUG", force=True)
+
+    def test_meta_verbose_two_gives_trace(self) -> None:
+        with (
+            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app.app"),
+        ):
+            _meta("info", verbose=2)
+
+        mock_setup.assert_called_once_with(level="TRACE", force=True)
+
+    def test_meta_log_level_overrides(self) -> None:
+        with (
+            patch("irsol_data_pipeline.cli.app.setup_logging") as mock_setup,
+            patch("irsol_data_pipeline.cli.app.app"),
+        ):
+            _meta("info", log_level="WARNING")
+
+        mock_setup.assert_called_once_with(level="WARNING", force=True)
+
+    def test_meta_verbose_and_log_level_are_mutually_exclusive(self) -> None:
+        with (
+            patch("irsol_data_pipeline.cli.app.setup_logging"),
+            patch("irsol_data_pipeline.cli.app.app"),
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                _meta("info", verbose=1, log_level="DEBUG")
+
+        assert exc_info.value.code == 1
+
     def test_root_commands_are_registered(self) -> None:
         assert isinstance(app["prefect"], App)
         assert "info" in set(app)
