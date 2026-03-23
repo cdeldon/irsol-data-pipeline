@@ -34,7 +34,7 @@ flowchart LR
 
 1. **Install the pipeline:**
    ```bash
-   uv tool install irsol-data-pipeline
+   uv tool install irsol-data-pipeline --no-cache-dir --python 3.10
    ```
 
 2. **Verify installation:**
@@ -65,6 +65,11 @@ flowchart LR
    idp info
    idp prefect variables list
    idp prefect flows list
+   ```
+
+6. **Upgrade the package:**
+   ```bash
+   uv tool upgrade irsol-data-pipeline --no-cache-dir --python 3.10
    ```
 
 ### systemd Services
