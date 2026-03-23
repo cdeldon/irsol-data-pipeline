@@ -6,7 +6,7 @@ readme = { text = "Solar observation data processing pipeline for IRSOL", conten
 authors = [{ name = "Carlo Del Don", email = "deldoc@usi.ch" }]
 requires-python = ">=3.10"
 dependencies = [
-    "numpy<2",
+    "numpy<2",  # spectroflat does not pin its numpy dependency but its internals require numpy<2
     "scipy>=1.10.0",
     "spectroflat>=2.1.0",
     "qollib>=0.1.0",
