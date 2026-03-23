@@ -21,6 +21,9 @@ class TestInfoCommand:
             PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS: "<unset>",
             PrefectVariableName.WEB_ASSET_QUICKLOOK_IMAGE_ROOT: "/srv/web/quicklook",
             PrefectVariableName.WEB_ASSET_CONTEXT_IMAGE_ROOT: "/srv/web/context",
+            PrefectVariableName.PIOMBO_HOSTNAME: "piombo7.usi.ch",
+            PrefectVariableName.PIOMBO_USERNAME: "<unset>",
+            PrefectVariableName.PIOMBO_PASSWORD: "<unset>",
         }
 
         with patch(
