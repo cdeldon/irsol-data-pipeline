@@ -57,7 +57,7 @@ configuration:
 
 # Add 'feature' label to any PR where the head branch name starts with `feature` or has a `feature` section in the name
 feature:
- - head-branch: ['^feature', 'feature']
+ - head-branch: ['^feature', 'feature', '^feat', 'feat']
 
 # Add 'improvement' label to any PR where the head branch name starts with `improvement` or has a `improvement` section in the name
 improvement:
@@ -65,7 +65,7 @@ improvement:
 
 # Add 'refactoring' label to any PR where the head branch name starts with `refactoring` or has a `refactoring` section in the name
 refactoring:
- - head-branch: ['^refactoring', 'refactoring']
+ - head-branch: ['^refactoring', 'refactoring', '^refactor', 'refactor']
 
 # Add 'bugfix' label to any PR where the head branch name starts with `bugfix` or has a `bugfix` section in the name
 bugfix:
