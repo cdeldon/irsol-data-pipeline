@@ -90,6 +90,7 @@ When prompted, provide:
 
 - **data-root-path**: `/data/observations` (your dataset root)
 - **jsoc-email**: your JSOC-registered email
+- **jsoc-data-delay-days**: `14` (only process observation days at least 14 days old)
 - **cache-expiration-hours**: `672` (28 days, or customize)
 - **flow-run-expiration-hours**: `672` (28 days, or customize)
 

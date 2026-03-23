@@ -331,6 +331,7 @@ class TestCliApp:
         value_by_name = {
             PrefectVariableName.DATA_ROOT_PATH: "/srv/data",
             PrefectVariableName.JSOC_EMAIL: "operator@example.com",
+            PrefectVariableName.JSOC_DATA_DELAY_DAYS: "14",
             PrefectVariableName.CACHE_EXPIRATION_HOURS: "672",
             PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS: "<unset>",
         }
@@ -360,6 +361,7 @@ class TestCliApp:
         value_by_name = {
             PrefectVariableName.DATA_ROOT_PATH: "/srv/data",
             PrefectVariableName.JSOC_EMAIL: "observer@example.com",
+            PrefectVariableName.JSOC_DATA_DELAY_DAYS: "10",
             PrefectVariableName.CACHE_EXPIRATION_HOURS: "672",
             PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS: "<unset>",
         }
@@ -379,7 +381,8 @@ class TestCliApp:
 
         assert payload["variables"][0]["value"] == "/srv/data"
         assert payload["variables"][1]["value"] == "observer@example.com"
-        assert payload["variables"][3]["value"] == "<unset>"
+        assert payload["variables"][2]["value"] == "10"
+        assert payload["variables"][4]["value"] == "<unset>"
 
     def test_prefect_variables_configure_returns_zero_when_skipping_all(
         self,
@@ -389,7 +392,7 @@ class TestCliApp:
             patch("prefect.variables.Variable.set"),
             patch(
                 "builtins.input",
-                side_effect=["", "", "", "n", "", "n"],
+                side_effect=["", "", "", "n", "", "n", "", "n"],
             ),
             patch(
                 "irsol_data_pipeline.cli.commands.prefect_command.variables_command._render_variable_entries",
@@ -419,6 +422,8 @@ class TestCliApp:
                     "y",
                     "operator@example.com",
                     "y",
+                    "",
+                    "n",
                     "",
                     "n",
                     "",

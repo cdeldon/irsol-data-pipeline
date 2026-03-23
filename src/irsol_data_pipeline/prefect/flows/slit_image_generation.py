@@ -13,13 +13,16 @@ Naming convention: slit-images/<scope>[/<context>]
 
 from __future__ import annotations
 
+import datetime
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 from loguru import logger
 from prefect import flow, task
 from prefect.task_runners import ThreadPoolTaskRunner
 
+from irsol_data_pipeline.core.config import DEFAULT_JSOC_DATA_DELAY_DAYS
 from irsol_data_pipeline.core.models import (
     DayProcessingResult,
     ObservationDay,
@@ -42,15 +45,82 @@ from irsol_data_pipeline.prefect.variables import (
 )
 
 
+def _build_min_age_day_predicate(
+    *,
+    min_age_days: int,
+    today: datetime.date,
+) -> Callable[[ObservationDay], bool]:
+    """Create an inclusive minimum-age predicate for observation-day folders.
+
+    Args:
+        min_age_days: Minimum required age in days.
+        today: Current UTC date.
+
+    Returns:
+        Predicate returning ``True`` for eligible observation days.
+    """
+
+    cutoff = today - datetime.timedelta(days=min_age_days)
+
+    def _predicate(day: ObservationDay) -> bool:
+        day_date = day.date
+        if day_date is None:
+            return False
+        return day_date <= cutoff
+
+    return _predicate
+
+
+def _resolve_jsoc_data_delay_days(raw_value: object) -> int:
+    """Resolve the configured JSOC delay in days.
+
+    Args:
+        raw_value: Raw value fetched from Prefect Variable storage.
+
+    Returns:
+        Non-negative delay in days.
+    """
+
+    try:
+        delay_days = int(str(raw_value).strip())
+    except (TypeError, ValueError):
+        logger.warning(
+            "Invalid JSOC delay value, using default",
+            value=raw_value,
+            default=DEFAULT_JSOC_DATA_DELAY_DAYS,
+        )
+        return DEFAULT_JSOC_DATA_DELAY_DAYS
+
+    if delay_days < 0:
+        logger.warning(
+            "Negative JSOC delay value, using default",
+            value=raw_value,
+            default=DEFAULT_JSOC_DATA_DELAY_DAYS,
+        )
+        return DEFAULT_JSOC_DATA_DELAY_DAYS
+
+    return delay_days
+
+
 @task(task_run_name="slit-images/scan-dataset/{root}")
-def scan_observation_days_task(root: Path) -> list[ObservationDay]:
+def scan_observation_days_task(
+    root: Path,
+    jsoc_data_delay_days: int,
+) -> list[ObservationDay]:
     """Prefect task: discover all observation days under the dataset root."""
-    observation_days = discover_observation_days(root)
+    observation_days = discover_observation_days(
+        root,
+        predicate=_build_min_age_day_predicate(
+            min_age_days=jsoc_data_delay_days,
+            today=datetime.datetime.now(datetime.timezone.utc).date(),
+        ),
+    )
     summary_lines = [
         "# Slit Image Generation Scan",
         "",
         f"**Root**: `{root}`",
-        f"**Observation days**: {len(observation_days)}",
+        f"**JSOC delay (days)**: {jsoc_data_delay_days}",
+        f"**Eligible observation days**: {len(observation_days)}",
     ]
     if observation_days:
         summary_lines += ["", "## Days found", ""]
@@ -114,12 +184,23 @@ def generate_slit_images(
         return []
 
     dataset_root = resolve_dataset_root(root)
+
+    jsoc_data_delay_days = _resolve_jsoc_data_delay_days(
+        get_variable(
+            PrefectVariableName.JSOC_DATA_DELAY_DAYS,
+            default=str(DEFAULT_JSOC_DATA_DELAY_DAYS),
+        )
+    )
     logger.info("Starting slit image generation", root=dataset_root, jsoc_email=email)
 
-    observation_days = scan_observation_days_task(root=dataset_root)
+    observation_days = scan_observation_days_task(
+        root=dataset_root,
+        jsoc_data_delay_days=jsoc_data_delay_days,
+    )
     logger.info(
         "Scan complete",
         days=len(observation_days),
+        jsoc_data_delay_days=jsoc_data_delay_days,
     )
 
     if not observation_days:

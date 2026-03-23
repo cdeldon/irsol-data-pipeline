@@ -97,7 +97,7 @@ The pipeline defines three independent flow groups, each served as a separate Pr
 
 **`generate_slit_images`** (full):
 1. Resolves JSOC email and dataset root.
-2. Scans observation days.
+2. Scans observation days and keeps only days at least `jsoc-data-delay-days` old (inclusive, based on `YYMMDD` folder date).
 3. Dispatches per-day generation tasks (max workers = CPU count − 1, capped at 4 due to network I/O).
 4. Collects results.
 
@@ -147,6 +147,7 @@ Runtime configuration is stored as Prefect Variables, accessible via the dashboa
 |----------|-------------|---------|
 | `data-root-path` | Dataset root directory | `/data/observations` |
 | `jsoc-email` | Email for JSOC DRMS queries | `user@example.com` |
+| `jsoc-data-delay-days` | Minimum day age for `slit-images-full` scanning | `14` |
 | `cache-expiration-hours` | Cache file retention (hours) | `672` |
 | `flow-run-expiration-hours` | Prefect run history retention (hours) | `672` |
 

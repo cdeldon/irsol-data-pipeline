@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator
 
 from irsol_data_pipeline.core.config import DEFAULT_MAX_DELTA
@@ -472,6 +473,18 @@ class ObservationDay(BaseModel):
     @property
     def name(self) -> str:
         return self.path.name
+
+    @property
+    def date(self) -> datetime.date | None:
+        """Parse the day name (YYMMDD) into a datetime.date."""
+        try:
+            return datetime.datetime.strptime(self.name, "%y%m%d").date()
+        except ValueError:
+            logger.error(
+                "Invalid observation day folder name (expected YYMMDD)",
+                day_name=self.name,
+            )
+            return None
 
 
 class MaxDeltaPolicy(BaseModel):

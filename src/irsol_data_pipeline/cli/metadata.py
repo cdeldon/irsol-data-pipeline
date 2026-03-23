@@ -93,6 +93,15 @@ PREFECT_VARIABLES: tuple[PrefectVariableMetadata, ...] = (
         topic_tags=(PrefectDeploymentTopicTag.SLIT_IMAGES,),
     ),
     PrefectVariableMetadata(
+        prefect_name=PrefectVariableName.JSOC_DATA_DELAY_DAYS,
+        prompt_text=(
+            "Minimum age in days for slit-image day scanning (JSOC data delay)"
+        ),
+        default_value="14",
+        required=False,
+        topic_tags=(PrefectDeploymentTopicTag.SLIT_IMAGES,),
+    ),
+    PrefectVariableMetadata(
         prefect_name=PrefectVariableName.CACHE_EXPIRATION_HOURS,
         prompt_text="Cache expiration time in hours (e.g. 4 weeks)",
         default_value=f"{24 * 7 * 4}",

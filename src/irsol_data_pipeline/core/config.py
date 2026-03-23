@@ -26,3 +26,6 @@ SDO_CACHE_DIRNAME = "_sdo_cache"
 
 # V Stokes intensity threshold for row filtering in auto-calibration
 V_STOKES_CUTOFF = 0.4
+
+# Default delta days to access JSOC data
+DEFAULT_JSOC_DATA_DELAY_DAYS = 14

@@ -78,7 +78,7 @@ The pipeline relies on the following key dependencies:
 
 | Package | Purpose |
 |---------|---------|
-| `numpy` (< 2) | Array operations |
+| `numpy` (< 2) | Array operations — pinned below 2 because `spectroflat` does not declare a numpy upper bound but its internals are incompatible with numpy 2.x |
 | `scipy` (≥ 1.10) | Curve fitting, IDL file reading |
 | `astropy` (≥ 5.0) | FITS I/O, coordinates, units |
 | `sunpy` (≥ 5.0) | Solar coordinate transforms, Map objects |
