@@ -91,7 +91,8 @@ class TestConvertPngToJpegWithFixtures:
     def test_png_to_jpeg_bytes_match_fixture(
         self, fixture_dir: Path, tmp_path: Path
     ) -> None:
-        """Converting the fixture PNG produces bytes identical to the fixture JPEG."""
+        """Converting the fixture PNG produces bytes identical to the fixture
+        JPEG."""
         png_fixture = fixture_dir / "web_asset_compatibility" / "sample.png"
         jpg_fixture = fixture_dir / "web_asset_compatibility" / "sample.jpg"
 
