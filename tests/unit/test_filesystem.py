@@ -84,6 +84,17 @@ class TestDiscoverObservationDays:
         days = discover_observation_days(tmp_path / "nonexistent")
         assert len(days) == 0
 
+    def test_applies_predicate_filter(self, tmp_path):
+        for year, day in [("2024", "240713"), ("2025", "251111")]:
+            d = tmp_path / year / day
+            (d / REDUCED_DIRNAME).mkdir(parents=True)
+
+        days = discover_observation_days(
+            tmp_path,
+            predicate=lambda day: day.name.startswith("24"),
+        )
+        assert [day.name for day in days] == ["240713"]
+
 
 class TestDiscoverMeasurementFiles:
     def test_finds_measurements(self, tmp_path):

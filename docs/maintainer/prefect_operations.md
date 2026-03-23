@@ -56,6 +56,7 @@ flowchart LR
    Required variables:
    - `data-root-path` — Path to the dataset root directory.
    - `jsoc-email` — Email registered with JSOC for SDO data queries.
+   - `jsoc-data-delay-days` — Minimum age (days) for observation-day folders processed by `slit-images-full` (default: 14).
    - `cache-expiration-hours` — Cache file retention (default: 672 hours = 28 days).
    - `flow-run-expiration-hours` — Prefect run history retention (default: 672 hours).
 

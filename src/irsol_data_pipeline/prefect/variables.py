@@ -17,6 +17,7 @@ class PrefectVariableName(Enum):
 
     DATA_ROOT_PATH = "data-root-path"
     JSOC_EMAIL = "jsoc-email"
+    JSOC_DATA_DELAY_DAYS = "jsoc-data-delay-days"
     CACHE_EXPIRATION_HOURS = "cache-expiration-hours"
     FLOW_RUN_EXPIRATION_HOURS = "flow-run-expiration-hours"
 

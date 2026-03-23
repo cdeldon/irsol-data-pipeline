@@ -7,6 +7,7 @@ folders, measurement files, and flat-field files.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
@@ -50,6 +51,8 @@ ProcessedOutputKind = Literal[
     "slit_preview_png",
     "slit_preview_error_json",
 ]
+
+ObservationDayPredicate = Callable[[ObservationDay], bool]
 
 _PROCESSED_SUFFIX_BY_KIND: dict[ProcessedOutputKind, str] = {
     "corrected_fits": CORRECTED_FITS_SUFFIX,
@@ -114,7 +117,10 @@ def flatfield_correction_cache_path(flatfield_path: Path) -> Path:
 
 
 @task(task_run_name="dataset/discover-days/{root.name}")
-def discover_observation_days(root: Path) -> list[ObservationDay]:
+def discover_observation_days(
+    root: Path,
+    predicate: ObservationDayPredicate | None = None,
+) -> list[ObservationDay]:
     """Scan the dataset root and discover all observation day folders.
 
     Expects a hierarchy of ``<root>/<year>/<day>/`` where each day
@@ -122,6 +128,8 @@ def discover_observation_days(root: Path) -> list[ObservationDay]:
 
     Args:
         root: The dataset root directory.
+        predicate: Optional filter returning ``True`` for days that should be
+            included.
 
     Returns:
         Sorted list of ObservationDay objects.
@@ -156,6 +164,9 @@ def discover_observation_days(root: Path) -> list[ObservationDay]:
                         processed_dir=day_dir / PROCESSED_DIRNAME,
                     )
                 )
+
+        if predicate is not None:
+            days = [day for day in days if predicate(day)]
 
         days_sorted = sorted(days, key=lambda d: d.path)
         logger.debug("Discovered observation days", count=len(days_sorted))

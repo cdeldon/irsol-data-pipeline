@@ -148,6 +148,10 @@ def generate_slit_images_for_day(
 ) -> DayProcessingResult:
 ```
 
+When running the full slit-image Prefect flow (`slit-images-full`), observation
+days are filtered by folder date (`YYMMDD`) so only days older than or equal to
+the configured `jsoc-data-delay-days` threshold are scanned.
+
 For each measurement in an observation day:
 
 1. Check if a slit preview already exists (skip if so).

@@ -209,6 +209,7 @@ idp prefect variables configure --update-existing
 |----------|-------------|----------|
 | `data-root-path` | Dataset root directory | Yes |
 | `jsoc-email` | JSOC DRMS email | Yes (for slit images) |
+| `jsoc-data-delay-days` | Minimum day age for `slit-images-full` scanning | Optional |
 | `cache-expiration-hours` | Cache retention hours | Optional |
 | `flow-run-expiration-hours` | Run history retention hours | Optional |
 
