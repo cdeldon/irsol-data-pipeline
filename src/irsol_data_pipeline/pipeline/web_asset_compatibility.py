@@ -253,11 +253,6 @@ def process_day_web_asset_compatibility(
         )
 
         _normalize_jpeg_quality(jpeg_quality)
-        use_piombo_upload = _validate_piombo_credentials(
-            piombo_hostname=piombo_hostname,
-            piombo_username=piombo_username,
-            piombo_password=piombo_password,
-        )
 
         processed = 0
         skipped = 0
@@ -266,6 +261,12 @@ def process_day_web_asset_compatibility(
         staged_counts_by_kind: dict[WebAssetKind, int] = defaultdict(int)
 
         try:
+            use_piombo_upload = _validate_piombo_credentials(
+                piombo_hostname=piombo_hostname,
+                piombo_username=piombo_username,
+                piombo_password=piombo_password,
+            )
+
             with TemporaryDirectory(prefix=f"web-assets-{day.name}-") as temp_dir:
                 staging_root = Path(temp_dir)
                 staging_quicklook_root = staging_root / "quicklook"
