@@ -49,7 +49,7 @@ class TestUploadStagedDayAssets:
             destination_root=destination_root,
             day_name="250101",
             force_overwrite=False,
-            use_piombopload=False,
+            use_piombo_upload=False,
             piombo_hostname="",
             piombo_username="",
             piombo_password="",
