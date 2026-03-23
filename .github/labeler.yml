@@ -63,6 +63,9 @@ feature:
 improvement:
  - head-branch: ['^improvement', 'improvement']
 
+# Add 'refactoring' label to any PR where the head branch name starts with `refactoring` or has a `refactoring` section in the name
+refactoring:
+ - head-branch: ['^refactoring', 'refactoring']
 
 # Add 'bugfix' label to any PR where the head branch name starts with `bugfix` or has a `bugfix` section in the name
 bugfix:
