@@ -6,8 +6,10 @@
 It reads raw `.dat`/`.sav` IDL files, applies flat-field and smile corrections, performs
 wavelength auto-calibration, and exports corrected Stokes (I, Q, U, V) data as FITS files.
 
+It also generates slit context images from SDO/AIA data and manages compatibility with web asset deployment systems.
+
 Key domain terms: **Stokes parameters**, **flat-field correction**, **smile correction**,
-**wavelength auto-calibration**, **ZIMPOL**, **observation day**.
+**wavelength auto-calibration**, **ZIMPOL**, **observation day**, **slit images**, **web assets**.
 
 ## Tools at your disposal
 
@@ -26,11 +28,16 @@ Key domain terms: **Stokes parameters**, **flat-field correction**, **smile corr
 
 ```
 src/irsol_data_pipeline/
-├── core/          # Domain models (Pydantic), config constants, calibration, correction
+├── core/          # Domain models (Pydantic), config, calibration, correction, slit images, web asset compatibility
 ├── io/            # Importers and exporters (dat, fits, flatfield, processing_metadata)
-├── pipeline/      # High-level processing logic (scanner, day_processor, measurement_processor)
-├── prefect/ # Prefect flows/tasks, conditional decorators, retry helpers, logging bridge
-└── plotting/      # Matplotlib-based Stokes profile plots
+├── pipeline/      # Processors, orchestration, caching, filesystem discovery
+├── prefect/       # Flows/tasks, conditional decorators, retry helpers, logging bridge, variables
+├── plotting/      # Matplotlib-based Stokes profile plots and slit previews
+├── cli/           # User-facing CLI: info, plot, prefect commands
+├── integrations/  # External system adapters (e.g., Piombo SFTP deployment)
+├── exceptions.py  # Domain exception hierarchy
+├── logging_config.py  # Loguru configuration
+└── version.py     # Version string
 ```
 
 ## Conventions

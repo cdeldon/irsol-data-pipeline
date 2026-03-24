@@ -53,11 +53,16 @@ src/irsol_data_pipeline/
 │   ├── correction/
 │   │   ├── analyzer.py       # spectroflat analysis (dust flat + offset map)
 │   │   └── corrector.py      # Apply flat-field + smile correction
-│   └── slit_images/
-│       ├── config.py         # Observatory location, telescope specs, SDO products
-│       ├── coordinates.py    # Slit geometry, mu calculation, coordinate transforms
-│       ├── solar_data.py     # SDO/DRMS data fetching
-│       └── z3readbd.py       # Z3BD binary header reader
+│   ├── slit_images/
+│   │   ├── config.py         # Observatory location, telescope specs, SDO products
+│   │   ├── coordinates.py    # Slit geometry, mu calculation, coordinate transforms
+│   │   ├── solar_data.py     # SDO/DRMS data fetching
+│   │   └── z3readbd.py       # Z3BD binary header reader
+│   ├── remote_filesystem.py  # Protocol abstraction for remote FS operations
+│   └── web_asset_compatibility/
+│       ├── models.py        # WebAssetKind, WebAssetSource domain types
+│       ├── discovery.py     # Discover PNG outputs for JPG conversion
+│       └── conversion.py    # PNG → JPEG conversion via Pillow
 │
 ├── io/
 │   ├── dat/importer.py       # Read ZIMPOL .dat/.sav files
@@ -78,7 +83,8 @@ src/irsol_data_pipeline/
 │   ├── flatfield_cache.py    # In-memory flat-field correction cache
 │   ├── cache_cleanup.py      # Delete stale cache files
 │   ├── filesystem.py         # Directory/file discovery and naming conventions
-│   └── slit_images_processor.py  # Slit preview generation (per-measurement and per-day)
+│   ├── slit_images_processor.py  # Slit preview generation (per-measurement and per-day)
+│   └── web_asset_compatibility.py  # Web asset staging and deployment orchestration
 │
 ├── prefect/
 │   ├── decorators.py         # Conditional @task / @flow (no-op without PREFECT_ENABLED)
@@ -90,6 +96,7 @@ src/irsol_data_pipeline/
 │   └── flows/
 │       ├── flat_field_correction.py   # FF correction flows (full + daily)
 │       ├── slit_image_generation.py   # Slit image flows (full + daily)
+│       ├── web_assets_compatibility.py  # Web asset flows (full + daily)
 │       └── maintenance/
 │           ├── delete_old_cache_files.py   # Cache cleanup flow
 │           └── delete_old_prefect_data.py  # Prefect run history cleanup
@@ -112,38 +119,6 @@ src/irsol_data_pipeline/
             └── variables_command.py  # `idp prefect variables list | configure`
 ```
 
-## Three Independent Pipelines
-
-The system contains three independently schedulable pipelines that share the same dataset root directory:
-
-```mermaid
-flowchart LR
-    subgraph Dataset["Dataset Root"]
-        direction TB
-        RAW["raw/ <br/> Original .dat files"]
-        RED["reduced/ <br/> Pre-reduced .dat files"]
-        PROC["processed/ <br/> Pipeline outputs"]
-    end
-
-    subgraph Pipelines
-        FF["Flat-Field<br/>Correction"]
-        SLIT["Slit Image<br/>Generation"]
-        MAINT["Maintenance"]
-    end
-
-    RED --> FF
-    RED --> SLIT
-    FF --> PROC
-    SLIT --> PROC
-    PROC --> MAINT
-```
-
-| Pipeline | Input | Output | Schedule |
-|----------|-------|--------|----------|
-| **Flat-field correction** | `reduced/*.dat` | `processed/*_corrected.fits`, metadata JSON, profile PNGs | Daily (or manual) |
-| **Slit image generation** | `reduced/*.dat` | `processed/*_slit_preview.png` | Daily (or manual) |
-| **Maintenance** | `processed/_cache/`, Prefect DB | Deleted stale files | Periodic |
-
 ## Dataset Directory Convention
 
 Each observation day is stored in a directory with the structure:
@@ -165,6 +140,44 @@ Each observation day is stored in a directory with the structure:
             ├── _cache/        # Flat-field correction cache (.pkl)
             └── _sdo_cache/    # Downloaded SDO FITS cache
 ```
+
+## Four Independent Pipelines
+
+The system contains four independently schedulable pipelines that share the same dataset root directory:
+
+The fourth pipeline, **Web Asset Compatibility**, exists specifically to replace legacy cron/script
+image publishing with a first-class pipeline stage while preserving legacy public URL contracts.
+
+```mermaid
+flowchart LR
+    subgraph Dataset["Dataset Root"]
+        direction TB
+        RAW["raw/ <br/> Original .dat files"]
+        RED["reduced/ <br/> Pre-reduced .dat files"]
+        PROC["processed/ <br/> Pipeline outputs"]
+    end
+
+    subgraph Pipelines
+        FF["Flat-Field<br/>Correction"]
+        SLIT["Slit Image<br/>Generation"]
+        WEB["Web Asset<br/>Compatibility"]
+        MAINT["Maintenance"]
+    end
+
+    RED --> FF
+    RED --> SLIT
+    FF --> PROC
+    SLIT --> PROC
+    PROC --> WEB
+    PROC --> MAINT
+```
+
+| Pipeline | Input | Output | Schedule |
+|----------|-------|--------|----------|
+| **Flat-field correction** | `reduced/*.dat` | `processed/*_corrected.fits`, metadata JSON, profile PNGs | Daily (or manual) |
+| **Slit image generation** | `reduced/*.dat` | `processed/*_slit_preview.png` | Daily (or manual) |
+| **Web asset compatibility** | `processed/*.png` | JPG-converted assets, deployed to Piombo SFTP | Daily (or manual) |
+| **Maintenance** | `processed/_cache/`, Prefect DB | Deleted stale files | Periodic |
 
 ## Key Design Decisions
 
