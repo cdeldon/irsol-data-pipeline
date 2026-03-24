@@ -10,10 +10,11 @@ from cyclopts.exceptions import ValidationError
 
 from irsol_data_pipeline.cli import app
 from irsol_data_pipeline.core.models import StokesParameters
+from irsol_data_pipeline.io.fits.importer import ImportedFitsMeasurement
 
 
 class TestCliPlot:
-    def test_profile_renders_png(self, tmp_path) -> None:
+    def test_profile_renders_png_from_dat(self, tmp_path) -> None:
         input_path = tmp_path / "measurement.dat"
         input_path.write_text("placeholder")
         output_path = tmp_path / "profile.png"
@@ -47,6 +48,49 @@ class TestCliPlot:
 
         assert result is None
         read_dat.assert_called_once_with(input_path.resolve())
+        plot_profile.assert_called_once_with(
+            stokes,
+            filename_save=output_path.resolve(),
+            show=True,
+        )
+
+    def test_profile_renders_png_from_fits(self, tmp_path) -> None:
+        input_path = tmp_path / "measurement.fits"
+        input_path.write_text("placeholder")
+        output_path = tmp_path / "profile.png"
+        stokes = StokesParameters(
+            i=np.ones((4, 5)),
+            q=np.zeros((4, 5)),
+            u=np.zeros((4, 5)),
+            v=np.zeros((4, 5)),
+        )
+
+        with (
+            patch(
+                "irsol_data_pipeline.io.fits.read",
+                return_value=ImportedFitsMeasurement(
+                    stokes=stokes, calibration=None, header=None
+                ),
+            ) as read_fits,
+            patch("irsol_data_pipeline.plotting.profile.plot") as plot_profile,
+            patch("irsol_data_pipeline.cli.common.has_display", return_value=True),
+        ):
+            result = app(
+                [
+                    "plot",
+                    "profile",
+                    str(input_path),
+                    "--output-path",
+                    str(output_path),
+                    "--show",
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        assert result is None
+        read_fits.assert_called_once_with(input_path.resolve())
         plot_profile.assert_called_once_with(
             stokes,
             filename_save=output_path.resolve(),
