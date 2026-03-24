@@ -174,6 +174,43 @@ def cleanup_day_cache_files(
 
 Removes stale pickle files from `processed/_cache/` and `processed/_sdo_cache/` directories. Files older than the specified threshold are deleted. This prevents unbounded cache growth on long-running deployments.
 
+
+## Web Asset Compatibility
+
+The web asset compatibility pipeline converts PNG outputs to JPEGs and deploys them to SFTP-based web asset services.
+
+This stage is included to replace legacy cron/script publishing (`quick-look` and
+`image-generator`) while preserving existing web-facing contracts.
+
+It ensures that outputs produced by this repository remain consumable by systems that still depend on
+legacy JPG naming and directory conventions.
+
+**Module:** `pipeline.web_asset_compatibility`
+
+```python
+def plan_web_assets_for_day(
+    day: ObservationDay,
+    overwrite_existing: bool = False,
+) -> DayWebAssetPlan:
+
+def stage_and_upload_assets(
+    plan: DayWebAssetPlan,
+    remote_fs: RemoteFileSystem,
+    jpeg_quality: int = 50,
+) -> WebAssetUploadResult:
+```
+
+For each observation day:
+
+1. Discover PNG asset files: `*_profile_corrected.png` and `*_slit_preview.png`
+2. Check which assets already exist on the remote server (skip if not overwriting)
+3. Convert PNG input to JPEG format via Pillow (configurable quality, default quality 50)
+4. Stage JPEGs in a temporary directory
+5. Upload staged JPEGs to Piombo SFTP server using the configured `RemoteFileSystem` adapter
+6. Track uploaded and skipped assets
+
+The remote file system adapter is transport-agnostic via the `RemoteFileSystem` protocol. The default implementation (`SftpRemoteFileSystem` in `integrations.piombo`) uses Paramiko for SFTP connectivity.
+
 ## Idempotency
 
 The pipeline is designed to be safely re-runnable:
@@ -197,8 +234,14 @@ For each measurement (e.g., `6302_m1`), the pipeline produces:
 | `6302_m1_slit_preview.png` | 6-panel SDO slit context image |
 | `6302_m1_error.json` | Error record (only on failure) |
 
-## Related Documentation
+Web asset outputs (staged and deployed to Piombo SFTP):
 
+| File | Description |
+|------|-------------|
+| `6302_m1_profile_corrected.jpg` | JPEG version of corrected profile (deployed) |
+| `6302_m1_slit_preview.jpg` | JPEG version of slit preview (deployed) |
+
+## Related Documentation
 - [Flat-Field Correction](../core/flat_field_correction.md) — core correction algorithms
 - [Wavelength Auto-Calibration](../core/wavelength_autocalibration.md) — calibration details
 - [Slit Image Creation](../core/slit_image_creation.md) — slit geometry and SDO data

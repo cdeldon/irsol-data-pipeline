@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from irsol_data_pipeline.core.config import (
+    DEFAULT_PIOMBO_BASE_PATH,
+    DEFAULT_PIOMBO_HOST_NAME,
+)
 from irsol_data_pipeline.prefect.flows.tags import PrefectDeploymentTopicTag
 from irsol_data_pipeline.prefect.variables import PrefectVariableName
 
@@ -12,6 +16,7 @@ OutputFormat = Literal["table", "json"]
 PrefectFlowGroupName = Literal[
     "flat-field-correction",
     "slit-images",
+    "web-assets-compatibility",
     "maintenance",
 ]
 
@@ -115,6 +120,32 @@ PREFECT_VARIABLES: tuple[PrefectVariableMetadata, ...] = (
         required=False,
         topic_tags=(PrefectDeploymentTopicTag.MAINTENANCE,),
     ),
+    PrefectVariableMetadata(
+        prefect_name=PrefectVariableName.PIOMBO_BASE_PATH,
+        prompt_text="Base path for Piombo web-assets uploads",
+        default_value=DEFAULT_PIOMBO_BASE_PATH,
+        required=False,
+        topic_tags=(PrefectDeploymentTopicTag.WEB_ASSETS_COMPATIBILITY,),
+    ),
+    PrefectVariableMetadata(
+        prefect_name=PrefectVariableName.PIOMBO_HOSTNAME,
+        prompt_text="SSH hostname used by Piombo for web-assets upload",
+        required=False,
+        default_value=DEFAULT_PIOMBO_HOST_NAME,
+        topic_tags=(PrefectDeploymentTopicTag.WEB_ASSETS_COMPATIBILITY,),
+    ),
+    PrefectVariableMetadata(
+        prefect_name=PrefectVariableName.PIOMBO_USERNAME,
+        prompt_text="SSH username used by Piombo for web-assets upload",
+        required=True,
+        topic_tags=(PrefectDeploymentTopicTag.WEB_ASSETS_COMPATIBILITY,),
+    ),
+    PrefectVariableMetadata(
+        prefect_name=PrefectVariableName.PIOMBO_PASSWORD,
+        prompt_text="SSH password used by Piombo for web-assets upload",
+        required=True,
+        topic_tags=(PrefectDeploymentTopicTag.WEB_ASSETS_COMPATIBILITY,),
+    ),
 )
 
 
@@ -166,6 +197,34 @@ PREFECT_FLOW_GROUPS: tuple[PrefectFlowGroupMetadata, ...] = (
                 deployment_name="slit-images-daily",
                 description=(
                     "Generate slit preview images for a specific observation day."
+                ),
+                automation="manual",
+                schedule="manual",
+            ),
+        ),
+    ),
+    PrefectFlowGroupMetadata(
+        name="web-assets-compatibility",
+        topic_tag=PrefectDeploymentTopicTag.WEB_ASSETS_COMPATIBILITY,
+        description="Serve compatibility deployments for quicklook/context assets.",
+        flows=(
+            PrefectFlowMetadata(
+                group_name="web-assets-compatibility",
+                flow_name="web-assets-compatibility-full",
+                deployment_name="web-assets-compatibility-full",
+                description=(
+                    "Scan a dataset root and deploy quicklook "
+                    "and context JPG assets for all days."
+                ),
+                automation="scheduled",
+                schedule="daily",
+            ),
+            PrefectFlowMetadata(
+                group_name="web-assets-compatibility",
+                flow_name="web-assets-compatibility-daily",
+                deployment_name="web-assets-compatibility-daily",
+                description=(
+                    "Deploy quicklook and context JPG assets for a specific day folder."
                 ),
                 automation="manual",
                 schedule="manual",

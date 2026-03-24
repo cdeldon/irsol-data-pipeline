@@ -19,6 +19,10 @@ class TestInfoCommand:
             PrefectVariableName.JSOC_DATA_DELAY_DAYS: "14",
             PrefectVariableName.CACHE_EXPIRATION_HOURS: "672",
             PrefectVariableName.FLOW_RUN_EXPIRATION_HOURS: "<unset>",
+            PrefectVariableName.PIOMBO_BASE_PATH: "/irsol_db/docs/web-site/assets",
+            PrefectVariableName.PIOMBO_HOSTNAME: "piombo7.usi.ch",
+            PrefectVariableName.PIOMBO_USERNAME: "<unset>",
+            PrefectVariableName.PIOMBO_PASSWORD: "<unset>",
         }
 
         with patch(

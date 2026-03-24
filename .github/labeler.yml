@@ -1,10 +1,5 @@
 # Configuration for https://github.com/actions/labeler
 
-source-code:
-  - changed-files:
-      - any-glob-to-any-file:
-          - "src/irsol_data_pipeline/**"
-
 cli:
   - changed-files:
       - any-glob-to-any-file:
@@ -19,6 +14,11 @@ io:
   - changed-files:
       - any-glob-to-any-file:
           - "src/irsol_data_pipeline/io/**"
+
+integrations:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/irsol_data_pipeline/integrations/**"
 
 pipeline:
   - changed-files:

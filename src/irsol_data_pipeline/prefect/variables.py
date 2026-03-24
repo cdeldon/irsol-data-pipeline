@@ -20,6 +20,10 @@ class PrefectVariableName(Enum):
     JSOC_DATA_DELAY_DAYS = "jsoc-data-delay-days"
     CACHE_EXPIRATION_HOURS = "cache-expiration-hours"
     FLOW_RUN_EXPIRATION_HOURS = "flow-run-expiration-hours"
+    PIOMBO_BASE_PATH = "piombo-base-path"
+    PIOMBO_HOSTNAME = "piombo-hostname"
+    PIOMBO_USERNAME = "piombo-username"
+    PIOMBO_PASSWORD = "piombo-password"
 
 
 def get_variable(name: PrefectVariableName, default: Any = None) -> Any:

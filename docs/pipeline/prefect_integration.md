@@ -33,6 +33,8 @@ def prefect_enabled() -> bool:
 
 ## Flow Architecture
 
+
+
 ```mermaid
 flowchart TB
     subgraph "Flat-Field Correction"
@@ -64,16 +66,27 @@ flowchart TB
 
         MAINT_CACHE --> MAINT_DAY
     end
+
+    subgraph "Web Asset Compatibility"
+        WEB_FULL["web-assets-compatibility-full<br/>(scheduled daily)"]
+        WEB_DAILY["web-assets-compatibility-daily<br/>(manual trigger)"]
+        WEB_SCAN["discover-compatible-assets"]
+        WEB_DEPLOY["deploy-assets<br/>(task)"]
+
+        WEB_FULL --> WEB_SCAN --> WEB_DEPLOY
+        WEB_DAILY --> WEB_DEPLOY
+    end
 ```
 
 ### Flow Groups
 
-The pipeline defines three independent flow groups, each served as a separate Prefect deployment:
+The pipeline defines four independent flow groups, each served as a separate Prefect deployment:
 
 | Group | Flows | Schedule |
 |-------|-------|----------|
 | **flat-field-correction** | `process_unprocessed_measurements` (full scan), `process_daily_unprocessed_measurements` (single day) | Daily + manual |
 | **slit-images** | `generate_slit_images` (full scan), `generate_daily_slit_images` (single day) | Daily + manual |
+| **web-assets-compatibility** | `publish_web_assets_for_root` (full scan), `publish_web_assets_for_day` (single day) | Daily + manual |
 | **maintenance** | `delete_flow_runs_older_than`, `delete_old_cache_files` | Periodic |
 
 ### Flat-Field Correction Flows
@@ -113,6 +126,38 @@ The pipeline defines three independent flow groups, each served as a separate Pr
 
 **`delete_flow_runs_older_than`**: Queries the Prefect API for flow runs older than the retention window and deletes them. Default retention: 672 hours (28 days).
 
+### Web Asset Compatibility Flows
+
+**Module:** `prefect.flows.web_assets_compatibility`
+
+**`publish_web_assets_for_root`** (full):
+1. Resolves the dataset root from arguments or Prefect Variables.
+2. Scans all observation days for PNG outputs (`*_profile_corrected.png`, `*_slit_preview.png`).
+3. Creates JPEG targets for each PNG based on web asset configuration.
+4. Dispatches per-day asset conversion tasks via `ThreadPoolTaskRunner`.
+5. Uploads converted JPEGs to Piombo SFTP via the configured `RemoteFileSystem` adapter.
+6. Collects results and logs a summary.
+
+**`publish_web_assets_for_day`** (daily):
+1. Constructs an `ObservationDay` from the provided path.
+2. Discovers PNG assets for the day.
+3. Converts PNGs to JPEGs and stages them in a temporary directory.
+4. Uploads JPEGs to Piombo SFTP server.
+
+#### Why Web Asset Compatibility Exists
+
+The `web-assets-compatibility` flow exists to replace legacy script-and-cron image publishing
+(`quick-look` and `image-generator`) with a first-class, observable pipeline step.
+
+Without this flow, the pipeline would stop at local PNG generation and would not satisfy the
+existing web contract used by `contrast-main`, SVO publication, and downstream public URLs.
+The compatibility flow is responsible for:
+
+1. Converting pipeline PNG outputs into the required deployed `.jpg` artifacts.
+2. Preserving legacy destination paths (`img_quicklook/<obs>/` and `img_data/<obs>/`).
+3. Enforcing idempotent upload behavior (skip existing by default, overwrite only when forced).
+4. Making deployment state explicit in Prefect (retries, logs, failures, run history).
+
 ## Task Structure and Retries
 
 Pipeline tasks use retry logic with exception-based conditions:
@@ -150,7 +195,10 @@ Runtime configuration is stored as Prefect Variables, accessible via the dashboa
 | `jsoc-data-delay-days` | Minimum day age for `slit-images-full` scanning | `14` |
 | `cache-expiration-hours` | Cache file retention (hours) | `672` |
 | `flow-run-expiration-hours` | Prefect run history retention (hours) | `672` |
-
+| `piombo-hostname` | Piombo SFTP server hostname | `piombo.example.com` |
+| `piombo-username` | SFTP login username | `web-assets` |
+| `piombo-password` | SFTP login password | (securely stored) |
+| `piombo-base-path` | Base path on Piombo SFTP server | `/irsol_db/docs/web-site/assets` |
 Access in code:
 
 ```python
