@@ -25,7 +25,7 @@ from irsol_data_pipeline.pipeline.filesystem import (
     discover_measurement_files,
     is_slit_preview_generated,
     processed_output_path,
-    sdo_cache_dir_for_day,
+    sdo_cache_dir_path,
 )
 from irsol_data_pipeline.plotting import plot_slit
 from irsol_data_pipeline.prefect.decorators import task
@@ -157,7 +157,7 @@ def generate_slit_images_for_day(
             logger.info("No measurement files found")
             return DayProcessingResult(day_name=day.name)
 
-        sdo_cache = sdo_cache_dir_for_day(day.path)
+        sdo_cache_dir = sdo_cache_dir_path(day.path)
 
         processed = 0
         skipped = 0
@@ -177,7 +177,7 @@ def generate_slit_images_for_day(
                     measurement_path=measurement_path,
                     processed_dir=day.processed_dir,
                     jsoc_email=jsoc_email,
-                    sdo_cache_dir=sdo_cache,
+                    sdo_cache_dir=sdo_cache_dir,
                     use_limbguider=use_limbguider,
                 )
                 processed += 1

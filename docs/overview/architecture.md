@@ -137,8 +137,9 @@ Each observation day is stored in a directory with the structure:
             ├── 6302_m1_metadata.json
             ├── 6302_m1_profile_corrected.png
             ├── 6302_m1_slit_preview.png
-            ├── _cache/        # Flat-field correction cache (.pkl)
-            └── _sdo_cache/    # Downloaded SDO FITS cache
+            └── _cache/
+                  ├── flat-field-cache/ # Flat-field correction cache (.pkl)
+                  └── sdo/  # Downloaded SDO FITS cache for slit image generation
 ```
 
 ## Four Independent Pipelines

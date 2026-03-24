@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from irsol_data_pipeline.core.config import (
     CACHE_DIRNAME,
     CORRECTED_FITS_SUFFIX,
@@ -17,6 +19,7 @@ from irsol_data_pipeline.core.config import (
 from irsol_data_pipeline.pipeline.filesystem import (
     FLATFIELD_PATTERN,
     OBSERVATION_PATTERN,
+    delete_empty_dirs,
     discover_flatfield_files,
     discover_measurement_files,
     discover_observation_days,
@@ -54,7 +57,7 @@ class TestPatterns:
 
 
 class TestDiscoverObservationDays:
-    def test_discovers_days(self, tmp_path):
+    def test_discovers_days(self, tmp_path: Path):
         # Create: root/2024/240713/reduced/
         day_dir = tmp_path / "2024" / "240713"
         (day_dir / REDUCED_DIRNAME).mkdir(parents=True)
@@ -67,14 +70,14 @@ class TestDiscoverObservationDays:
         assert days[0].reduced_dir == day_dir / REDUCED_DIRNAME
         assert days[0].processed_dir == day_dir / PROCESSED_DIRNAME
 
-    def test_skips_dirs_without_reduced(self, tmp_path):
+    def test_skips_dirs_without_reduced(self, tmp_path: Path):
         day_dir = tmp_path / "2024" / "240713"
         day_dir.mkdir(parents=True)
 
         days = discover_observation_days(tmp_path)
         assert len(days) == 0
 
-    def test_multiple_years(self, tmp_path):
+    def test_multiple_years(self, tmp_path: Path):
         for year, day in [("2024", "240713"), ("2025", "251111")]:
             d = tmp_path / year / day
             (d / REDUCED_DIRNAME).mkdir(parents=True)
@@ -82,7 +85,7 @@ class TestDiscoverObservationDays:
         days = discover_observation_days(tmp_path)
         assert len(days) == 2
 
-    def test_nonexistent_root(self, tmp_path):
+    def test_nonexistent_root(self, tmp_path: Path):
         days = discover_observation_days(tmp_path / "nonexistent")
         assert len(days) == 0
 
@@ -99,7 +102,7 @@ class TestDiscoverObservationDays:
 
 
 class TestDiscoverMeasurementFiles:
-    def test_finds_measurements(self, tmp_path):
+    def test_finds_measurements(self, tmp_path: Path):
         (tmp_path / "6302_m1.dat").touch()
         (tmp_path / "6302_m2.dat").touch()
         (tmp_path / "ff6302_m1.dat").touch()
@@ -114,17 +117,17 @@ class TestDiscoverMeasurementFiles:
         assert "cal6302_m1.dat" not in names
         assert "dark2000_m1.dat" not in names
 
-    def test_empty_dir(self, tmp_path):
+    def test_empty_dir(self, tmp_path: Path):
         files = discover_measurement_files(tmp_path)
         assert len(files) == 0
 
-    def test_nonexistent_dir(self, tmp_path):
+    def test_nonexistent_dir(self, tmp_path: Path):
         files = discover_measurement_files(tmp_path / "nonexistent")
         assert len(files) == 0
 
 
 class TestDiscoverFlatfieldFiles:
-    def test_finds_flatfields(self, tmp_path):
+    def test_finds_flatfields(self, tmp_path: Path):
         (tmp_path / "ff6302_m1.dat").touch()
         (tmp_path / "ff4078_m1.dat").touch()
         (tmp_path / "6302_m1.dat").touch()
@@ -145,19 +148,19 @@ class TestGetProcessedStem:
 
 
 class TestDayDirectoryBuilders:
-    def test_raw_dir_for_day(self, tmp_path):
+    def test_raw_dir_for_day(self, tmp_path: Path):
         day_path = tmp_path / "2025" / "251111"
         assert raw_dir_for_day(day_path) == day_path / RAW_DIRNAME
 
-    def test_reduced_dir_for_day(self, tmp_path):
+    def test_reduced_dir_for_day(self, tmp_path: Path):
         day_path = tmp_path / "2025" / "251111"
         assert reduced_dir_for_day(day_path) == day_path / REDUCED_DIRNAME
 
-    def test_processed_dir_for_day(self, tmp_path):
+    def test_processed_dir_for_day(self, tmp_path: Path):
         day_path = tmp_path / "2025" / "251111"
         assert processed_dir_for_day(day_path) == day_path / PROCESSED_DIRNAME
 
-    def test_processed_cache_dir_for_day(self, tmp_path):
+    def test_processed_cache_dir_for_day(self, tmp_path: Path):
         day_path = tmp_path / "2025" / "251111"
         assert processed_cache_dir_for_day(day_path) == (
             day_path / PROCESSED_DIRNAME / CACHE_DIRNAME
@@ -165,7 +168,7 @@ class TestDayDirectoryBuilders:
 
 
 class TestMeasurementPathBuilders:
-    def test_processed_dir_for_measurement(self, tmp_path):
+    def test_processed_dir_for_measurement(self, tmp_path: Path):
         measurement_path = (
             tmp_path / "2025" / "251111" / REDUCED_DIRNAME / "6302_m1.dat"
         )
@@ -173,7 +176,7 @@ class TestMeasurementPathBuilders:
             tmp_path / "2025" / "251111" / PROCESSED_DIRNAME
         )
 
-    def test_flatfield_correction_cache_path(self, tmp_path):
+    def test_flatfield_correction_cache_path(self, tmp_path: Path):
         flatfield_path = (
             tmp_path / "2025" / "251111" / REDUCED_DIRNAME / "ff6302_m3.dat"
         )
@@ -183,24 +186,25 @@ class TestMeasurementPathBuilders:
             / "251111"
             / PROCESSED_DIRNAME
             / CACHE_DIRNAME
+            / "flat-field-cache"
             / "ff6302_m3_correction_cache.pkl"
         )
 
 
 class TestProcessedOutputPath:
-    def test_corrected_fits_path(self, tmp_path):
+    def test_corrected_fits_path(self, tmp_path: Path):
         path = processed_output_path(tmp_path, "6302_m1.dat", kind="corrected_fits")
         assert path == tmp_path / f"6302_m1{CORRECTED_FITS_SUFFIX}"
 
-    def test_error_json_path(self, tmp_path):
+    def test_error_json_path(self, tmp_path: Path):
         path = processed_output_path(tmp_path, "6302_m1.dat", kind="error_json")
         assert path == tmp_path / f"6302_m1{ERROR_JSON_SUFFIX}"
 
-    def test_metadata_json_path(self, tmp_path):
+    def test_metadata_json_path(self, tmp_path: Path):
         path = processed_output_path(tmp_path, "6302_m1.dat", kind="metadata_json")
         assert path == tmp_path / f"6302_m1{METADATA_JSON_SUFFIX}"
 
-    def test_flatfield_correction_data_path(self, tmp_path):
+    def test_flatfield_correction_data_path(self, tmp_path: Path):
         path = processed_output_path(
             tmp_path,
             "6302_m1.dat",
@@ -208,7 +212,7 @@ class TestProcessedOutputPath:
         )
         assert path == tmp_path / f"6302_m1{FLATFIELD_CORRECTION_DATA_SUFFIX}"
 
-    def test_profile_corrected_png_path(self, tmp_path):
+    def test_profile_corrected_png_path(self, tmp_path: Path):
         path = processed_output_path(
             tmp_path,
             "6302_m1.dat",
@@ -216,7 +220,7 @@ class TestProcessedOutputPath:
         )
         assert path == tmp_path / f"6302_m1{PROFILE_CORRECTED_PNG_SUFFIX}"
 
-    def test_profile_original_png_path(self, tmp_path):
+    def test_profile_original_png_path(self, tmp_path: Path):
         path = processed_output_path(
             tmp_path,
             "6302_m1.dat",
@@ -224,24 +228,24 @@ class TestProcessedOutputPath:
         )
         assert path == tmp_path / f"6302_m1{PROFILE_ORIGINAL_PNG_SUFFIX}"
 
-    def test_processed_output_uses_stem_of_source_name(self, tmp_path):
+    def test_processed_output_uses_stem_of_source_name(self, tmp_path: Path):
         path = processed_output_path(tmp_path, "nested.name.dat", kind="corrected_fits")
         assert path == tmp_path / f"nested.name{CORRECTED_FITS_SUFFIX}"
 
 
 class TestIsMeasurementProcessed:
-    def test_not_processed(self, tmp_path):
+    def test_not_processed(self, tmp_path: Path):
         assert not is_measurement_processed(tmp_path, "6302_m1.dat")
 
-    def test_corrected_fits_exists(self, tmp_path):
+    def test_corrected_fits_exists(self, tmp_path: Path):
         processed_output_path(tmp_path, "6302_m1.dat", kind="corrected_fits").touch()
         assert is_measurement_processed(tmp_path, "6302_m1.dat")
 
-    def test_error_exists(self, tmp_path):
+    def test_error_exists(self, tmp_path: Path):
         processed_output_path(tmp_path, "6302_m1.dat", kind="error_json").touch()
         assert is_measurement_processed(tmp_path, "6302_m1.dat")
 
-    def test_prefers_centralized_output_builder(self, tmp_path):
+    def test_prefers_centralized_output_builder(self, tmp_path: Path):
         corrected_path = processed_output_path(
             tmp_path,
             "4078_m12.dat",
@@ -249,3 +253,49 @@ class TestIsMeasurementProcessed:
         )
         corrected_path.touch()
         assert is_measurement_processed(tmp_path, "4078_m12.dat")
+
+
+class TestDeleteEmptyDirs:
+    def test_delete_single_empty_dir(self, tmp_path: Path):
+        empty_dir = tmp_path / "sub-dir"
+        empty_dir.mkdir()
+        assert empty_dir.exists()
+        delete_empty_dirs(empty_dir)
+        assert not empty_dir.exists()
+
+    def test_delete_empty_dir_does_not_delete_dir_containing_file(self, tmp_path: Path):
+        non_empty_dir = tmp_path / "sub-dir"
+        non_empty_dir.mkdir()
+        (non_empty_dir / "file").touch()
+        delete_empty_dirs(non_empty_dir)
+        assert non_empty_dir.exists()
+
+    def test_delete_empty_dirs_recursively(self, tmp_path: Path):
+        parent_dir = tmp_path / "sub-dir"
+        child_dir = parent_dir / "sub-sub-dir"
+        parent_dir.mkdir()
+        child_dir.mkdir()
+        assert child_dir.exists()
+        delete_empty_dirs(parent_dir)
+        assert not child_dir.exists()
+        assert not parent_dir.exists()
+
+    def test_delete_empty_dirs_recursively_but_not_those_containing_files(
+        self, tmp_path: Path
+    ):
+        parent_dir = tmp_path / "sub-dir"
+        empty_child_dir = parent_dir / "sub-sub-dir-empty"
+        non_empty_child_dir = parent_dir / "sub-sub-dir-non-empty"
+        parent_dir.mkdir()
+        empty_child_dir.mkdir()
+        non_empty_child_dir.mkdir()
+        inner_file = non_empty_child_dir / "file"
+        inner_file.touch()
+        assert empty_child_dir.exists()
+        assert non_empty_child_dir.exists()
+        assert inner_file.exists()
+        delete_empty_dirs(parent_dir)
+        assert not empty_child_dir.exists()
+        assert parent_dir.exists()
+        assert non_empty_child_dir.exists()
+        assert inner_file.exists()

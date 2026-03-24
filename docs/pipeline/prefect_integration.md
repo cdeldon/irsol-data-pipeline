@@ -122,7 +122,7 @@ The pipeline defines four independent flow groups, each served as a separate Pre
 
 **Module:** `prefect.flows.maintenance`
 
-**`delete_old_cache_files`**: Scans all observation days and deletes stale `.pkl` files from cache directories. Default retention: 672 hours (28 days).
+**`delete_old_cache_files`**: Scans all observation days and deletes stale files from cache directories. Default retention: 672 hours (28 days).
 
 **`delete_flow_runs_older_than`**: Queries the Prefect API for flow runs older than the retention window and deletes them. Default retention: 672 hours (28 days).
 
