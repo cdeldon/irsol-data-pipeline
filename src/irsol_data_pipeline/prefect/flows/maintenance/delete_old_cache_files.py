@@ -92,9 +92,7 @@ def delete_old_day_cache_files(
 @flow(
     name="maintenance-cache-cleanup",
     flow_run_name="maintenance/cache-cleanup",
-    description=(
-        "Delete old .pkl cache files from processed/_cache and processed/_sdo_cache"
-    ),
+    description=("Delete old cache files from processed/_cache"),
 )
 def delete_old_cache_files(
     root: str = "",

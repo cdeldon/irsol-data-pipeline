@@ -22,7 +22,6 @@ PROFILE_ORIGINAL_PNG_SUFFIX = "_profile_original.png"
 # Slit image generation output suffixes
 SLIT_PREVIEW_PNG_SUFFIX = "_slit_preview.png"
 SLIT_PREVIEW_ERROR_JSON_SUFFIX = "_slit_preview_error.json"
-SDO_CACHE_DIRNAME = "_sdo_cache"
 
 # V Stokes intensity threshold for row filtering in auto-calibration
 V_STOKES_CUTOFF = 0.4

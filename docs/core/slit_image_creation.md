@@ -95,13 +95,13 @@ The `fetch_sdo_maps()` function retrieves six context images from the JSOC DRMS 
 2. Build a padded time range (±5 minutes).
 3. Query DRMS for each data product with up to 3 retries.
 4. Find the record closest in time (filtering out records with > 5000 missing pixels).
-5. Download the FITS file (with optional caching in `_sdo_cache/`).
+5. Download the FITS file (with optional caching in `_cache/sdo/`).
 6. Construct a SunPy `Map` from the FITS data and DRMS metadata.
 7. Apply HMI-specific corrections (CDELT sign flip, 180° rotation).
 
 ### Caching
 
-Downloaded SDO FITS files are cached in the `processed/_sdo_cache/` directory per observation day, avoiding redundant downloads across measurements.
+Downloaded SDO FITS files are cached in the `processed/_cache/sdo/` directory per observation day, avoiding redundant downloads across measurements.
 
 ## Step 3 — Rendering
 

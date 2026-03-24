@@ -249,8 +249,7 @@ PREFECT_FLOW_GROUPS: tuple[PrefectFlowGroupMetadata, ...] = (
                 flow_name="maintenance-cache-cleanup",
                 deployment_name="cache-cleanup",
                 description=(
-                    "Delete stale .pkl cache files under processed/_cache and "
-                    "processed/_sdo_cache."
+                    "Delete stale cache files under processed/_cache/ directory."
                 ),
                 automation="scheduled",
                 schedule="daily",

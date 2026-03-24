@@ -252,10 +252,7 @@ def _build_maintenance_deployments() -> list[Any]:
         ),
         delete_old_cache_files_flow.to_deployment(
             name="cache-cleanup",
-            description=(
-                "Delete stale .pkl cache files under processed/_cache and "
-                "processed/_sdo_cache."
-            ),
+            description=("Delete stale cache files under processed/_cache."),
             cron="30 0 * * *",
             tags=[
                 PrefectDeploymentTopicTag.MAINTENANCE.value,

@@ -1,8 +1,6 @@
 """Cache-file cleanup logic for observation day directories.
 
-Contains the pure filesystem operations for discovering and removing stale
-``.pkl`` files from the per-day cache directories (``processed/_cache`` and
-``processed/_sdo_cache``).  All prefect concerns live in the
+Contains the pure filesystem operations for discovering and removing stale files from the per-day cache directories ``processed/_cache``.  All prefect concerns live in the
 ``prefect/flows/maintenance`` layer.
 """
 
@@ -15,8 +13,8 @@ from loguru import logger
 
 from irsol_data_pipeline.core.models import CacheCleanupDayResult, ObservationDay
 from irsol_data_pipeline.pipeline.filesystem import (
+    delete_empty_dirs,
     processed_cache_dir_for_day,
-    sdo_cache_dir_for_day,
 )
 
 _UNITS = [("TB", 1 << 40), ("GB", 1 << 30), ("MB", 1 << 20), ("KB", 1 << 10)]
@@ -37,21 +35,18 @@ def _format_bytes(n: int) -> str:
     return f"{n} B"
 
 
-def _cache_directories_for_day(day_path: Path) -> list[Path]:
-    """Return existing cache directories for an observation day.
+def _cache_directories_for_day(day_path: Path) -> Path | None:
+    """Return existing cache directory for an observation day.
 
     Args:
         day_path: Observation day path.
 
     Returns:
-        Subset of ``[processed/_cache, processed/_sdo_cache]`` that exist on
-        disk.
+        Cache directory if it exists, None otherwise.
     """
-    candidates = [
-        processed_cache_dir_for_day(day_path),
-        sdo_cache_dir_for_day(day_path),
-    ]
-    return [d for d in candidates if d.is_dir()]
+    if (cache_dir := processed_cache_dir_for_day(day_path)) and cache_dir.is_dir():
+        return cache_dir
+    return None
 
 
 def cleanup_day_cache_files(
@@ -60,9 +55,8 @@ def cleanup_day_cache_files(
 ) -> CacheCleanupDayResult:
     """Delete stale ``.pkl`` cache files for a single observation day.
 
-    Files in ``processed/_cache`` and ``processed/_sdo_cache`` whose
-    last-modified time is older than *hours* are removed.  Non-``.pkl``
-    files are always left untouched.
+    Files in ``processed/_cache`` whose
+    last-modified time is older than *hours* are removed.
 
     Args:
         day: Observation day to clean up.
@@ -84,59 +78,62 @@ def cleanup_day_cache_files(
         skipped_bytes = 0
         failed = 0
 
-        cache_dirs = _cache_directories_for_day(day.path)
-        logger.info(
-            "Starting day cache cleanup",
-            cache_directories=[str(d) for d in cache_dirs],
-        )
-
-        for cache_dir in cache_dirs:
-            logger.debug("Scanning cache directory", cache_dir=cache_dir)
-            pkl_files = sorted(cache_dir.glob("*.pkl"))
-            logger.debug(
-                "Found .pkl files in cache directory",
-                cache_dir=cache_dir,
-                count=len(pkl_files),
+        cache_dir = _cache_directories_for_day(day.path)
+        if not cache_dir:
+            logger.debug("No cache directory found")
+            return CacheCleanupDayResult(
+                day_name=day.name,
             )
-            for cache_file in pkl_files:
-                checked += 1
-                stat = cache_file.stat()
-                file_size = stat.st_size
-                modified_at = datetime.datetime.fromtimestamp(
-                    stat.st_mtime,
-                    tz=datetime.timezone.utc,
-                )
-                logger.trace(
-                    "Checking cache file age",
+
+        logger.info("Starting day cache cleanup", cache_directory=cache_dir)
+
+        cache_files = sorted(cache_dir.glob("*.*"))
+        logger.debug(
+            "Found .pkl files in cache directory",
+            cache_dir=cache_dir,
+            count=len(cache_files),
+        )
+        for cache_file in cache_files:
+            checked += 1
+            stat = cache_file.stat()
+            file_size = stat.st_size
+            modified_at = datetime.datetime.fromtimestamp(
+                stat.st_mtime,
+                tz=datetime.timezone.utc,
+            )
+            logger.trace(
+                "Checking cache file age",
+                file=cache_file.name,
+                modified_at=modified_at.isoformat(),
+                is_stale=modified_at < cutoff,
+            )
+            if modified_at >= cutoff:
+                skipped_recent += 1
+                skipped_bytes += file_size
+                logger.debug(
+                    "Keeping recent cache file",
                     file=cache_file.name,
                     modified_at=modified_at.isoformat(),
-                    is_stale=modified_at < cutoff,
                 )
-                if modified_at >= cutoff:
-                    skipped_recent += 1
-                    skipped_bytes += file_size
-                    logger.debug(
-                        "Keeping recent cache file",
-                        file=cache_file.name,
-                        modified_at=modified_at.isoformat(),
-                    )
-                    continue
-                try:
-                    cache_file.unlink()
-                    deleted += 1
-                    deleted_bytes += file_size
-                    logger.info(
-                        "Deleted old cache file",
-                        file=cache_file.name,
-                        modified_at=modified_at.isoformat(),
-                        size_bytes=file_size,
-                    )
-                except OSError:
-                    failed += 1
-                    logger.exception(
-                        "Failed deleting cache file",
-                        file=str(cache_file),
-                    )
+                continue
+            try:
+                cache_file.unlink()
+                deleted += 1
+                deleted_bytes += file_size
+                logger.info(
+                    "Deleted old cache file",
+                    file=cache_file.name,
+                    modified_at=modified_at.isoformat(),
+                    size_bytes=file_size,
+                )
+            except OSError:
+                failed += 1
+                logger.exception(
+                    "Failed deleting cache file",
+                    file=str(cache_file),
+                )
+
+        delete_empty_dirs(cache_dir)
 
         result = CacheCleanupDayResult(
             day_name=day.name,

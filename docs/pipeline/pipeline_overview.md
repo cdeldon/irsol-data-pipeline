@@ -172,7 +172,7 @@ def cleanup_day_cache_files(
 ) -> CacheCleanupDayResult:
 ```
 
-Removes stale pickle files from `processed/_cache/` and `processed/_sdo_cache/` directories. Files older than the specified threshold are deleted. This prevents unbounded cache growth on long-running deployments.
+Removes stale pickle files from `processed/_cache/` sub-directories. Files older than the specified threshold are deleted. This prevents unbounded cache growth on long-running deployments.
 
 
 ## Web Asset Compatibility
@@ -228,7 +228,7 @@ For each measurement (e.g., `6302_m1`), the pipeline produces:
 |------|-------------|
 | `6302_m1_corrected.fits` | Corrected Stokes I, Q/I, U/I, V/I |
 | `6302_m1_metadata.json` | Processing metadata and calibration info |
-| `6302_m1_flat_field_correction_data.pkl` | Cached flat-field correction (in `_cache/`) |
+| `6302_m1_flat_field_correction_data.pkl` | Cached flat-field correction (in `_cache/flat-field-cache`) |
 | `6302_m1_profile_original.png` | Profile plot of uncorrected data |
 | `6302_m1_profile_corrected.png` | Profile plot of corrected data |
 | `6302_m1_slit_preview.png` | 6-panel SDO slit context image |

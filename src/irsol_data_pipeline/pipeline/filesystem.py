@@ -24,7 +24,6 @@ from irsol_data_pipeline.core.config import (
     PROFILE_ORIGINAL_PNG_SUFFIX,
     RAW_DIRNAME,
     REDUCED_DIRNAME,
-    SDO_CACHE_DIRNAME,
     SLIT_PREVIEW_ERROR_JSON_SUFFIX,
     SLIT_PREVIEW_PNG_SUFFIX,
 )
@@ -87,11 +86,6 @@ def processed_cache_dir_for_day(day_path: Path) -> Path:
     return processed_dir_for_day(day_path) / CACHE_DIRNAME
 
 
-def sdo_cache_dir_for_day(day_path: Path) -> Path:
-    """Return the SDO FITS cache directory for an observation day path."""
-    return processed_dir_for_day(day_path) / SDO_CACHE_DIRNAME
-
-
 def processed_dir_for_measurement(measurement_path: Path) -> Path:
     """Return the default processed directory for a measurement path."""
     return measurement_path.parent.parent / PROCESSED_DIRNAME
@@ -113,7 +107,26 @@ def flatfield_correction_cache_path(flatfield_path: Path) -> Path:
     path."""
     cache_filename = f"{flatfield_path.stem}_correction_cache.pkl"
     day_path = flatfield_path.parent.parent
-    return processed_cache_dir_for_day(day_path) / cache_filename
+    return processed_cache_dir_for_day(day_path) / "flat-field-cache" / cache_filename
+
+
+def sdo_cache_dir_path(day_path: Path) -> Path:
+    """Return the SDO FITS cache directory for an observation day path."""
+    return processed_cache_dir_for_day(day_path) / "sdo"
+
+
+def delete_empty_dirs(path: Path):
+    """Recursively deletes empty directories, including the one pointed to by
+    the input argument, if empty."""
+    if not path.is_dir():
+        return
+    for child in path.iterdir():
+        if child.is_dir():
+            delete_empty_dirs(child)
+    # After deleting empty subdirs, check if current dir is empty
+    if not any(path.iterdir()):
+        logger.debug("Deleting empty directory", path=path)
+        path.rmdir()
 
 
 @task(task_run_name="dataset/discover-days/{root.name}")
