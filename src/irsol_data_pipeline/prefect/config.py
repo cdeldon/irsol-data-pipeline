@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 PREFECT_SERVER_HOST = "127.0.0.1"
-PREFECT_SERVER_PORT = 4201
+PREFECT_SERVER_PORT = 4200
 
 
 def build_prefect_server_base_url(host: str, port: int) -> str:
