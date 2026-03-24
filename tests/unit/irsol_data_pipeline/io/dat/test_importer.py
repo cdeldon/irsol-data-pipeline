@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -44,3 +45,33 @@ class TestImporter:
     def test_read_invalid_dat(self, invalid_path_extension: Path):
         with pytest.raises(DatImportError):
             dat_io.read(invalid_path_extension)
+
+    @pytest.mark.parametrize("shape", [(140, 200), (200, 800)])
+    def test_read_with_ndims_3(self, shape: tuple[int, int]):
+
+        si = np.random.rand(3, *shape)
+        sq = np.random.rand(*shape)
+        su = np.random.rand(*shape)
+        sv = np.random.rand(3, *shape)
+
+        info = object()
+
+        expected_si = np.mean(si, axis=0)
+        expected_sq = sq
+        expected_su = su
+        expected_sv = np.mean(sv, axis=0)
+
+        mock_data = {"si": si, "sq": sq, "su": su, "sv": sv, "info": info}
+        with patch("irsol_data_pipeline.io.dat.importer.readsav") as mock_readsav:
+            # Mock data with 3D arrays
+            mock_readsav.return_value = mock_data
+            path = "/abs-path-to-dummy_path.dat"
+            stokes, _ = dat_io.read(path)
+
+            # Check that the 3D arrays were averaged to 2D
+            np.testing.assert_array_equal(stokes.i, expected_si)
+            np.testing.assert_array_equal(stokes.q, expected_sq)
+            np.testing.assert_array_equal(stokes.u, expected_su)
+            np.testing.assert_array_equal(stokes.v, expected_sv)
+
+            mock_readsav.assert_called_once_with(path, verbose=False, python_dict=True)

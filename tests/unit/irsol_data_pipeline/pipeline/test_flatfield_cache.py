@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
+import pytest
 
 from irsol_data_pipeline.core.models import FlatFieldCorrection
-from irsol_data_pipeline.pipeline.flatfield_cache import FlatFieldCache
+from irsol_data_pipeline.pipeline.filesystem import flatfield_correction_cache_path
+from irsol_data_pipeline.pipeline.flatfield_cache import (
+    FlatFieldCache,
+    build_flatfield_cache,
+)
 
 
 def _make_correction(
@@ -109,3 +115,51 @@ class TestFlatFieldCache:
             )
             is None
         )
+
+
+class TestBuildFlatFieldCache:
+    @pytest.fixture
+    def flat_field_path(self, fixture_dir: Path) -> Path:
+        return fixture_dir / "ff5886_m4.dat"
+
+    @pytest.fixture
+    def flat_field_mock_correction(self, fixture_dir: Path) -> FlatFieldCorrection:
+        return FlatFieldCorrection(
+            source_flatfield_path=fixture_dir / "ff5886_m4.dat",
+            dust_flat=np.ones((50, 200)),
+            offset_map=None,
+            desmiled=np.ones((50, 200)),
+            timestamp=datetime.datetime.now(),
+            wavelength=5886,
+        )
+
+    def test_build_flat_field_cache_generates_expected_artifacts(
+        self, flat_field_path: Path, flat_field_mock_correction: FlatFieldCorrection
+    ):
+
+        with (
+            patch(
+                "irsol_data_pipeline.pipeline.flatfield_cache._analyze_flatfield"
+            ) as mock_analyze,
+            patch(
+                "irsol_data_pipeline.pipeline.flatfield_cache.flatfield_io.write"
+            ) as mock_write,
+        ):
+            mock_analyze.return_value = flat_field_mock_correction
+            mock_write.return_value = None
+
+            cache = build_flatfield_cache(flatfield_paths=[flat_field_path])
+
+            expected_save_path = flatfield_correction_cache_path(flat_field_path)
+            assert mock_write.call_count == 1
+            mock_write.assert_called_once_with(
+                expected_save_path, flat_field_mock_correction
+            )
+
+            assert len(cache) == 1
+            assert len(cache.wavelengths) == 1
+            assert cache.wavelengths[0] == 5886
+            assert (
+                cache.find_best_correction(5886, flat_field_mock_correction.timestamp)
+                is flat_field_mock_correction
+            )

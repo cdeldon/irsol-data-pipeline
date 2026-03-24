@@ -16,7 +16,7 @@ lint:
 	uv run pre-commit run --all-files
 
 test:
-	uv run pytest --cov=src --cov-report=html --cov-report=term --cov-report=xml:coverage.xml tests/
+	uv run pytest
 
 prefect/dashboard:
 	uv run idp prefect start
