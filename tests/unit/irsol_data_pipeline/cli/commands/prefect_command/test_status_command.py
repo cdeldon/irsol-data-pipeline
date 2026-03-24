@@ -9,6 +9,7 @@ import pytest
 import requests
 
 from irsol_data_pipeline.cli import app
+from irsol_data_pipeline.prefect.config import PREFECT_SERVER_HOST, PREFECT_SERVER_PORT
 
 
 class TestPrefectStatusCommand:
@@ -32,17 +33,17 @@ class TestPrefectStatusCommand:
 
         assert result == 0
         assert payload == {
-            "dashboard_url": "http://127.0.0.1:4200",
+            "dashboard_url": f"http://{PREFECT_SERVER_HOST}:{PREFECT_SERVER_PORT}",
             "detail": "Prefect dashboard is reachable on the expected port.",
-            "healthcheck_url": "http://127.0.0.1:4200/api/health",
-            "host": "127.0.0.1",
+            "healthcheck_url": f"http://{PREFECT_SERVER_HOST}:{PREFECT_SERVER_PORT}/api/health",
+            "host": PREFECT_SERVER_HOST,
             "http_status": 200,
-            "port": 4200,
+            "port": PREFECT_SERVER_PORT,
             "reachable": True,
             "status": "running",
         }
         mock_get.assert_called_once_with(
-            "http://127.0.0.1:4200/api/health",
+            f"http://{PREFECT_SERVER_HOST}:{PREFECT_SERVER_PORT}/api/health",
             timeout=5.0,
         )
 

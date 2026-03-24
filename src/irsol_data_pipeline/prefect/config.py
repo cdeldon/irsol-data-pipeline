@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 PREFECT_SERVER_HOST = "127.0.0.1"
-PREFECT_SERVER_PORT = 4200
-PREFECT_SERVER_ANALYTICS_ENABLED = "false"
+PREFECT_SERVER_PORT = 4201
 
 
 def build_prefect_server_base_url(host: str, port: int) -> str:
@@ -58,8 +57,3 @@ PREFECT_API_HEALTHCHECK_URL = build_prefect_api_healthcheck_url(
     PREFECT_SERVER_HOST,
     PREFECT_SERVER_PORT,
 )
-
-PREFECT_PROFILE_SETTINGS: dict[str, str] = {
-    "PREFECT_API_URL": PREFECT_API_URL,
-    "PREFECT_SERVER_ANALYTICS_ENABLED": PREFECT_SERVER_ANALYTICS_ENABLED,
-}

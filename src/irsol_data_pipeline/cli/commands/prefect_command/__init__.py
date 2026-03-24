@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from typing import Any, cast
 
 from cyclopts import App
 
-from irsol_data_pipeline.prefect.config import PREFECT_PROFILE_SETTINGS
+from irsol_data_pipeline.prefect.config import PREFECT_SERVER_HOST, PREFECT_SERVER_PORT
 
 prefect_app = App(name="prefect", help="Run Prefect server commands.")
 
@@ -22,12 +21,20 @@ def start_prefect_server() -> None:
     Prefect config before the server starts.
     """
 
-    from prefect.settings.profiles import update_current_profile
-
-    update_current_profile(cast(dict[Any, Any], PREFECT_PROFILE_SETTINGS))
-
     result = subprocess.run(
-        [sys.executable, "-m", "prefect", "server", "start"], check=False
+        [
+            sys.executable,
+            "-m",
+            "prefect",
+            "server",
+            "start",
+            "--analytics-off",
+            "--port",
+            f"{PREFECT_SERVER_PORT}",
+            "--host",
+            f"{PREFECT_SERVER_HOST}",
+        ],
+        check=False,
     )
     sys.exit(result.returncode)
 
