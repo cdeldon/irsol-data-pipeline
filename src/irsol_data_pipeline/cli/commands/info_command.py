@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+import time
+from contextlib import nullcontext
+from typing import Any, Optional
 
+import httpx
+from rich.console import Console
+from rich.status import Status
 from rich.table import Table
 
 from irsol_data_pipeline.cli.common import (
@@ -23,36 +28,84 @@ from irsol_data_pipeline.prefect.variables import get_variable
 from irsol_data_pipeline.version import __version__
 
 
-def _build_info_payload() -> dict[str, Any]:
+def _build_flow_groups_payload() -> list[dict[str, Any]]:
+    """Build the flow groups section of the info payload.
+
+    Returns:
+        List of flow group summaries.
+    """
+
+    return [
+        {
+            "name": group.name,
+            "description": group.description,
+            "flows": [flow.deployment_name for flow in group.flows],
+            "topic_tag": group.topic_tag.value,
+        }
+        for group in PREFECT_FLOW_GROUPS
+    ]
+
+
+def _build_prefect_variables_payload() -> list[dict[str, Any]] | str:
+    """Build the Prefect variables section of the info payload.
+
+    Returns:
+        List of Prefect variable summaries or an error message.
+    """
+    try:
+        return [
+            {
+                "name": variable.prefect_name.value,
+                "value": get_variable(variable.prefect_name),
+            }
+            for variable in PREFECT_VARIABLES
+        ]
+    except httpx.ConnectError:
+        return "Error: Unable to connect to Prefect server to retrieve variable values."
+
+
+def _build_distributions_payload() -> list[dict[str, Any]]:
+    """Build the distributions section of the info payload.
+
+    Returns:
+        List of distribution summaries.
+    """
+
+    return [
+        {"name": name, "version": version}
+        for name, version in distribution_versions().items()
+    ]
+
+
+def _build_info_payload(console: Optional[Console]) -> dict[str, Any]:
     """Build the structured info payload.
 
     Returns:
         JSON-serializable runtime and metadata summary.
     """
 
-    return {
-        "flow_groups": [
-            {
-                "description": group.description,
-                "flows": [flow.deployment_name for flow in group.flows],
-                "name": group.name,
-                "topic_tag": group.topic_tag.value,
-            }
-            for group in PREFECT_FLOW_GROUPS
-        ],
-        "prefect_variables": [
-            {
-                "name": variable.prefect_name.value,
-                "value": get_variable(variable.prefect_name),
-            }
-            for variable in PREFECT_VARIABLES
-        ],
-        "version": __version__,
-        "distributions": [
-            {"name": name, "version": version}
-            for name, version in distribution_versions().items()
-        ],
-    }
+    context = (
+        nullcontext() if console is None else console.status("Gathering information...")
+    )
+
+    def update(status: Optional[Status], message: str) -> None:
+        if status is None:
+            return
+        status.update(status=message)
+
+        time.sleep(0.2)
+
+    result: dict[str, Any] = {}
+    with context as status:
+        result["version"] = __version__
+        update(status, "Loading distributions")
+        result["distributions"] = _build_distributions_payload()
+        update(status, "Loading flow groups")
+        result["flow_groups"] = _build_flow_groups_payload()
+        update(status, "Loading prefect variables")
+        result["prefect_variables"] = _build_prefect_variables_payload()
+
+    return result
 
 
 def _render_info_table(payload: dict[str, Any]) -> None:
@@ -92,6 +145,13 @@ def _render_info_table(payload: dict[str, Any]) -> None:
         )
     get_console().print(flows_table)
 
+    has_prefect_variables = isinstance(payload["prefect_variables"], list)
+    if not has_prefect_variables:
+        get_console().print(
+            "[bold red]Error retrieving Prefect variables: make sure prefect is running via 'idp prefect start'[/bold red]"
+        )
+        return
+
     variables_table = Table(
         title="Prefect Variables", show_header=True, header_style="bold cyan"
     )
@@ -112,7 +172,13 @@ def info(format: OutputFormat = "table") -> None:
         format: Output format for the report.
     """
 
-    payload = _build_info_payload()
+    if format == "json":
+        console = None
+    else:
+        console = get_console()
+
+    payload = _build_info_payload(console)
+
     if format == "json":
         print_json(payload)
         return
