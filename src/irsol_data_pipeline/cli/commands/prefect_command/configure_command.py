@@ -11,7 +11,7 @@ from irsol_data_pipeline.prefect.config import (
 )
 
 DEFAULT_PREFECT_PROFILE_NAME = "default"
-DEFAULT_PREFECT_DATABASE_PATH = Path("/data/.prefect/prefect.db")
+DEFAULT_PREFECT_DATABASE_PATH = Path("/dati/.prefect/prefect.db")
 
 
 def _confirm(prompt_text: str, *, default: bool = False) -> bool:
