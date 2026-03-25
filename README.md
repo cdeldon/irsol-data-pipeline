@@ -1,6 +1,6 @@
 # IRSOL Data Pipeline
 
-[![CI](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml)
+[![CI](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml)
 [![Release](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/release.yml/badge.svg)](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/release.yml)
 [![PyPI version](https://badge.fury.io/py/irsol-data-pipeline.svg?icon=si%3Apython)](https://badge.fury.io/py/irsol-data-pipeline)
 
