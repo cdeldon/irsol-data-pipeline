@@ -20,7 +20,7 @@ from pathlib import Path
 
 from loguru import logger
 from prefect import flow, task, unmapped
-from prefect.task_runners import ProcessPoolTaskRunner
+from prefect.task_runners import ThreadPoolTaskRunner
 
 from irsol_data_pipeline.core.config import DEFAULT_JSOC_DATA_DELAY_DAYS
 from irsol_data_pipeline.core.models import (
@@ -209,7 +209,7 @@ def generate_slit_images(
 
     day_paths = [day.path for day in observation_days]
 
-    with ProcessPoolTaskRunner(max_workers=max_concurrent_days) as runner:
+    with ThreadPoolTaskRunner(max_workers=max_concurrent_days) as runner:
         results = runner.map(
             run_day_slit_generation_task,
             parameters={
