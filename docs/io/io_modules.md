@@ -11,42 +11,9 @@ The `io/` package handles all data loading and saving, providing a clean abstrac
 | Flat-field pickle | `io.flatfield` | ✅ | ✅ | Cached `FlatFieldCorrection` objects |
 | JSON metadata | `io.processing_metadata` | ✅ | ✅ | Processing metadata and error records |
 
-## Module Overview
-
-```mermaid
-flowchart LR
-    subgraph "io.dat"
-        DAT_IMP["read_zimpol_dat()"]
-    end
-
-    subgraph "io.fits"
-        FITS_IMP["load_fits_measurement()"]
-        FITS_EXP["write_stokes_fits()"]
-    end
-
-    subgraph "io.flatfield"
-        FF_IMP["load_correction_data()"]
-        FF_EXP["write_correction_data()"]
-    end
-
-    subgraph "io.processing_metadata"
-        META_IMP["read_metadata()"]
-        META_EXP["write_processing_metadata()<br/>write_error_metadata()"]
-    end
-
-    DAT[".dat files"] --> DAT_IMP
-    DAT_IMP --> CORE["Core Models"]
-    CORE --> FITS_EXP --> FITS[".fits files"]
-    FITS --> FITS_IMP --> CORE
-    CORE --> FF_EXP --> PKL[".pkl files"]
-    PKL --> FF_IMP --> CORE
-    CORE --> META_EXP --> JSON[".json files"]
-    JSON --> META_IMP
-```
 
 ## DAT Importer
 
-**Module:** `io.dat.importer`
 
 ```python
 def read_zimpol_dat(file_path: Path | str) -> tuple[StokesParameters, np.ndarray]:
@@ -61,7 +28,6 @@ Reads ZIMPOL `.dat` or `.sav` files using `scipy.io.readsav()`:
 
 ## FITS Importer
 
-**Module:** `io.fits.importer`
 
 ```python
 def load_fits_measurement(fits_path: Path) -> ImportedFitsMeasurement:
@@ -77,7 +43,6 @@ Reads corrected multi-extension FITS files produced by the pipeline:
 
 ## FITS Exporter
 
-**Module:** `io.fits.exporter`
 
 ```python
 def write_stokes_fits(
@@ -111,7 +76,6 @@ Writes corrected Stokes data as a multi-extension FITS file:
 
 ## Flat-Field Importer / Exporter
 
-**Module:** `io.flatfield.importer` / `io.flatfield.exporter`
 
 ```python
 def load_correction_data(path: Path) -> FlatFieldCorrection:
@@ -126,7 +90,6 @@ Persists `FlatFieldCorrection` objects (containing the dust-flat array, offset m
 
 ## Processing Metadata
 
-**Module:** `io.processing_metadata.importer` / `io.processing_metadata.exporter`
 
 ```python
 def write_processing_metadata(
@@ -166,18 +129,6 @@ Written when processing fails. Contains:
 - Error message.
 - Pipeline version and timestamp.
 
-## Error Handling
-
-Each IO module raises its own domain-specific exception:
-
-| Module | Exception |
-|--------|-----------|
-| `io.dat` | `DatImportError` |
-| `io.fits` (read) | `FitsImportError` |
-| `io.fits` (write) | `FitsExportError` |
-| `io.flatfield` | `FlatfieldCorrectionImportError` |
-
-All exceptions inherit from `IrsolDataPipelineException` and carry contextual information for debugging.
 
 ## Related Documentation
 

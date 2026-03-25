@@ -53,33 +53,6 @@ The `analyze_flatfield()` function takes a raw flat-field Stokes I array and pro
 | `offset_map` | `spectroflat.OffsetMap` | Per-row sub-pixel wavelength shift model |
 | `desmiled` | `np.ndarray` | The flat-field after smile correction |
 
-### Configuration
-
-The spectroflat `Config` is constructed by `create_config_for_data()`:
-
-```python
-# Region of interest — 1-pixel border excluded
-roi = [1:H-2, 1:W-2]
-
-# Dust-flat (SensorFlatConfig)
-spacial_degree = 13   # Polynomial order for spatial response
-sigma_mask     = 2     # Outlier masking threshold
-fit_border     = 1
-average_column_response_map = True
-
-# Smile (SmileConfig)
-line_distance   = 16   # Min pixel separation between spectral lines
-smile_deg       = 3    # Polynomial degree for smile fit
-strong_smile_deg = 2
-max_dispersion_deg = 5
-line_prominence = 0.1  # Line detection prominence threshold
-height_sigma    = 0.04
-detrend         = True
-align_states    = True
-
-# Global
-iterations = 2         # Analysis iterations
-```
 
 ### Algorithm
 
@@ -131,13 +104,6 @@ Flat-field analysis is computationally expensive. The pipeline caches results:
 | **Output** | Corrected Stokes parameters | In-memory `StokesParameters` model |
 | **Output** | Cached correction data | Pickle file (`.pkl`) |
 
-## Dependencies
-
-| Dependency | Role |
-|-----------|------|
-| `spectroflat` | Core flat-field and smile analysis/correction engine |
-| `numpy` | Array operations |
-| `loguru` | Logging |
 
 ## Related Documentation
 

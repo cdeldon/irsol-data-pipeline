@@ -12,11 +12,13 @@ flowchart LR
         SERVER["Prefect Server<br/>(port 4200)"]
         FF["Flow Runner:<br/>flat-field-correction"]
         SLIT["Flow Runner:<br/>slit-images"]
+        WEB["Flow Runner:<br/>web-asset-compatibility"]
         MAINT["Flow Runner:<br/>maintenance"]
     end
 
     SERVER --> FF
     SERVER --> SLIT
+    SERVER --> WEB
     SERVER --> MAINT
     DASH["Web Dashboard<br/>http://sirius:4200"] --> SERVER
 ```
@@ -26,6 +28,7 @@ flowchart LR
 | Prefect Server | `idp prefect start` | API server and web dashboard |
 | Flat-field runner | `idp prefect flows serve flat-field-correction` | Scheduled + manual flat-field correction |
 | Slit images runner | `idp prefect flows serve slit-images` | Scheduled + manual slit image generation |
+| Web asset compatibility runner | `idp prefect flows serve web-asset-compatibility` | Scheduled + manual web asset compatibility generation |
 | Maintenance runner | `idp prefect flows serve maintenance` | Cache cleanup and run history pruning |
 
 ## Deployment
@@ -166,15 +169,6 @@ idp prefect status --deep-analysis
 idp prefect status --format json
 ```
 
-### Dashboard
-
-Access the Prefect dashboard at `http://sirius:4200`:
-
-- **Deployments** tab — view registered deployments and their schedules.
-- **Flow Runs** tab — inspect completed, running, and failed runs.
-- **Tasks** tab — drill into individual task execution.
-- **Logs** — view Prefect-captured log output.
-
 ### Service Status
 
 ```bash
@@ -198,53 +192,6 @@ journalctl -u irsol-prefect-serve-flatfield -n 200 --no-pager
 tail -f solar_pipeline.log
 ```
 
-## Manual Trigger
-
-Use the Prefect dashboard at `http://sirius:4200/deployments` to manually trigger deployment runs. Select the target deployment and click **Run**, optionally overriding parameters such as `day_path`.
-
-Available deployments:
-
-| Deployment | Description |
-|-----------|-------------|
-| `ff-correction-full/flat-field-correction-full` | Process all unprocessed measurements |
-| `ff-correction-daily/flat-field-correction-daily` | Process a single observation day (set `day_path`) |
-| `slit-images-full/slit-images-full` | Generate all pending slit images |
-| `slit-images-daily/slit-images-daily` | Generate slit images for one day (set `day_path`) |
-| `delete-old-cache-files/maintenance` | Run cache cleanup |
-
-## Common Failure Modes
-
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| `DatasetRootNotConfiguredError` | Missing `data-root-path` variable | Run `idp prefect variables configure` |
-| `FlatFieldAssociationNotFoundException` | No flat-field within time delta | Check reduced/ for flat-field files, adjust `max_delta_hours` |
-| SDO fetch timeouts | JSOC service unavailable | Retry automatically (2 retries, 30s delay); check JSOC status |
-| `DatImportError` | Corrupted or unsupported .dat file | Inspect file manually; pipeline writes error JSON and continues |
-| Prefect server unreachable | Server process crashed | Check `journalctl`, restart service |
-| Stale cache files filling disk | Maintenance flow not running | Verify maintenance service is active |
-
-## Reprocessing
-
-To reprocess specific measurements, delete their output files:
-
-```bash
-# Remove all outputs for a measurement
-rm /data/2025/20250312/processed/6302_m1_corrected.fits
-rm /data/2025/20250312/processed/6302_m1_metadata.json
-rm /data/2025/20250312/processed/6302_m1_error.json
-
-# Trigger reprocessing via the Prefect dashboard
-# (select ff-correction-daily, set day_path=/data/2025/20250312)
-```
-
-To reprocess an entire day:
-
-```bash
-rm /data/2025/20250312/processed/*_corrected.fits
-rm /data/2025/20250312/processed/*_error.json
-rm /data/2025/20250312/processed/*_metadata.json
-```
-
 ## Database Reset
 
 > **⚠️ Destructive operation.** This deletes all Prefect run history.
@@ -266,7 +213,7 @@ Use this only as a last resort when the Prefect database is corrupted.
 
 2. **Upgrade the package:**
    ```bash
-   uv tool upgrade irsol-data-pipeline
+   uv tool upgrade irsol-data-pipeline --no-cache-dir --python 3.10
    ```
 
 3. **Verify the new version:**
@@ -282,9 +229,22 @@ Use this only as a last resort when the Prefect database is corrupted.
    sudo systemctl start irsol-prefect-serve-maintenance
    ```
 
-5. **Trigger a smoke-test run** via the Prefect dashboard (select `ff-correction-daily`, set `day_path` to a known observation day).
 
-6. **Check the dashboard** for successful completion.
+## Dashboard
+
+In order to access the Prefect dashboard, you need to have the Prefect server running on sirius (see instructions above) and a port forwarding setup from sirius to your local machine.
+
+Ensure a port is forwarded from sirius to your local environment:
+```bash
+ssh -L 4200:localhost:4200 <username>@sirius
+```
+
+This command will open an SSH connection from your local environment to sirius (where the prefect server is running) and forward the prefect server port (4200) to your local machine. You can then access the Prefect dashboard at `http://localhost:4200` in your web browser:
+
+- **Deployments** tab — view registered deployments and their schedules.
+- **Flow Runs** tab — inspect completed, running, and failed runs.
+- **Tasks** tab — drill into individual task execution.
+- **Logs** — view Prefect-captured log output.
 
 ## Best Practices
 

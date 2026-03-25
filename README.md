@@ -6,31 +6,52 @@
 
 IRSOL Data Pipeline processes reduced ZIMPOL spectro-polarimetric observations and produces calibrated scientific outputs and operational artifacts.
 
-The repository contains three independent pipelines over the same dataset root.
+This project is structured as a Python package with a command-line interface (CLI) and is orchestrated using Prefect for workflow management. The pipeline includes *core* data processing modules for __flat-field correction__, __wavelength auto-calibration__, __slit image generation__ and integration with the PIOMBO data server, as well as IO modules for handling various data formats. The outputs are designed to be compatible with web serving and include metadata for traceability.
+
+The project can be installed as a simple python dependency and used programamtically.
+
+The installed package also provides a CLI for common operations, including running the full pipeline, executing individual steps, and managing Prefect flows.
+
+The following diagram illustrates the high-level data flow and module interactions within the IRSOL Data Pipeline:
 
 ```mermaid
 flowchart LR
     DAT["Reduced ZIMPOL .dat files"]
-    FF["Flat-field correction\nFITS + metadata + profile PNGs"]
-    SI["Slit image generation\nSDO context PNGs"]
-    MT["Maintenance\nPrefect run cleanup + cache cleanup"]
-    PF["Prefect prefect\nUI + schedules + manual runs"]
+    FF["Flat-field correction<br>FITS + metadata + profile PNGs"]
+    SI["Slit image generation<br>SDO context PNGs"]
+    WEB["Web Asset compatibility<br>FITS + PNGs + metadata for web serving"]
+    MT["Maintenance<br>Prefect run cleanup + cache cleanup"]
+    PF["Prefect UI<br>UI + schedules + manual runs"]
 
     DAT --> FF
     DAT --> SI
     PF -. serves .-> FF
     PF -. serves .-> SI
+    PF -. serves .-> WEB
     PF -. serves .-> MT
+    FF --> WEB
+    SI --> WEB
+
+    classDef data fill:#9191c0
+    classDef flow fill:#c09191
+    classDef service fill:#91a091
+
+    class DAT data
+    class FF flow
+    class SI flow
+    class WEB flow
+    class MT flow
+    class PF service
 ```
 
 ## Quick Start
 
 ```bash
-uv sync
-uv run entrypoints/process_single_measurement.py /path/to/reduced/6302_m1.dat
+uv install irsol-data-pipeline
+idp --version
 ```
 
-For installation options (editable development install from a clone, or dependency install from PyPI with `uv add irsol-data-pipeline`), see [docs/user/installation.md](docs/user/installation.md).
+For installation options see [docs/user/installation.md](docs/user/installation.md).
 
 ## Documentation
 
@@ -40,7 +61,7 @@ Use this section as the canonical traversal path.
 
 | Page | Purpose |
 |---|---|
-| [docs/user/installation.md](docs/user/installation.md) | Install dependencies, set up local environment, discover `make` targets |
+| [docs/user/installation.md](docs/user/installation.md) | Install dependencies and set up local environment |
 | [docs/user/quickstart.md](docs/user/quickstart.md) | Minimal working example and typical workflow |
 
 ### 2. Architecture

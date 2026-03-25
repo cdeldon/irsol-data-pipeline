@@ -2,9 +2,7 @@
 
 The pipeline layer orchestrates end-to-end processing of solar observation data. It ties together the core algorithms, IO modules, and caching logic into cohesive workflows that process individual measurements, entire observation days, or full dataset scans.
 
-**Module:** `pipeline/`
-
-## End-to-End Data Flow
+## Flat-field correction
 
 ```mermaid
 flowchart TD
@@ -33,45 +31,20 @@ flowchart TD
     PROCESS -.-> P1
 ```
 
-## Processing Stages
 
 ### Stage 1 — Dataset Scanning
-
-**Module:** `pipeline.scanner`
-
-```python
-def scan_dataset(root: Path) -> ScanResult:
-```
 
 - Discovers all observation day directories under the dataset root.
 - For each day, compares measurements in `reduced/` against outputs in `processed/`.
 - A measurement is considered **processed** if either `*_corrected.fits` or `*_error.json` exists.
-- Returns a `ScanResult` with pending measurements grouped by observation day.
 
 ### Stage 2 — File Discovery
-
-**Module:** `pipeline.filesystem`
-
-```python
-def discover_measurement_files(reduced_dir: Path) -> list[Path]:
-def discover_flatfield_files(reduced_dir: Path) -> list[Path]:
-```
 
 - **Measurement files** match the pattern `<wavelength>_m<number>.dat` (e.g., `6302_m1.dat`).
 - **Flat-field files** match the pattern `ff<wavelength>_m<number>.dat` (e.g., `ff6302_m1.dat`).
 - Files prefixed with `cal` or `dark` are ignored.
 
 ### Stage 3 — Flat-Field Cache
-
-**Module:** `pipeline.flatfield_cache`
-
-```python
-def build_flatfield_cache(
-    flatfield_paths: list[Path],
-    max_delta: datetime.timedelta = DEFAULT_MAX_DELTA,
-    allow_cached_data: bool = True,
-) -> FlatFieldCache:
-```
 
 For each flat-field `.dat` file:
 
@@ -89,17 +62,6 @@ This returns the closest correction within `max_delta` (default: 2 hours), or `N
 
 ### Stage 4 — Single Measurement Processing
 
-**Module:** `pipeline.measurement_processor`
-
-```python
-def process_single_measurement(
-    measurement_path: Path,
-    processed_dir: Path,
-    ff_cache: FlatFieldCache,
-    max_delta_policy: MaxDeltaPolicy | None = None,
-) -> None:
-```
-
 The 8-step pipeline for each measurement:
 
 | Step | Operation | Output |
@@ -115,131 +77,148 @@ The 8-step pipeline for each measurement:
 
 If any step fails, an error JSON (`*_error.json`) is written and the measurement is marked as failed.
 
-### Stage 5 — Day Processing
-
-**Module:** `pipeline.day_processor`
-
-```python
-def process_observation_day(
-    day: ObservationDay,
-    max_delta_policy: MaxDeltaPolicy | None = None,
-) -> DayProcessingResult:
-```
-
-Coordinates processing of all measurements in a single observation day:
-
-1. Discover measurement and flat-field files.
-2. Build the flat-field cache (once per day).
-3. Iterate over unprocessed measurements, calling `process_single_measurement()` for each.
-4. On failure, write error JSON and continue to the next measurement.
-5. Return a `DayProcessingResult` with processed, skipped, and failed counts.
 
 ## Slit Image Generation
 
-The slit image pipeline runs independently from flat-field correction:
+```mermaid
+flowchart TD
+        SCAN["<b>1. Scan</b><br/>Discover eligible observation days<br/>(JSOC delay filter)"]
+        DISCOVER["<b>2. Discover</b><br/>Find measurement files<br/>in reduced/"]
+        PREP["<b>3. Prepare Cache</b><br/>Resolve day SDO cache dir<br/>processed/_cache/sdo/"]
+        PROCESS["<b>4. Generate Slit Preview</b><br/>(4-step pipeline)"]
+        RESULT["<b>5. Collect Results</b><br/>Generated / skipped / failed"]
 
-**Module:** `pipeline.slit_images_processor`
+        SCAN --> DISCOVER --> PREP --> PROCESS --> RESULT
 
-```python
-def generate_slit_images_for_day(
-    day: ObservationDay,
-    jsoc_email: str,
-    use_limbguider: bool = False,
-) -> DayProcessingResult:
+        subgraph "Step 4: Per-Measurement Pipeline"
+                direction TB
+                S1["4.1 Load .dat metadata"]
+                S2["4.2 Compute slit geometry"]
+                S3["4.3 Fetch SDO maps\n(use cache when available)"]
+                S4["4.4 Render slit preview PNG"]
+
+                S1 --> S2 --> S3 --> S4
+        end
+
+        PROCESS -.-> S1
 ```
 
-When running the full slit-image Prefect flow (`slit-images-full`), observation
-days are filtered by folder date (`YYMMDD`) so only days older than or equal to
-the configured `jsoc-data-delay-days` threshold are scanned.
+### Stage 1 — Dataset Scanning
 
-For each measurement in an observation day:
+- Discovers observation days under the dataset root.
+- Full-scan flow keeps only days older than or equal to `jsoc-data-delay-days` (inclusive).
+- Daily flow processes exactly one `day_path`.
 
-1. Check if a slit preview already exists (skip if so).
-2. Load measurement metadata.
-3. Validate solar coordinates.
-4. Compute slit geometry.
-5. Fetch SDO maps from JSOC.
-6. Render and save the 6-panel slit preview.
+### Stage 2 — File Discovery
+
+- Measurement inputs are discovered from `reduced/` using the same rules as flat-field processing.
+- Files already considered complete are skipped.
+- A measurement is considered **already handled** if either `*_slit_preview.png` or `*_slit_preview_error.json` exists.
+
+### Stage 3 — SDO Cache
+
+- Per-day cache directory is `processed/_cache/sdo/`.
+- Downloaded SDO FITS files are reused across measurements for the same day.
+- If no cached file is available, data is fetched via JSOC/DRMS using the configured `jsoc-email`.
+
+### Stage 4 — Single Measurement Slit Processing
+
+The 4-step slit image pipeline for each measurement:
+
+| Step | Operation | Output |
+|------|-----------|--------|
+| 4.1 | Load measurement `.dat` and parse `MeasurementMetadata` | Metadata with solar pointing/time info |
+| 4.2 | Compute slit geometry | Slit start/end geometry + `mu` context |
+| 4.3 | Fetch SDO/AIA + SDO/HMI context maps | 6-map context set (from cache or download) |
+| 4.4 | Render slit overlay figure | `*_slit_preview.png` |
+
+If generation fails, an error file `*_slit_preview_error.json` is written and the measurement is marked as failed.
+
 
 ## Cache Cleanup
 
-**Module:** `pipeline.cache_cleanup`
+```mermaid
+flowchart TD
+        SCAN["<b>1. Scan</b><br/>Discover observation days"]
+        DISPATCH["<b>2. Dispatch</b><br/>Run per-day cleanup"]
+        FIND["<b>3. Find Cache</b><br/>Locate processed/_cache/"]
+        FILTER["<b>4. Filter by Age</b><br/>Keep recent, mark stale"]
+        DELETE["<b>5. Delete Stale Files</b><br/>Remove old cache files"]
+        PRUNE["<b>6. Prune Empty Dirs</b><br/>Cleanup empty folders"]
+        REPORT["<b>7. Build Report</b><br/>Per-day + total metrics"]
 
-```python
-def cleanup_day_cache_files(
-    day: ObservationDay,
-    hours: float,
-) -> CacheCleanupDayResult:
+        SCAN --> DISPATCH --> FIND --> FILTER --> DELETE --> PRUNE --> REPORT
 ```
 
-Removes stale pickle files from `processed/_cache/` sub-directories. Files older than the specified threshold are deleted. This prevents unbounded cache growth on long-running deployments.
+### Stage 1 — Dataset Scanning
+
+- Discovers all observation days under the configured root.
+- Retention is configured in hours (`cache-expiration-hours`, default `672`).
+
+### Stage 2 — Per-Day Cache Discovery
+
+- Resolves cache location as `processed/_cache/` for each day.
+- If no cache directory exists, the day returns a zero-count cleanup result.
+
+### Stage 3 — Stale-File Evaluation
+
+- Computes a cutoff timestamp: `now - retention_hours`.
+- Iterates cache files and compares each file's modification time against the cutoff.
+- Files newer than cutoff are retained; older files are marked for deletion.
+
+### Stage 4 — Deletion and Reporting
+
+- Deletes stale cache files and tracks deleted bytes.
+- Keeps counters for checked/deleted/skipped/failed files per day.
+- Removes empty cache subdirectories after deletion.
+- Produces a markdown cleanup report artifact with totals and per-day breakdown.
 
 
 ## Web Asset Compatibility
 
-The web asset compatibility pipeline converts PNG outputs to JPEGs and deploys them to SFTP-based web asset services.
+```mermaid
+flowchart TD
+        SCAN["<b>1. Scan</b><br/>Discover observation days"]
+        DISCOVER["<b>2. Discover Assets</b><br/>Find PNG outputs in processed/"]
+        PLAN["<b>3. Plan Deployment</b><br/>Map PNG to legacy JPG targets"]
+        CHECK["<b>4. Check Remote</b><br/>Skip existing unless force_overwrite"]
+        CONVERT["<b>5. Convert</b><br/>PNG to JPG in staging"]
+        UPLOAD["<b>6. Upload</b><br/>Deploy JPGs to Piombo SFTP"]
+        RESULT["<b>7. Collect Results</b><br/>Processed / skipped / failed"]
 
-This stage is included to replace legacy cron/script publishing (`quick-look` and
-`image-generator`) while preserving existing web-facing contracts.
-
-It ensures that outputs produced by this repository remain consumable by systems that still depend on
-legacy JPG naming and directory conventions.
-
-**Module:** `pipeline.web_asset_compatibility`
-
-```python
-def plan_web_assets_for_day(
-    day: ObservationDay,
-    overwrite_existing: bool = False,
-) -> DayWebAssetPlan:
-
-def stage_and_upload_assets(
-    plan: DayWebAssetPlan,
-    remote_fs: RemoteFileSystem,
-    jpeg_quality: int = 50,
-) -> WebAssetUploadResult:
+        SCAN --> DISCOVER --> PLAN --> CHECK --> CONVERT --> UPLOAD --> RESULT
 ```
 
-For each observation day:
+### Stage 1 — Dataset Scanning
 
-1. Discover PNG asset files: `*_profile_corrected.png` and `*_slit_preview.png`
-2. Check which assets already exist on the remote server (skip if not overwriting)
-3. Convert PNG input to JPEG format via Pillow (configurable quality, default quality 50)
-4. Stage JPEGs in a temporary directory
-5. Upload staged JPEGs to Piombo SFTP server using the configured `RemoteFileSystem` adapter
-6. Track uploaded and skipped assets
+- Full flow (`web-assets-compatibility-full`) scans all observation days.
+- Daily flow (`web-assets-compatibility-daily`) processes one day path.
 
-The remote file system adapter is transport-agnostic via the `RemoteFileSystem` protocol. The default implementation (`SftpRemoteFileSystem` in `integrations.piombo`) uses Paramiko for SFTP connectivity.
+### Stage 2 — Asset Discovery
 
-## Idempotency
+- Scans `processed/` for generated PNG assets:
+    - `*_profile_corrected.png` (quicklook)
+    - `*_slit_preview.png` (context)
+- Builds `WebAssetSource` entries per measurement and asset kind.
 
-The pipeline is designed to be safely re-runnable:
+### Stage 3 — Target Planning
 
-- **Flat-field correction:** measurements with an existing `*_corrected.fits` or `*_error.json` are skipped.
-- **Slit images:** measurements with an existing `*_slit_preview.png` or `*_slit_preview_error.json` are skipped.
-- **Cache:** already-analyzed flat-field corrections are loaded from disk pickle rather than re-computed.
-- To force reprocessing, delete the relevant output files and re-run.
+- Each PNG is mapped to a legacy JPG target path:
+    - quicklook: `img_quicklook/<observation_day>/<measurement>.jpg`
+    - context: `img_data/<observation_day>/<measurement>.jpg`
+- Day-level planning distinguishes upload candidates from already-existing remote assets.
 
-## Output Files
+### Stage 4 — Conversion and Deployment
 
-For each measurement (e.g., `6302_m1`), the pipeline produces:
+- Converts selected PNG files to JPEG in a temporary staging directory.
+- Uploads staged JPGs through the configured `RemoteFileSystem` implementation (Piombo SFTP in production).
+- Existing remote files are skipped unless `force_overwrite=True`.
 
-| File | Description |
-|------|-------------|
-| `6302_m1_corrected.fits` | Corrected Stokes I, Q/I, U/I, V/I |
-| `6302_m1_metadata.json` | Processing metadata and calibration info |
-| `6302_m1_flat_field_correction_data.pkl` | Cached flat-field correction (in `_cache/flat-field-cache`) |
-| `6302_m1_profile_original.png` | Profile plot of uncorrected data |
-| `6302_m1_profile_corrected.png` | Profile plot of corrected data |
-| `6302_m1_slit_preview.png` | 6-panel SDO slit context image |
-| `6302_m1_error.json` | Error record (only on failure) |
+### Stage 5 — Result Aggregation
 
-Web asset outputs (staged and deployed to Piombo SFTP):
+- Returns per-day `DayProcessingResult` counts (`processed`, `skipped`, `failed`).
+- Conversion and upload failures are recorded and surfaced in flow logs and run summaries.
 
-| File | Description |
-|------|-------------|
-| `6302_m1_profile_corrected.jpg` | JPEG version of corrected profile (deployed) |
-| `6302_m1_slit_preview.jpg` | JPEG version of slit preview (deployed) |
 
 ## Related Documentation
 - [Flat-Field Correction](../core/flat_field_correction.md) — core correction algorithms

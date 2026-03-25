@@ -2,8 +2,6 @@
 
 The IRSOL Data Pipeline uses [Prefect 3](https://docs.prefect.io/) as an optional orchestration layer. Prefect provides scheduling, retries, a web dashboard, and run history — but the pipeline works equally well as plain Python when Prefect is not enabled.
 
-**Module:** `prefect/`
-
 ## Conditional Decorators
 
 The key design principle is that **Prefect is never required**. The module `prefect.decorators` provides drop-in replacements for `@prefect.task` and `@prefect.flow`:
@@ -22,42 +20,16 @@ def process_all(...):
 
 When the environment variable `PREFECT_ENABLED` is set to `1`, `true`, or `yes`, these decorators behave like their Prefect counterparts. Otherwise, they are transparent no-ops — the decorated functions run as plain Python.
 
-This is implemented in `prefect/decorators.py`:
+This is implemented in `prefect/decorators.py` and the variable is automatically set by any CLI entrypoint that uses these capabilities. Whenever the `irsol_data_pipeline` package is used as a library/dependency of other projects, this environment variable shall not be set.
 
-```python
-def prefect_enabled() -> bool:
-    return os.environ.get("PREFECT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
-```
-
-> **Convention:** Only code inside the `prefect/` package may import from the `prefect` library. The `core/`, `io/`, `pipeline/`, and `plotting/` packages must remain Prefect-free.
+> **Convention:** Only code inside the `prefect/` package may import from the `prefect` library. The `cli`, `core/`, `integrations`, `io/`, `pipeline/`, and `plotting/` sub-packages must remain Prefect-free.
 
 ## Flow Architecture
 
 
-
 ```mermaid
-flowchart TB
-    subgraph "Flat-Field Correction"
-        FF_FULL["ff-correction-full<br/>(scheduled daily)"]
-        FF_DAILY["ff-correction-daily<br/>(manual trigger)"]
-        FF_SCAN["scan-dataset"]
-        FF_DAY["process-day<br/>(subflow)"]
-        FF_MEAS["process-measurement<br/>(task)"]
+flowchart LR
 
-        FF_FULL --> FF_SCAN --> FF_DAY --> FF_MEAS
-        FF_DAILY --> FF_DAY
-    end
-
-    subgraph "Slit Image Generation"
-        SLIT_FULL["slit-images-full<br/>(scheduled daily)"]
-        SLIT_DAILY["slit-images-daily<br/>(manual trigger)"]
-        SLIT_SCAN["scan-observation-days"]
-        SLIT_DAY["generate-day<br/>(subflow)"]
-        SLIT_MEAS["generate-slit-image<br/>(task)"]
-
-        SLIT_FULL --> SLIT_SCAN --> SLIT_DAY --> SLIT_MEAS
-        SLIT_DAILY --> SLIT_DAY
-    end
 
     subgraph "Maintenance"
         MAINT_CACHE["delete-old-cache-files<br/>(periodic)"]
@@ -76,6 +48,26 @@ flowchart TB
         WEB_FULL --> WEB_SCAN --> WEB_DEPLOY
         WEB_DAILY --> WEB_DEPLOY
     end
+    subgraph "Slit Image Generation"
+        SLIT_FULL["slit-images-full<br/>(scheduled daily)"]
+        SLIT_DAILY["slit-images-daily<br/>(manual trigger)"]
+        SLIT_SCAN["scan-observation-days"]
+        SLIT_DAY["generate-day<br/>(subflow)"]
+        SLIT_MEAS["generate-slit-image<br/>(task)"]
+
+        SLIT_FULL --> SLIT_SCAN --> SLIT_DAY --> SLIT_MEAS
+        SLIT_DAILY --> SLIT_DAY
+    end
+    subgraph "Flat-Field Correction"
+        FF_FULL["ff-correction-full<br/>(scheduled daily)"]
+        FF_DAILY["ff-correction-daily<br/>(manual trigger)"]
+        FF_SCAN["scan-dataset"]
+        FF_DAY["process-day<br/>(subflow)"]
+        FF_MEAS["process-measurement<br/>(task)"]
+
+        FF_FULL --> FF_SCAN --> FF_DAY --> FF_MEAS
+        FF_DAILY --> FF_DAY
+    end
 ```
 
 ### Flow Groups
@@ -91,7 +83,6 @@ The pipeline defines four independent flow groups, each served as a separate Pre
 
 ### Flat-Field Correction Flows
 
-**Module:** `prefect.flows.flat_field_correction`
 
 **`process_unprocessed_measurements`** (full):
 1. Resolves the dataset root from arguments or Prefect Variables.
@@ -106,7 +97,6 @@ The pipeline defines four independent flow groups, each served as a separate Pre
 
 ### Slit Image Generation Flows
 
-**Module:** `prefect.flows.slit_image_generation`
 
 **`generate_slit_images`** (full):
 1. Resolves JSOC email and dataset root.
@@ -120,7 +110,6 @@ The pipeline defines four independent flow groups, each served as a separate Pre
 
 ### Maintenance Flows
 
-**Module:** `prefect.flows.maintenance`
 
 **`delete_old_cache_files`**: Scans all observation days and deletes stale files from cache directories. Default retention: 672 hours (28 days).
 
@@ -128,7 +117,6 @@ The pipeline defines four independent flow groups, each served as a separate Pre
 
 ### Web Asset Compatibility Flows
 
-**Module:** `prefect.flows.web_assets_compatibility`
 
 **`publish_web_assets_for_root`** (full):
 1. Resolves the dataset root from arguments or Prefect Variables.
@@ -176,15 +164,8 @@ def _process_single_measurement(...):
 
 The `retry_condition_except_on_exceptions()` helper prevents retries for errors that would never succeed on retry (e.g., no matching flat-field exists). Transient failures (network errors, temporary file locks) are retried.
 
-| Task | Retries | Delay | Non-retryable Exceptions |
-|------|---------|-------|--------------------------|
-| Measurement processing | 2 | 10s | `FlatFieldAssociationNotFoundException` |
-| Slit image generation | 2 | 30s | — |
-| SDO map fetching | 2 | 30s | — |
-
 ## Prefect Variables
 
-**Module:** `prefect.variables`
 
 Runtime configuration is stored as Prefect Variables, accessible via the dashboard or CLI:
 
@@ -207,23 +188,6 @@ from irsol_data_pipeline.prefect.variables import resolve_dataset_root, get_vari
 root = resolve_dataset_root()  # from arg, or Prefect Variable, or error
 email = get_variable(PrefectVariableName.JSOC_EMAIL, default="")
 ```
-
-## Prefect Server Configuration
-
-**Module:** `prefect.config`
-
-| Constant | Value |
-|----------|-------|
-| `PREFECT_SERVER_HOST` | `127.0.0.1` |
-| `PREFECT_SERVER_PORT` | `4200` |
-| `PREFECT_API_URL` | `http://127.0.0.1:4200/api` |
-
-## Error Handling
-
-- Flows catch exceptions per measurement and write error JSON files, allowing the batch to continue.
-- Failed measurements are reported in the `DayProcessingResult` error list.
-- Prefect's built-in state tracking shows failed tasks in the dashboard.
-- Markdown artifacts are created for scan reports and cleanup summaries.
 
 ## Related Documentation
 
