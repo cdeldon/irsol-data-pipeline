@@ -8,9 +8,10 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from irsol_data_pipeline.core.models import MeasurementMetadata
+from pydantic import ValidationError
+
+from irsol_data_pipeline.core.models import MeasurementMetadata, SolarOrientationInfo
 from irsol_data_pipeline.core.solar_orientation import (
-    SolarOrientationInfo,
     compute_solar_orientation,
 )
 from tests.unit.utils import make_dat_array_info
@@ -42,7 +43,7 @@ class TestSolarOrientationInfo:
             slit_angle_solar_deg=45.0,
             needs_rotation=True,
         )
-        with pytest.raises((AttributeError, TypeError)):
+        with pytest.raises((AttributeError, TypeError, ValidationError)):
             info.sun_p0_deg = 10.0  # type: ignore[misc]
 
     def test_fields_stored(self):

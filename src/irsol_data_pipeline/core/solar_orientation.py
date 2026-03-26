@@ -1,58 +1,17 @@
 """Solar orientation computation from ZIMPOL measurement metadata.
 
-Provides :class:`SolarOrientationInfo` and
-:func:`compute_solar_orientation` for determining the direction of
+Provides :func:`compute_solar_orientation` for determining the direction of
 solar north relative to the spectrograph slit.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 from astropy.time import Time
 from sunpy.coordinates.sun import P
 
-from irsol_data_pipeline.core.models import MeasurementMetadata
+from irsol_data_pipeline.core.models import MeasurementMetadata, SolarOrientationInfo
 from irsol_data_pipeline.core.slit_images.config import DEROTATOR_COORDINATE_SYSTEMS
-
-
-@dataclass(frozen=True)
-class SolarOrientationInfo:
-    """Solar orientation information computed from measurement metadata.
-
-    Encapsulates all values needed to render a solar north indicator on
-    a Stokes profile plot or other visualisations.
-
-    The solar north direction in the plot frame (wavelength × spatial) is:
-
-    .. code-block:: python
-
-        import numpy as np
-        angle_rad = np.radians(info.slit_angle_solar_deg)
-        dx = np.cos(angle_rad)  # component along the wavelength axis
-        dy = np.sin(angle_rad)  # component along the spatial axis
-    """
-
-    sun_p0_deg: float
-    """Position angle of the solar north pole (P0) in degrees, as returned
-    by :func:`sunpy.coordinates.sun.P`."""
-
-    slit_angle_solar_deg: float
-    """Angle of the slit direction in the solar reference frame, in degrees,
-    measured counter-clockwise from the solar west (positive Tx) direction.
-
-    This follows the standard heliographic convention where 0° points west
-    (positive Tx), 90° points north (positive Ty), and 180° points east.
-
-    The solar north direction expressed in the (wavelength, spatial) plot
-    frame is :math:`(\\cos\\theta,\\,\\sin\\theta)` where
-    :math:`\\theta` = ``slit_angle_solar_deg`` in radians.
-    """
-
-    needs_rotation: bool
-    """True when the derotator coordinate system is equatorial and a P0
-    rotation was applied to bring the slit angle into the solar frame."""
 
 
 def compute_solar_orientation(

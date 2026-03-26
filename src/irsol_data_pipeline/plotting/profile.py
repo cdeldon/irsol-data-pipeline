@@ -12,9 +12,12 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
-from irsol_data_pipeline.core.models import MeasurementMetadata, StokesParameters
-from irsol_data_pipeline.core.solar_orientation import (
+from irsol_data_pipeline.core.models import (
+    MeasurementMetadata,
     SolarOrientationInfo,
+    StokesParameters,
+)
+from irsol_data_pipeline.core.solar_orientation import (
     compute_solar_orientation,
 )
 
