@@ -148,7 +148,7 @@ def discover_observation_days(
         Sorted list of ObservationDay objects.
     """
     with logger.contextualize(root=root):
-        logger.debug("Scanning observation days")
+        logger.info("Scanning observation days")
         days: list[ObservationDay] = []
 
         if not root.is_dir():
@@ -156,33 +156,36 @@ def discover_observation_days(
             return days
 
         for year_dir in sorted(root.iterdir()):
-            if not year_dir.is_dir():
-                logger.warning("Skipping non-directory in root", path=year_dir)
-                continue
-            for day_dir in sorted(year_dir.iterdir()):
-                if not day_dir.is_dir():
-                    logger.warning("Skipping non-directory in year", path=day_dir)
+            with logger.contextualize(year=year_dir):
+                if not year_dir.is_dir():
+                    logger.warning("Skipping non-directory in root")
                     continue
-                reduced = day_dir / REDUCED_DIRNAME
-                if not reduced.is_dir():
-                    logger.warning(
-                        "Skipping day without reduced directory", path=day_dir
-                    )
-                    continue
-                days.append(
-                    ObservationDay(
-                        path=day_dir,
-                        raw_dir=day_dir / RAW_DIRNAME,
-                        reduced_dir=reduced,
-                        processed_dir=day_dir / PROCESSED_DIRNAME,
-                    )
-                )
+                logger.info("Scanning year")
+                for day_dir in sorted(year_dir.iterdir()):
+                    with logger.contextualize(day=day_dir.name):
+                        if not day_dir.is_dir():
+                            logger.warning("Skipping non-directory")
+                            continue
+                        reduced = day_dir / REDUCED_DIRNAME
+                        if not reduced.is_dir():
+                            logger.warning(
+                                "Skipping day without reduced directory",
+                            )
+                            continue
+                        days.append(
+                            ObservationDay(
+                                path=day_dir,
+                                raw_dir=day_dir / RAW_DIRNAME,
+                                reduced_dir=reduced,
+                                processed_dir=day_dir / PROCESSED_DIRNAME,
+                            )
+                        )
 
         if predicate is not None:
             days = [day for day in days if predicate(day)]
 
         days_sorted = sorted(days, key=lambda d: d.path)
-        logger.debug("Discovered observation days", count=len(days_sorted))
+        logger.info("Discovered observation days", count=len(days_sorted))
         return days_sorted
 
 

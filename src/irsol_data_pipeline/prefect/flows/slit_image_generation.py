@@ -140,11 +140,15 @@ def run_day_slit_generation_task(
     use_limbguider: bool = False,
 ) -> DayProcessingResult:
     """Prefect task: generate slit images for a single day."""
-    return generate_daily_slit_images(
-        day_path=day_path,
-        jsoc_email=jsoc_email,
-        use_limbguider=use_limbguider,
-    )
+    with logger.contextualize(day=day_path.name):
+        logger.info("Submitting day slit generation task")
+        result = generate_daily_slit_images(
+            day_path=day_path,
+            jsoc_email=jsoc_email,
+            use_limbguider=use_limbguider,
+        )
+        logger.success("Daily slit generation completed")
+        return result
 
 
 @flow(
