@@ -42,10 +42,8 @@ classifiers = [
 idp = "irsol_data_pipeline.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/IRSOL/irsol-data-pipeline"
-Repository = "https://github.com/IRSOL/irsol-data-pipeline"
-Documentation = "https://github.com/IRSOL/irsol-data-pipeline#readme"
-Issues = "https://github.com/IRSOL/irsol-data-pipeline/issues"
+Repository = "https://github.com/irsol-locarno/irsol-data-pipeline"
+Documentation = "https://github.com/irsol-locarno/irsol-data-pipeline"
 
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning"]
