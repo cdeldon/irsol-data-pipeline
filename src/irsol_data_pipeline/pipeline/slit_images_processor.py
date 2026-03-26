@@ -188,13 +188,18 @@ def generate_slit_images_for_day(
                     "Failed to generate slit image", file=measurement_path.name
                 )
 
-        logger.info(
-            "Slit image generation complete",
-            day=day.name,
-            processed=processed,
-            skipped=skipped,
-            failed=failed,
-        )
+        if processed == 0:
+            logger.info(
+                "All measurements for day have already been processed for slit image generation"
+            )
+        else:
+            logger.info(
+                "Slit image generation complete",
+                day=day.name,
+                processed=processed,
+                skipped=skipped,
+                failed=failed,
+            )
         return DayProcessingResult(
             day_name=day.name,
             processed=processed,

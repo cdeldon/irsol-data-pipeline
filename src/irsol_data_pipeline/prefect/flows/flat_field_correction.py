@@ -68,10 +68,14 @@ def run_day_processing_subflow_task(
     max_delta_hours: float = 2.0,
 ) -> DayProcessingResult:
     """Prefect task: execute the day-processing flow as a sub-flow."""
-    return process_daily_unprocessed_measurements(
-        day_path=day_path,
-        max_delta_hours=max_delta_hours,
-    )
+    with logger.contextualize(day=day_path.name):
+        logger.info("Submitting day flat field correction task")
+        result = process_daily_unprocessed_measurements(
+            day_path=day_path,
+            max_delta_hours=max_delta_hours,
+        )
+        logger.success("Daily flat field correction completed")
+        return result
 
 
 @flow(
