@@ -9,6 +9,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_SERVER_ANALYTICS_ENABLED,
+    PREFECT_TASKS_DEFAULT_PERSIST_RESULT,
     Profile,
     load_profiles,
     save_profiles,
@@ -121,8 +122,9 @@ def configure_prefect() -> int:
     settings = {
         PREFECT_API_DATABASE_CONNECTION_URL: database_connection_url,
         PREFECT_API_URL: api_url,
-        PREFECT_SERVER_ANALYTICS_ENABLED: "false",
-        PREFECT_RESULTS_PERSIST_BY_DEFAULT: "false",
+        PREFECT_SERVER_ANALYTICS_ENABLED: False,
+        PREFECT_RESULTS_PERSIST_BY_DEFAULT: False,
+        PREFECT_TASKS_DEFAULT_PERSIST_RESULT: False,
     }
 
     profiles = load_profiles()
@@ -144,5 +146,5 @@ def configure_prefect() -> int:
     print(f"  PREFECT_API_URL={api_url}")
     print("  PREFECT_SERVER_ANALYTICS_ENABLED=false")
     print("  PREFECT_RESULTS_PERSIST_BY_DEFAULT=false")
-
+    print("  PREFECT_TASKS_DEFAULT_PERSIST_RESULT=false")
     return 0
