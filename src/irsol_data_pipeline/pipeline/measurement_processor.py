@@ -139,7 +139,9 @@ def _process_single_measurement(
         )
 
         if ff_correction is None:
-            raise FlatFieldAssociationNotFoundException(measurement, max_delta)
+            raise FlatFieldAssociationNotFoundException(
+                measurement=measurement, max_delta=max_delta
+            )
 
         ff_time_delta = abs(
             (ff_correction.timestamp - measurement.timestamp).total_seconds()

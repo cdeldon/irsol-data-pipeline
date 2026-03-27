@@ -32,13 +32,22 @@ class FlatFieldAssociationNotFoundException(IrsolDataPipelineException):
     """Exception raised when no flat field has been found to be associated with
     a measurement."""
 
-    def __init__(self, measurement: Measurement, max_delta: datetime.timedelta):
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        measurement: Measurement | None = None,
+        max_delta: datetime.timedelta | None = None,
+    ):
         self.measurement = measurement
         self.max_delta = max_delta
 
         super().__init__(
-            f"No flat-field within {max_delta} for wavelength "
+            message,
+            f"No flat-field within {max_delta or '<unspecified>'} for wavelength "
             f"{measurement.wavelength} at {measurement.timestamp}"
+            if measurement
+            else "<unspecified>",
         )
 
 
