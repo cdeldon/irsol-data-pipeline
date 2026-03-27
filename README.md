@@ -2,7 +2,11 @@
 
 [![CI](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/ci.yml)
 [![Release](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/release.yml/badge.svg)](https://github.com/irsol-locarno/irsol-data-pipeline/actions/workflows/release.yml)
-[![PyPI version](https://badge.fury.io/py/irsol-data-pipeline.svg?icon=si%3Apython)](https://badge.fury.io/py/irsol-data-pipeline)
+
+| Package    | Version |
+| -------- | ------- |
+| Library  | [![PyPI version](https://badge.fury.io/py/irsol-data-pipeline.svg?icon=si%3Apython)](https://badge.fury.io/py/irsol-data-pipeline)    |
+| CLI | [![PyPI version](https://badge.fury.io/py/irsol-data-pipeline-cli.svg?icon=si%3Apython)](https://badge.fury.io/py/irsol-data-pipeline-cli) |
 
 IRSOL Data Pipeline processes reduced ZIMPOL spectro-polarimetric observations and produces calibrated scientific outputs and operational artifacts.
 
