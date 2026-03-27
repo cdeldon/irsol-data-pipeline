@@ -66,6 +66,12 @@ prefect_app.command(
 )
 
 prefect_app.command(
+    "irsol_data_pipeline.cli.commands.prefect_command.automations_command:automations_app",
+    name="automations",
+    help="List and configure Prefect automations.",
+)
+
+prefect_app.command(
     "irsol_data_pipeline.cli.commands.prefect_command.flows_command:flows_app",
     name="flows",
     help="List and serve Prefect flow groups.",

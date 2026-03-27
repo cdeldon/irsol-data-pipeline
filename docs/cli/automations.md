@@ -15,13 +15,22 @@ The IRSOL Data Pipeline includes built-in **Prefect Automations** to ensure reli
 
 ## How to Use
 
-Automations are registered and updated automatically when you run:
+Automations are registered on the Prefect server using a dedicated CLI command. This step requires
+the Prefect server to be running and reachable.
 
 ```bash
-idp configure
+idp prefect automations configure
 ```
 
-This ensures the Prefect server is always running the latest automation rules. You can customize or add new automations by editing the files in `src/irsol_data_pipeline/prefect/automations/` and re-running the command.
+This ensures the Prefect server is always running the latest automation rules. You can check the
+registration status of all built-in automations with:
+
+```bash
+idp prefect automations list
+```
+
+You can customize or add new automations by editing the files in
+`src/irsol_data_pipeline/prefect/automations/` and re-running the command.
 
 ## See Also
 - [Prefect Automations Concept](../prefect/automations.md)
