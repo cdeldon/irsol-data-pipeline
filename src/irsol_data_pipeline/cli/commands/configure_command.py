@@ -7,6 +7,7 @@ from pathlib import Path
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
+    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_SERVER_ANALYTICS_ENABLED,
     Profile,
     load_profiles,
@@ -121,6 +122,7 @@ def configure_prefect() -> int:
         PREFECT_API_DATABASE_CONNECTION_URL: database_connection_url,
         PREFECT_API_URL: api_url,
         PREFECT_SERVER_ANALYTICS_ENABLED: "false",
+        PREFECT_RESULTS_PERSIST_BY_DEFAULT: "false",
     }
 
     profiles = load_profiles()
@@ -141,5 +143,6 @@ def configure_prefect() -> int:
     print(f"  PREFECT_API_DATABASE_CONNECTION_URL={database_connection_url}")
     print(f"  PREFECT_API_URL={api_url}")
     print("  PREFECT_SERVER_ANALYTICS_ENABLED=false")
+    print("  PREFECT_RESULTS_PERSIST_BY_DEFAULT=false")
 
     return 0
