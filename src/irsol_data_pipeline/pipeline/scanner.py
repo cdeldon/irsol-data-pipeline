@@ -1,21 +1,26 @@
 """Dataset scanner.
 
 Scans the dataset root to discover observation days that need
-processing.
+processing. Provides scanners for both flat-field correction and slit
+image generation.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from loguru import logger
 
-from irsol_data_pipeline.core.models import ScanResult
+from irsol_data_pipeline.core.models import ObservationDay, ScanResult
 from irsol_data_pipeline.pipeline.filesystem import (
     discover_measurement_files,
     discover_observation_days,
     is_measurement_processed,
+    is_slit_preview_generated,
 )
+
+ObservationDayPredicate = Callable[[ObservationDay], bool]
 
 
 def scan_dataset(root: Path) -> ScanResult:
@@ -85,6 +90,111 @@ def build_scan_report_markdown(root: Path, scan_result: ScanResult) -> str:
                 "## Pending Measurements",
                 "",
                 "No pending measurements found.",
+            ]
+        )
+        return "\n".join(lines)
+
+    lines.extend(
+        [
+            "## Pending Measurements",
+            "",
+            "| Observation Day | Pending Count | Files |",
+            "|---|---:|---|",
+        ]
+    )
+
+    for day_name in sorted(scan_result.pending_measurements):
+        files = sorted(p.name for p in scan_result.pending_measurements[day_name])
+        lines.append(
+            f"| `{day_name}` | {len(files)} | {', '.join(f'`{f}`' for f in files)} |"
+        )
+
+    return "\n".join(lines)
+
+
+def scan_slit_dataset(
+    root: Path,
+    predicate: ObservationDayPredicate | None = None,
+) -> ScanResult:
+    """Scan the dataset root and find measurements that need slit preview
+    generation.
+
+    For each observation day that satisfies the optional predicate, checks the
+    ``reduced/`` folder for measurement files and the ``processed/`` folder for
+    existing slit preview outputs.  Only measurements without a slit preview
+    (or a slit preview error file) are reported as pending.
+
+    Args:
+        root: The dataset root directory.
+        predicate: Optional filter returning ``True`` for observation days that
+            should be included in the scan (e.g. a JSOC age predicate).
+
+    Returns:
+        ScanResult with discovered days and pending slit-preview measurements.
+    """
+    days = discover_observation_days(root, predicate=predicate)
+    pending: dict[str, list[Path]] = {}
+    total = 0
+    total_pending = 0
+
+    for day in days:
+        measurements = discover_measurement_files(day.reduced_dir)
+        total += len(measurements)
+
+        unprocessed = [
+            m
+            for m in measurements
+            if not is_slit_preview_generated(day.processed_dir, m.name)
+        ]
+
+        if unprocessed:
+            pending[day.name] = unprocessed
+            total_pending += len(unprocessed)
+
+        logger.info(
+            "Scanned observation day for slit previews",
+            day=day.name,
+            measurements=len(measurements),
+            pending=len(unprocessed),
+        )
+
+    return ScanResult(
+        observation_days=days,
+        pending_measurements=pending,
+        total_measurements=total,
+        total_pending=total_pending,
+    )
+
+
+def build_slit_scan_report_markdown(root: Path, scan_result: ScanResult) -> str:
+    """Build a markdown summary of slit-image scan results for Prefect
+    artifacts.
+
+    Args:
+        root: Dataset root directory used for the scan.
+        scan_result: Result produced by :func:`scan_slit_dataset`.
+
+    Returns:
+        Markdown-formatted report string.
+    """
+    total_generated = scan_result.total_measurements - scan_result.total_pending
+    lines = [
+        "# Slit Image Generation Scan Summary",
+        "",
+        f"- Root: `{root}`",
+        f"- Observation days discovered: `{len(scan_result.observation_days)}`",
+        f"- Total measurements found: `{scan_result.total_measurements}`",
+        f"- Already generated: `{total_generated}`",
+        f"- Still to generate: `{scan_result.total_pending}`",
+        "",
+    ]
+
+    if scan_result.total_pending == 0:
+        lines.extend(
+            [
+                "## Pending Measurements",
+                "",
+                "No pending slit preview measurements found.",
             ]
         )
         return "\n".join(lines)
