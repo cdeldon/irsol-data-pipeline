@@ -205,7 +205,7 @@ def _extract_metadata(
     )
     reduction = ReductionInfo(
         software=_as_str(_phdr(FITS_KEY_REDSOFT)),
-        status=_phdr(FITS_KEY_REDSTAT),
+        status=_as_str(_phdr(FITS_KEY_REDSTAT)),
         file=_as_str(_phdr(FITS_KEY_REDFILE)),
         number_of_files=_as_int(_phdr(FITS_KEY_REDNFIL)),
         file_dc_used=_as_str(_phdr(FITS_KEY_REDDCFL)),
@@ -220,7 +220,7 @@ def _extract_metadata(
     calibration_info = CalibrationInfo(
         software=_as_str(_phdr(FITS_KEY_ZCSOFT)),
         file=_as_str(_phdr(FITS_KEY_ZCFILE)),
-        status=_phdr(FITS_KEY_ZCSTAT),
+        status=_as_str(_phdr(FITS_KEY_ZCSTAT)),
         description=_as_str(_phdr(FITS_KEY_ZCDESC)),
     )
 
@@ -228,8 +228,8 @@ def _extract_metadata(
         "telescope_name": str(telescope_name),
         "instrument": str(instrument),
         "type": str(measurement_type),
-        "id": int(measurement_id),
-        "wavelength": int(wavelength),
+        "id": _as_int(measurement_id),
+        "wavelength": _as_int(wavelength),
         "name": str(name),
         "datetime_start": str(date_beg),
         "datetime_end": date_end,
@@ -281,33 +281,12 @@ def _extract_solar_orientation(
     Returns ``None`` if the required keys are absent (e.g. older files written
     before extended metadata support was added).
     """
+    # Read slit angle and sun_p0 directly from the FITS headers.
     slit_angle = _as_float(
         _from_primary_or_data(primary_header, data_header, FITS_KEY_SLTANGL)
     )
-    if slit_angle is None:
-        return None
-
-    # Re-compute sun_p0_deg from the observation time so the value is
-    # consistent with what compute_solar_orientation() would return, rather than
-    # the (potentially user-provided) SOLAR_P0 header value.
-    sun_p0: Optional[float] = None
-    date_beg = _as_str(data_header.get("DATE-BEG"))
-    if date_beg is not None:
-        try:
-            from astropy.time import Time
-            from sunpy.coordinates.sun import P
-
-            sun_p0 = float(P(Time(date_beg)).value)
-        except Exception:
-            pass
-
-    if sun_p0 is None:
-        # Fall back to the stored value when the time is unavailable.
-        sun_p0 = _as_float(
-            _from_primary_or_data(primary_header, data_header, "SOLAR_P0")
-        )
-
-    if sun_p0 is None:
+    sun_p0 = _as_float(_from_primary_or_data(primary_header, data_header, "SOLAR_P0"))
+    if slit_angle is None or sun_p0 is None:
         return None
 
     # needs_rotation is recoverable from the derotator coordinate system.
@@ -315,7 +294,6 @@ def _extract_solar_orientation(
         primary_header, data_header, FITS_KEY_DRCSYS
     )
     coord_system = _as_int(coord_system_raw)
-
     try:
         from irsol_data_pipeline.core.slit_images.config import (
             DEROTATOR_COORDINATE_SYSTEMS,

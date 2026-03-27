@@ -28,7 +28,6 @@ from irsol_data_pipeline.core.models import (
     SolarOrientationInfo,
     StokesParameters,
 )
-from irsol_data_pipeline.core.slit_images.config import DEROTATOR_COORDINATE_SYSTEMS
 from irsol_data_pipeline.io.fits.constants import (
     FITS_KEY_CAMPOS,
     FITS_KEY_DRANGL,
@@ -91,8 +90,8 @@ def write_stokes_fits(
     output_path: Path,
     stokes: StokesParameters,
     info: MeasurementMetadata,
-    calibration: Optional[CalibrationResult] = None,
-    solar_orientation: Optional[SolarOrientationInfo] = None,
+    calibration: Optional[CalibrationResult],
+    solar_orientation: Optional[SolarOrientationInfo],
 ) -> Path:
     """Write processed Stokes data to a FITS file.
 
@@ -101,11 +100,10 @@ def write_stokes_fits(
         stokes: Stokes data to serialize.
         info: Measurement metadata used to derive FITS headers.
         calibration: Optional precomputed wavelength calibration.
-        solar_orientation: Optional pre-computed solar orientation.  When
-            provided, :attr:`~irsol_data_pipeline.core.models.SolarOrientationInfo.slit_angle_solar_deg`
+        solar_orientation: Optional pre-computed solar orientation.
+            :attr:`~irsol_data_pipeline.core.models.SolarOrientationInfo.slit_angle_solar_deg`
             is stored in the primary HDU header so it can be recovered on
-            re-import without re-computing P0.  When *not* provided the angle
-            is computed automatically from *info* and stored anyway.
+            re-import without re-computing P0.
 
     Returns:
         The path written to.
@@ -134,8 +132,8 @@ def write_stokes_fits(
 def _build_fits_hdu_list(
     stokes: StokesParameters,
     info: MeasurementMetadata,
-    calibration: Optional[CalibrationResult] = None,
-    solar_orientation: Optional[SolarOrientationInfo] = None,
+    calibration: Optional[CalibrationResult],
+    solar_orientation: Optional[SolarOrientationInfo],
 ) -> fits.HDUList:
     """Build a FITS HDU list from Stokes data and raw info metadata.
 
@@ -169,7 +167,7 @@ def _build_hdu_list(
     a0: Optional[float],
     a1_err: Optional[float],
     a0_err: Optional[float],
-    solar_orientation: Optional[SolarOrientationInfo] = None,
+    solar_orientation: Optional[SolarOrientationInfo],
 ) -> fits.HDUList:
     """Build a complete multi-extension FITS HDU list."""
 
@@ -261,7 +259,7 @@ def _build_hdu_list(
 def _fill_primary_header(
     header: fits.Header,
     metadata: MeasurementMetadata,
-    solar_orientation: Optional[SolarOrientationInfo] = None,
+    solar_orientation: Optional[SolarOrientationInfo],
 ) -> None:
     """Fill the primary HDU header."""
     header["EXTNAME"] = ("PRIMARY", "Name of HDU")
@@ -297,7 +295,7 @@ def _fill_primary_header(
 def _fill_extended_metadata_primary_header(
     header: fits.Header,
     metadata: MeasurementMetadata,
-    solar_orientation: Optional[SolarOrientationInfo] = None,
+    solar_orientation: Optional[SolarOrientationInfo],
 ) -> None:
     """Write extended measurement metadata to the primary HDU header.
 
@@ -412,7 +410,7 @@ def _fill_extended_metadata_primary_header(
     header[FITS_KEY_GLBMEAN] = (metadata.global_mean, "Global mean values")
 
     # Solar orientation — compute if not explicitly supplied
-    slit_angle = _resolve_slit_angle(metadata, solar_orientation)
+    slit_angle = _resolve_slit_angle(solar_orientation)
     header[FITS_KEY_SLTANGL] = (
         slit_angle,
         "[deg] Slit angle in solar reference frame",
@@ -420,32 +418,12 @@ def _fill_extended_metadata_primary_header(
 
 
 def _resolve_slit_angle(
-    metadata: MeasurementMetadata,
     solar_orientation: Optional[SolarOrientationInfo],
 ) -> Optional[float]:
-    """Return slit_angle_solar_deg from *solar_orientation* or compute it."""
+    """Return slit_angle_solar_deg from *solar_orientation* or None."""
     if solar_orientation is not None:
         return solar_orientation.slit_angle_solar_deg
-
-    try:
-        obs_time = Time(metadata.datetime_start)
-        sun_p0_deg: float = float(sun.P(obs_time).value)
-        sun_p0_rad: float = -sun_p0_deg * (np.pi / 180.0)
-        derotator_angle_deg: float = float(metadata.derotator.position_angle or 0.0)
-        derotator_angle_rad: float = derotator_angle_deg * (np.pi / 180.0)
-        coord_system = metadata.derotator.coordinate_system
-        needs_rotation: bool = (
-            DEROTATOR_COORDINATE_SYSTEMS.get(coord_system, False)
-            if coord_system is not None
-            else False
-        )
-        angle_rad = (
-            derotator_angle_rad - sun_p0_rad if needs_rotation else derotator_angle_rad
-        )
-        return float(np.degrees(angle_rad))
-    except Exception:
-        logger.warning("Could not compute slit_angle_solar_deg for FITS header")
-        return None
+    return None
 
 
 def _fill_data_header(

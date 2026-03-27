@@ -98,7 +98,7 @@ FITS_KEY_GLBNOISE = "GLBNOISE"  # global_noise
 FITS_KEY_GLBMEAN = "GLBMEAN"  # global_mean
 
 # ---------------------------------------------------------------------------
-# Solar orientation (computed value)
+# Solar orientation
 # ---------------------------------------------------------------------------
 
 FITS_KEY_SLTANGL = "SLTANGL"  # SolarOrientationInfo.slit_angle_solar_deg
