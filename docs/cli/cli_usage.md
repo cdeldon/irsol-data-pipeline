@@ -20,6 +20,10 @@ flowchart TD
     PROFILE["profile"]
     SLIT["slit"]
 
+    AUTOMATIONS["automations"]
+    LIST_A["list"]
+    CONFIGURE_A["configure"]
+
     FLOWS["flows"]
     STATUS["status"]
     VARS["variables"]
@@ -41,11 +45,14 @@ flowchart TD
     PLOT --> PROFILE
     PLOT --> SLIT
 
+    PREFECT --> AUTOMATIONS
     PREFECT --> FLOWS
     PREFECT --> STATUS
     PREFECT --> VARS
     PREFECT --> SECRETS
 
+    AUTOMATIONS --> LIST_A
+    AUTOMATIONS --> CONFIGURE_A
     FLOWS --> LIST_F
     FLOWS --> SERVE
     VARS --> LIST_V
@@ -64,13 +71,16 @@ flowchart TD
 
 ## Automations
 
-The IRSOL Data Pipeline includes built-in Prefect Automations to monitor and manage flow runs. Automations are registered and updated automatically when you run:
+The IRSOL Data Pipeline includes built-in Prefect Automations to monitor and manage flow runs.
+Automations are registered on the Prefect server using a dedicated command that requires the server to be running:
 
 ```bash
-idp configure
+idp prefect automations configure
 ```
 
-This ensures the Prefect server is always running the latest automation rules. See [Automations](./automations.md) for details on available automations and customization.
+This separates the server profile setup (which does not require a running server) from automation
+registration (which does). See [Automations](./automations.md) for details on available automations
+and customization.
 
 ## Commands
 
@@ -115,6 +125,9 @@ The command writes:
 - `PREFECT_API_DATABASE_CONNECTION_URL`
 - `PREFECT_API_URL`
 - `PREFECT_SERVER_ANALYTICS_ENABLED=false`
+
+This command does **not** require a running Prefect server.
+Once the server is up, run `idp prefect automations configure` to register the built-in automations.
 
 
 ### `idp info`
@@ -192,6 +205,30 @@ idp plot slit /path/to/6302_m1.dat user@example.com --cache-dir /tmp/sdo_cache
 ### `idp prefect`
 
 Manage Prefect workflow orchestration.
+
+#### `idp prefect automations list`
+
+Display the built-in automation definitions and whether they are currently registered on the server.
+
+```bash
+idp prefect automations list
+idp prefect automations list --format json
+```
+
+#### `idp prefect automations configure`
+
+Register or update the built-in automations on the running Prefect server.  Run this after the
+server is started for the first time or after the automation definitions change.
+
+```bash
+idp prefect automations configure
+```
+
+**Exit codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | All automations configured successfully |
+| 3 | One or more automations failed to register or update |
 
 #### `idp prefect flows list`
 
