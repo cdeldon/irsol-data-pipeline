@@ -10,7 +10,12 @@ import numpy as np
 from astropy.io import fits
 from loguru import logger
 
-from irsol_data_pipeline.core.models import CalibrationResult, StokesParameters
+from irsol_data_pipeline.core.models import (
+    CalibrationResult,
+    CameraInfo,
+    MeasurementMetadata,
+    StokesParameters,
+)
 from irsol_data_pipeline.exceptions import FitsImportError
 
 
@@ -21,10 +26,12 @@ class ImportedFitsMeasurement:
     stokes: StokesParameters
     calibration: Optional[CalibrationResult]
     header: fits.Header
+    metadata: Optional[MeasurementMetadata]
 
 
 def load_fits_measurement(fits_path: Path) -> ImportedFitsMeasurement:
-    """Load Stokes profiles and optional wavelength calibration from FITS."""
+    """Load Stokes profiles, optional wavelength calibration, and measurement
+    metadata from FITS."""
     with logger.contextualize(path=fits_path):
         logger.debug("Loading FITS measurement")
         with fits.open(fits_path) as hdul:
@@ -34,6 +41,7 @@ def load_fits_measurement(fits_path: Path) -> ImportedFitsMeasurement:
             sv_hdu = _get_hdu(hdul, "Stokes V/I", 4)
 
             header = si_hdu.header.copy()
+            primary_header = hdul[0].header.copy()
             stokes = StokesParameters(
                 i=_to_spatial_spectral(si_hdu.data),
                 q=_to_spatial_spectral(sq_hdu.data),
@@ -41,10 +49,12 @@ def load_fits_measurement(fits_path: Path) -> ImportedFitsMeasurement:
                 v=_to_spatial_spectral(sv_hdu.data),
             )
             calibration = _extract_calibration(header)
+            metadata = _extract_metadata(header, primary_header)
 
         logger.debug(
             "Loaded FITS measurement",
             has_calibration=calibration is not None,
+            has_metadata=metadata is not None,
             shape_i=stokes.i.shape,
             shape_q=stokes.q.shape,
             shape_u=stokes.u.shape,
@@ -55,7 +65,83 @@ def load_fits_measurement(fits_path: Path) -> ImportedFitsMeasurement:
         stokes=stokes,
         calibration=calibration,
         header=header,
+        metadata=metadata,
     )
+
+
+def _extract_metadata(
+    header: fits.Header,
+    primary_header: Optional[fits.Header] = None,
+) -> Optional[MeasurementMetadata]:
+    """Build a MeasurementMetadata from FITS header fields written by
+    write_stokes_fits.
+
+    ``header`` is the Stokes I data extension header, which contains most
+    observation fields.  ``primary_header`` is the primary HDU header, which
+    holds ``CAMTEMP`` and ``SOLAR_P0``; when provided those values are
+    preferred over any copies in ``header``.
+
+    Only the subset of fields that are stored in the FITS header is populated.
+    Returns ``None`` when any required field is absent.
+    """
+    telescope_name = header.get("TELESCOP")
+    instrument = header.get("INSTRUME")
+    measurement_type = header.get("DATATYPE")
+    measurement_id = header.get("POINT_ID")
+    wavelength = header.get("WAVELNTH")
+    name = header.get("MEASNAME")
+    date_beg = header.get("DATE-BEG")
+
+    required = {
+        "TELESCOP": telescope_name,
+        "INSTRUME": instrument,
+        "DATATYPE": measurement_type,
+        "POINT_ID": measurement_id,
+        "WAVELNTH": wavelength,
+        "MEASNAME": name,
+        "DATE-BEG": date_beg,
+    }
+    missing = [k for k, v in required.items() if v is None]
+    if missing:
+        logger.debug(
+            "FITS header missing required fields for MeasurementMetadata",
+            missing_fields=missing,
+        )
+        return None
+
+    date_end_raw = header.get("DATE-END")
+    date_end = _as_str(date_end_raw)
+
+    # CAMTEMP and SOLAR_P0 are written to the primary HDU header; fall back to
+    # the data header for files that may have copied them there.
+    camera_temp = _as_float(_from_primary_or_data(primary_header, header, "CAMTEMP"))
+    solar_p0_val = _as_float(_from_primary_or_data(primary_header, header, "SOLAR_P0"))
+
+    data: dict[str, object] = {
+        "telescope_name": str(telescope_name),
+        "instrument": str(instrument),
+        "type": str(measurement_type),
+        "id": int(measurement_id),
+        "wavelength": int(wavelength),
+        "name": str(name),
+        "datetime_start": str(date_beg),
+        "datetime_end": date_end,
+        "observer": _as_str(header.get("OBSERVER")) or "",
+        "project": _as_str(header.get("PROJECT")) or "",
+        "integration_time": _as_float(header.get("TEXPOSUR")),
+        "solar_p0": solar_p0_val,
+        "camera": CameraInfo(
+            identity=_as_str(header.get("CAMERA")),
+            ccd=_as_str(header.get("CCD")),
+            temperature=camera_temp,
+        ),
+    }
+
+    try:
+        return MeasurementMetadata.model_validate(data)
+    except Exception:
+        logger.exception("Failed to build MeasurementMetadata from FITS header")
+        return None
 
 
 def _extract_calibration(header: fits.Header) -> Optional[CalibrationResult]:
@@ -125,3 +211,36 @@ def _as_float(value: object) -> Optional[float]:
         except ValueError:
             return None
     return None
+
+
+def _as_str(value: object) -> Optional[str]:
+    """Convert a FITS header value to a non-empty stripped string, or None.
+
+    Returns ``None`` when ``value`` is ``None`` or reduces to an empty string
+    after stripping whitespace.  Accepts any FITS header value type (str,
+    int, float, or None).
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    return s if s else None
+
+
+def _from_primary_or_data(
+    primary: Optional[fits.Header],
+    data: fits.Header,
+    key: str,
+) -> object:
+    """Look up a header key preferring the primary HDU, falling back to a data
+    HDU.
+
+    Some fields (e.g. ``CAMTEMP``, ``SOLAR_P0``) are written exclusively to
+    the primary HDU by :func:`write_stokes_fits`.  This helper transparently
+    falls back to the data extension header so that callers need not repeat
+    the fallback logic for every such field.
+    """
+    if primary is not None:
+        value = primary.get(key)
+        if value is not None:
+            return value
+    return data.get(key)
