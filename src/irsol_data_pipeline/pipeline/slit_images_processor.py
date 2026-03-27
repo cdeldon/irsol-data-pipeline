@@ -33,8 +33,6 @@ from irsol_data_pipeline.prefect.decorators import task
 
 @task(
     task_run_name="slit-images/generate-measurement/{measurement_path.name}",
-    retries=2,
-    retry_delay_seconds=30,
 )
 def generate_slit_image(
     measurement_path: Path,

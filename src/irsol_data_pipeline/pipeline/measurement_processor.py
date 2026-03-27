@@ -34,7 +34,6 @@ from irsol_data_pipeline.pipeline.filesystem import (
 from irsol_data_pipeline.pipeline.flatfield_cache import FlatFieldCache
 from irsol_data_pipeline.plotting import plot_profile
 from irsol_data_pipeline.prefect.decorators import task
-from irsol_data_pipeline.prefect.retry import retry_condition_except_on_exceptions
 from irsol_data_pipeline.prefect.utils import create_prefect_json_report
 
 
@@ -88,11 +87,6 @@ def _plot_data(
 
 @task(
     task_run_name="ff-correction/process-measurement/{meas_path.name}",
-    retries=2,
-    retry_delay_seconds=10,
-    retry_condition_fn=retry_condition_except_on_exceptions(
-        FlatFieldAssociationNotFoundException,
-    ),
 )
 def _process_single_measurement(
     meas_path: Path,
