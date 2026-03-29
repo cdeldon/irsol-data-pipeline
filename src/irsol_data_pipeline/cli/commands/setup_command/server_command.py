@@ -1,4 +1,4 @@
-"""Prefect profile configuration CLI command."""
+"""Prefect server profile configuration CLI command."""
 
 from __future__ import annotations
 
@@ -105,8 +105,12 @@ def _prompt_api_port() -> int:
         print("  x Port must be in range 1-65535.")
 
 
-def configure_prefect() -> int:
-    """Create or update the IRSOL data pipeline and prefect server.
+def setup_server() -> int:
+    """Create or update the IRSOL data pipeline Prefect server profile.
+
+    Intended for the user who owns and runs the Prefect server process.
+    Configures the database location and API settings in the ``default``
+    Prefect profile.  This command does not require a running Prefect server.
 
     Returns:
         Exit code for the command.

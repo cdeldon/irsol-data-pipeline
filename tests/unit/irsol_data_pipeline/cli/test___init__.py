@@ -62,6 +62,21 @@ class TestCliApp:
         assert isinstance(app["prefect"], App)
         assert "info" in set(app)
         assert isinstance(app["plot"], App)
+        assert isinstance(app["setup"], App)
+
+    def test_setup_subcommands_are_registered(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        app(
+            ["setup", "--help"],
+            exit_on_error=False,
+            print_error=False,
+            result_action="return_value",
+        )
+
+        output = capsys.readouterr().out
+        assert "user" in output
+        assert "server" in output
 
     def test_root_help_mentions_install_completion(
         self, capsys: pytest.CaptureFixture[str]
