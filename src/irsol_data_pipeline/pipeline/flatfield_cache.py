@@ -127,6 +127,7 @@ def build_flatfield_cache(
     flatfield_paths: list[Path],
     max_delta: datetime.timedelta = DEFAULT_MAX_DELTA,
     allow_cached_data: bool = True,
+    cache_dir: Optional[Path] = None,
 ) -> FlatFieldCache:
     """Build a FlatFieldCache by analyzing all flat-field files.
 
@@ -134,17 +135,35 @@ def build_flatfield_cache(
         flatfield_paths: List of flat-field .dat file paths.
         max_delta: Maximum time delta for matching.
         allow_cached_data: If True, allows using cached analysis results if available.
+        cache_dir: Optional directory override for storing correction cache pickle
+            files. When provided, cached files are placed directly under this
+            directory instead of the default day-structure-derived path. Useful
+            when processing individual measurements outside the standard dataset
+            hierarchy.
 
     Returns:
         Populated FlatFieldCache.
     """
     cache = FlatFieldCache(max_delta=max_delta)
 
+    def _resolve_cache_path(flatfield_path: Path) -> Path:
+        """Resolve the cache file path for a flat-field file.
+
+        Args:
+            flatfield_path: Path to the flat-field ``.dat`` source file.
+
+        Returns:
+            Destination path for the correction cache pickle file.
+        """
+        if cache_dir is not None:
+            return cache_dir / f"{flatfield_path.stem}_correction_cache.pkl"
+        return flatfield_correction_cache_path(flatfield_path)
+
     # identify if the flatfields have already been computed and cached, and if so, load them instead of recomputing
     remaining_flatfields = []
     for flatfield_path in flatfield_paths:
         with logger.contextualize(file=flatfield_path.name):
-            cache_path = flatfield_correction_cache_path(flatfield_path)
+            cache_path = _resolve_cache_path(flatfield_path)
             if allow_cached_data and cache_path.is_file():
                 try:
                     correction = flatfield_io.read(cache_path)
@@ -175,7 +194,9 @@ def build_flatfield_cache(
         with logger.contextualize(file=ff_path.name):
             try:
                 correction = _analyze_flatfield(ff_path)
-                flatfield_io.write(flatfield_correction_cache_path(ff_path), correction)
+                dest = _resolve_cache_path(ff_path)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                flatfield_io.write(dest, correction)
             except Exception:
                 logger.exception("Failed to analyze flat-field")
             else:

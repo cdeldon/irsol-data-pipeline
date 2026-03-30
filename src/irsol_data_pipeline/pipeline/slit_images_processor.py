@@ -132,16 +132,20 @@ def generate_slit_images_for_day(
     day: ObservationDay,
     jsoc_email: str,
     use_limbguider: bool = False,
+    force: bool = False,
 ) -> DayProcessingResult:
     """Generate slit preview images for all measurements in an observation day.
 
     Skips measurements that already have a slit preview or slit preview error
-    file.
+    file, unless ``force=True``.
 
     Args:
         day: Observation day to process.
         jsoc_email: JSOC email for DRMS queries.
         use_limbguider: Whether to try using limbguider coordinates.
+        force: When True, skip the "already generated" check and regenerate
+            slit previews for every measurement even if an output or error
+            artifact already exists.
 
     Returns:
         DayProcessingResult summary.
@@ -163,7 +167,7 @@ def generate_slit_images_for_day(
         errors: list[str] = []
 
         for measurement_path in measurement_files:
-            if is_measurement_slit_preview_generated(
+            if not force and is_measurement_slit_preview_generated(
                 day.processed_dir, measurement_path.name
             ):
                 logger.debug(
