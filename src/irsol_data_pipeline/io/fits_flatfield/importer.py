@@ -27,11 +27,12 @@ from irsol_data_pipeline.core.models import FlatFieldCorrection
 from irsol_data_pipeline.exceptions import FlatfieldCorrectionImportError
 
 
-def load_correction_data(path: Path) -> FlatFieldCorrection:
+def load_correction_data(path: Path | str) -> FlatFieldCorrection:
     """Load a flat-field correction from a FITS file.
 
     Args:
         path: Path to the main FITS file produced by ``write_correction_data``.
+            A string path is also accepted and resolved to an absolute path.
 
     Returns:
         Deserialized FlatFieldCorrection.
@@ -47,7 +48,9 @@ def load_correction_data(path: Path) -> FlatFieldCorrection:
                 primary_hdr = hdul[0].header
                 source_flatfield_path = Path(str(primary_hdr["SRCFFPTH"]))
                 wavelength = int(primary_hdr["WAVELEN"])
-                timestamp = datetime.datetime.fromisoformat(str(primary_hdr["TIMESTMP"]))
+                timestamp = datetime.datetime.fromisoformat(
+                    str(primary_hdr["TIMESTMP"])
+                )
                 dust_flat = np.array(hdul["DUSTFLAT"].data, dtype=np.float64)
                 desmiled = np.array(hdul["DESMILED"].data, dtype=np.float64)
                 offset_map_filename: str | None = primary_hdr.get("OMAPFILE")

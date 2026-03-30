@@ -36,7 +36,8 @@ def write_correction_data(
     ``<stem>_offset_map.fits`` is written in the same directory.
 
     Args:
-        output_path: Destination path for the main FITS file.
+        output_path: Destination path for the main FITS file.  Parent
+            directories are created automatically if they do not exist.
         data: FlatFieldCorrection to persist.
 
     Returns:
