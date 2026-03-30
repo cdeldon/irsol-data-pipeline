@@ -63,6 +63,8 @@ class TestCliApp:
         assert "info" in set(app)
         assert isinstance(app["plot"], App)
         assert isinstance(app["setup"], App)
+        assert isinstance(app["flat-field"], App)
+        assert isinstance(app["slit-image"], App)
 
     def test_setup_subcommands_are_registered(
         self, capsys: pytest.CaptureFixture[str]

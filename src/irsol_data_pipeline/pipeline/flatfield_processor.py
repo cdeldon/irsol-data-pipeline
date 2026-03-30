@@ -34,8 +34,9 @@ from irsol_data_pipeline.prefect.utils import (
 def process_observation_day(
     day: ObservationDay,
     max_delta_policy: Optional[MaxDeltaPolicy] = None,
+    force: bool = False,
 ) -> DayProcessingResult:
-    """Process all unprocessed measurements for a single observation day.
+    """Process all measurements for a single observation day.
 
     Pipeline steps per measurement:
     1. Load measurement
@@ -47,9 +48,18 @@ def process_observation_day(
     If any step fails for a measurement, an error file is written and
     processing continues with the next measurement.
 
+    By default, measurements that have already been processed (i.e. a
+    ``*_corrected.fits`` or ``*_error.json`` artifact exists in
+    ``day.processed_dir``) are skipped.  Pass ``force=True`` to bypass
+    this check and reprocess all measurements regardless of existing
+    artifacts.
+
     Args:
         day: ObservationDay to process.
         max_delta_policy: Policy for flat-field time matching thresholds.
+        force: When True, skip the "already processed" check and reprocess
+            every measurement even if an output or error artifact already
+            exists.
 
     Returns:
         DayProcessingResult summary.
@@ -91,7 +101,7 @@ def process_observation_day(
         for meas_i, meas_path in enumerate(sorted(measurement_paths)):
             with logger.contextualize(file=meas_path.name):
                 update_progress(meas_i)
-                if is_measurement_flat_field_processed(
+                if not force and is_measurement_flat_field_processed(
                     day.processed_dir, meas_path.name
                 ):
                     logger.debug("Skipping already processed", file=meas_path.name)

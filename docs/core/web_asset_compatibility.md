@@ -81,7 +81,7 @@ Scans the `processed/` folder for PNG outputs and builds asset source mappings:
 
 **Function:** `convert_png_to_jpeg(source: Path, target: Path, quality: int = 85) -> None`
 
-Validates quality level (1–95) and converts PNG to JPEG using Pillow:
+Validates quality level (1-95) and converts PNG to JPEG using Pillow:
 
 ```python
 result = Image.open(source).convert("RGB")

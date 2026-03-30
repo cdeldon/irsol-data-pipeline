@@ -17,9 +17,16 @@ flowchart TD
     SETUP_SERVER["server"]
     PLOT["plot"]
     PREFECT["prefect"]
+    FF["flat-field"]
+    SI["slit-image"]
 
     PROFILE["profile"]
     SLIT["slit"]
+
+    FF_APPLY["apply"]
+    FF_APPLY_DAY["apply-day"]
+    SI_GENERATE["generate"]
+    SI_GENERATE_DAY["generate-day"]
 
     AUTOMATIONS["automations"]
     LIST_A["list"]
@@ -40,6 +47,8 @@ flowchart TD
     IDP --> INFO
     IDP --> SETUP
     IDP --> PLOT
+    IDP --> FF
+    IDP --> SI
     IDP --> PREFECT
 
     SETUP --> SETUP_USER
@@ -47,6 +56,12 @@ flowchart TD
 
     PLOT --> PROFILE
     PLOT --> SLIT
+
+    FF --> FF_APPLY
+    FF --> FF_APPLY_DAY
+
+    SI --> SI_GENERATE
+    SI --> SI_GENERATE_DAY
 
     PREFECT --> STATUS
     PREFECT --> FLOWS
@@ -154,6 +169,221 @@ idp info --format json
 ```
 
 The output now includes a "Prefect Secrets" section, listing all known Prefect secrets. Secret values are always masked as `[REDACTED]` if set, or `<unset>` if not configured. This helps operators verify which secrets are present without exposing sensitive values.
+
+
+### `idp flat-field`
+
+Apply flat-field corrections and wavelength auto-calibration to ZIMPOL measurements.
+These commands invoke the full processing pipeline directly — no Prefect server is required.
+
+#### `idp flat-field apply`
+
+Apply flat-field correction to a **single** `.dat` measurement file.
+
+The command discovers flat-field files from the same directory as the measurement, builds a
+`FlatFieldCache`, and runs the full correction + wavelength-calibration pipeline.
+
+**Output artifacts** written to `--output-dir`:
+
+| File | Description |
+|------|-------------|
+| `<stem>_corrected.fits` | Flat-field corrected Stokes FITS file |
+| `<stem>_flat_field_correction_data.pkl` | Serialised correction object |
+| `<stem>_metadata.json` | Processing metadata |
+| `<stem>_profile_corrected.png` | Stokes profile plot (corrected data) |
+| `<stem>_profile_original.png` | Stokes profile plot (original data) |
+
+If any of these files already exist in `--output-dir` the command prompts for confirmation
+before proceeding. Use `--force` to skip the prompt and overwrite.
+
+```bash
+# Basic usage — process a single measurement
+idp flat-field apply ./reduced/6302_m1.dat --output-dir ./processed/
+
+# With a persistent flat-field cache directory
+idp flat-field apply ./reduced/6302_m1.dat \
+  --output-dir ./processed/ \
+  --cache-dir ./ff-cache/
+
+# Force reprocessing even if output files already exist
+idp flat-field apply ./reduced/6302_m1.dat \
+  --output-dir ./processed/ \
+  --force
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `measurement_path` | Path to an existing `.dat` measurement file |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--output-dir PATH` | *(required)* Directory where processed artifacts are written |
+| `--cache-dir PATH` | Directory for flat-field correction cache `.pkl` files |
+| `--force` | Skip confirmation prompts and overwrite existing output files |
+
+**Exit codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | Measurement processed successfully |
+| 1 | Processing failed or user declined the overwrite prompt |
+
+#### `idp flat-field apply-day`
+
+Apply flat-field correction to **all** measurements in an observation day directory.
+
+The day must contain a `reduced/` sub-directory with `.dat` measurement and flat-field files.
+A flat-field cache is built once and reused across all measurements in the day.
+
+Measurements that already have a `*_corrected.fits` **or** `*_error.json` artifact in
+`--output-dir` are silently skipped. Use `--force` to reprocess them.
+
+When a measurement fails, a `*_error.json` artifact is written and processing continues
+with the remaining measurements. The command exits with code 1 if any measurement failed.
+
+```bash
+# Process an entire observation day (output defaults to <day>/processed/)
+idp flat-field apply-day ./data/240713
+
+# Explicit output directory
+idp flat-field apply-day ./data/240713 --output-dir ./out/240713
+
+# Force reprocessing of all measurements (including previously failed ones)
+idp flat-field apply-day ./data/240713 --force
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `day_path` | Path to the observation day directory (must contain `reduced/`) |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--output-dir PATH` | Target directory for artifacts; defaults to `<day>/processed/` |
+| `--force` | Skip confirmation prompts and reprocess already-processed measurements |
+
+**Exit codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | All measurements processed (or skipped) successfully |
+| 1 | One or more measurements failed, or user declined the confirmation prompt |
+
+
+### `idp slit-image`
+
+Generate six-panel slit context images from ZIMPOL measurements using SDO/AIA solar data
+fetched from the [JSOC DRMS](http://jsoc.stanford.edu/) service.
+These commands invoke the slit-image generation pipeline directly — no Prefect server is required.
+
+> **Note:** Fetching SDO/AIA data requires internet access and an email address
+> [registered with the JSOC service](http://jsoc.stanford.edu/ajax/register_email.html).
+
+#### `idp slit-image generate`
+
+Generate a slit context image for a **single** `.dat` measurement file.
+
+The command fetches SDO/AIA FITS maps matching the measurement's timestamp and renders a
+six-panel image showing the IRSOL spectrograph slit overlaid on full-disk and zoomed solar
+views.
+
+**Output artifacts** written to `--output-dir`:
+
+| File | Description |
+|------|-------------|
+| `<stem>_slit_preview.png` | Six-panel slit context image (on success) |
+| `<stem>_slit_preview_error.json` | Error details (on failure) |
+
+If either artifact already exists in `--output-dir` the command skips generation and prints
+a warning. Use `--force` to regenerate.
+
+```bash
+# Basic usage
+idp slit-image generate ./reduced/6302_m1.dat \
+  --jsoc-email me@example.com \
+  --output-dir ./processed/
+
+# With a persistent SDO data cache to avoid redundant downloads
+idp slit-image generate ./reduced/6302_m1.dat \
+  --jsoc-email me@example.com \
+  --output-dir ./processed/ \
+  --cache-dir ./sdo-cache/
+
+# Force regeneration even if a preview already exists
+idp slit-image generate ./reduced/6302_m1.dat \
+  --jsoc-email me@example.com \
+  --output-dir ./processed/ \
+  --force
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `measurement_path` | Path to an existing `.dat` measurement file |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--jsoc-email EMAIL` | *(required)* Email registered with the JSOC DRMS service |
+| `--output-dir PATH` | *(required)* Directory where the slit preview PNG is written |
+| `--cache-dir PATH` | Directory for caching downloaded SDO/AIA FITS files |
+| `--force` | Skip the "already generated" check and regenerate the preview |
+
+**Exit codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | Slit image generated successfully (or skipped — artifact already existed) |
+| 1 | Generation failed |
+
+#### `idp slit-image generate-day`
+
+Generate slit context images for **all** measurements in an observation day directory.
+
+The day must contain a `reduced/` sub-directory with `.dat` measurement files. Downloaded
+SDO/AIA data is cached under `<day>/processed/_cache/sdo/` (or `--output-dir/_cache/sdo/`
+when `--output-dir` is provided) to avoid redundant JSOC requests.
+
+Measurements that already have a `*_slit_preview.png` **or** `*_slit_preview_error.json`
+artifact are silently skipped. Use `--force` to regenerate them.
+
+When a measurement fails, a `*_slit_preview_error.json` artifact is written and processing
+continues with the remaining measurements. The command exits with code 1 if any measurement
+failed.
+
+```bash
+# Generate slit images for an entire observation day
+idp slit-image generate-day ./data/240713 \
+  --jsoc-email me@example.com
+
+# Explicit output directory
+idp slit-image generate-day ./data/240713 \
+  --jsoc-email me@example.com \
+  --output-dir ./out/240713
+
+# Force regeneration of all measurements
+idp slit-image generate-day ./data/240713 \
+  --jsoc-email me@example.com \
+  --force
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `day_path` | Path to the observation day directory (must contain `reduced/`) |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--jsoc-email EMAIL` | *(required)* Email registered with the JSOC DRMS service |
+| `--output-dir PATH` | Target directory for previews; defaults to `<day>/processed/` |
+| `--force` | Skip confirmation prompts and regenerate already-generated previews |
+
+**Exit codes:**
+| Code | Meaning |
+|------|---------|
+| 0 | All measurements processed (or skipped) successfully |
+| 1 | One or more measurements failed, or user declined the confirmation prompt |
 
 
 ### `idp plot`
@@ -335,6 +565,8 @@ flowchart LR
     subgraph "Direct Operations"
         INFO_CMD["info → version, config"]
         PLOT_CMD["plot → load data, render"]
+        FF_CMD["flat-field → correction pipeline"]
+        SI_CMD["slit-image → slit preview pipeline"]
     end
 
     subgraph "Prefect Operations"
@@ -351,6 +583,8 @@ flowchart LR
 
     CLI --> INFO_CMD
     CLI --> PLOT_CMD
+    CLI --> FF_CMD
+    CLI --> SI_CMD
     CLI --> SERVE_CMD
     CLI --> STATUS_CMD
     CLI --> VARS_CMD
@@ -361,13 +595,21 @@ flowchart LR
 
     PLOT_CMD --> IO_MOD
     PLOT_CMD --> CORE
+    FF_CMD --> PIPELINE
+    FF_CMD --> CORE
+    SI_CMD --> PIPELINE
+    SI_CMD --> CORE
     SERVE_CMD --> PIPELINE
 ```
 
-The CLI does not directly run the processing pipeline. Instead:
+The CLI provides two modes of interaction with the processing pipeline:
 
 - **`idp plot`** uses the IO and core modules directly to load data and render plots.
-- **`idp prefect flows serve`** starts Prefect flow runners that invoke the pipeline layer.
+- **`idp flat-field`** and **`idp slit-image`** call pipeline processors directly
+  (no Prefect server required). They are equivalent to running the Prefect flows locally,
+  making them ideal for single-measurement ad-hoc processing or debugging.
+- **`idp prefect flows serve`** starts Prefect flow runners that invoke the pipeline layer
+  for scheduled and automated batch processing.
 - **`idp info`** and **`idp prefect status/variables`** query runtime and configuration state.
 
 ## Related Documentation

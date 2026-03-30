@@ -14,8 +14,15 @@ from irsol_data_pipeline.version import __version__
 app = App(
     name="idp",
     help=(
-        "IRSOL Data Pipeline Operational CLI for Prefect server operations and inspecting runtime "
-        "information."
+        "IRSOL Data Pipeline CLI — process ZIMPOL spectropolarimetric solar "
+        "observations.\n\n"
+        "Commands:\n"
+        "  info          Show runtime and operational information.\n"
+        "  flat-field    Apply flat-field corrections to measurements.\n"
+        "  slit-image    Generate slit context images from measurements.\n"
+        "  plot          Render Stokes profile and slit context plots.\n"
+        "  prefect       Run Prefect server commands.\n"
+        "  setup         Configure local or server Prefect profiles."
     ),
     version=__version__,
 )
@@ -25,6 +32,16 @@ app.command(
     "irsol_data_pipeline.cli.commands.info_command:info",
     name="info",
     help="Show runtime and operational information.",
+)
+app.command(
+    "irsol_data_pipeline.cli.commands.flat_field_command:flat_field_app",
+    name="flat-field",
+    help="Apply flat-field corrections to measurements.",
+)
+app.command(
+    "irsol_data_pipeline.cli.commands.slit_image_command:slit_image_app",
+    name="slit-image",
+    help="Generate slit context images from measurements.",
 )
 app.command(
     "irsol_data_pipeline.cli.commands.prefect_command:prefect_app",
