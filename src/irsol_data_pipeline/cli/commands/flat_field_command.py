@@ -9,11 +9,11 @@ Provides two sub-commands under ``idp flat-field``:
     correction + wavelength-calibration pipeline.  Artifacts written to
     ``--output-dir``:
 
-    * ``<stem>_corrected.fits``     – flat-field corrected Stokes FITS file
-    * ``<stem>_flat_field_correction_data.pkl`` – serialised correction object
-    * ``<stem>_metadata.json``      – processing metadata
-    * ``<stem>_profile_corrected.png`` – Stokes profile plot (corrected)
-    * ``<stem>_profile_original.png``  – Stokes profile plot (original)
+    * ``<stem>_corrected.fits``     - flat-field corrected Stokes FITS file
+    * ``<stem>_flat_field_correction_data.pkl`` - serialised correction object
+    * ``<stem>_metadata.json``      - processing metadata
+    * ``<stem>_profile_corrected.png`` - Stokes profile plot (corrected)
+    * ``<stem>_profile_original.png``  - Stokes profile plot (original)
 
     If any of these files already exist in ``--output-dir`` the command
     prompts for confirmation before proceeding (bypassed by ``--force``).
@@ -196,11 +196,9 @@ def apply(
             checks.
     """
     console = get_console()
-    resolved_measurement = measurement_path.expanduser().resolve()
-    resolved_output_dir = output_dir.expanduser().resolve()
-    resolved_cache_dir = (
-        cache_dir.expanduser().resolve() if cache_dir is not None else None
-    )
+    resolved_measurement = measurement_path.resolve()
+    resolved_output_dir = output_dir.resolve()
+    resolved_cache_dir = cache_dir.resolve() if cache_dir is not None else None
 
     # Check for existing output files and prompt unless --force
     if not force:
@@ -324,7 +322,7 @@ def apply_day(
             measurement regardless of existing artifacts.
     """
     console = get_console()
-    resolved_day_path = day_path.expanduser().resolve()
+    resolved_day_path = day_path.resolve()
 
     # Validate that the reduced directory exists
     reduced_dir = resolved_day_path / REDUCED_DIRNAME
@@ -336,7 +334,7 @@ def apply_day(
         sys.exit(1)
 
     resolved_output_dir = (
-        output_dir.expanduser().resolve()
+        output_dir.resolve()
         if output_dir is not None
         else processed_dir_for_day(resolved_day_path)
     )

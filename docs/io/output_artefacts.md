@@ -92,7 +92,7 @@ The primary HDU carries no image data. It holds two groups of metadata:
 | `PIXSIZEX` | `22.5` | [µm] CCD pixel size in x-direction |
 | `PIXSIZEY` | `90` | [µm] CCD pixel size in y-direction |
 | `CAMTEMP` | *float* | Camera temperature in °C |
-| `SOLAR_P0` | *float* | Sun–Earth position angle P₀ in degrees |
+| `SOLAR_P0` | *float* | Sun-Earth position angle P₀ in degrees |
 | `FILENAME` | *string* | Suggested output filename |
 | `SWVER` | *string* | `irsol_data_pipeline` package version |
 
@@ -278,7 +278,7 @@ The WCS maps image pixel coordinates to physical sky and spectral coordinates us
 | Keyword | Description |
 |---------|-------------|
 | `CTYPE1` | `HPLN-TAN` |
-| `CNAME1` | `spatial` (or `image_type_x` value when Fabry–Pérot mode) |
+| `CNAME1` | `spatial` (or `image_type_x` value when Fabry-Pérot mode) |
 | `CUNIT1` | `arcsec` |
 | `CRPIX1` | Reference pixel (1.0 in standard slit mode) |
 | `CDELT1` | [arcsec/pixel] Plate scale in x (`1.0` for IRSOL slit, `0.325` for FP) |
@@ -341,9 +341,9 @@ These values are computed at `DATE-OBS` for the IRSOL geodetic position.
 | Keyword | Description |
 |---------|-------------|
 | `RSUN_REF` | `695 700 000` [m] Standard solar radius |
-| `DSUN_REF` | `149 597 870 700` [m] Standard Sun–Earth distance (1 AU) |
+| `DSUN_REF` | `149 597 870 700` [m] Standard Sun-Earth distance (1 AU) |
 | `RSUN_OBS` | [arcsec] Apparent angular radius of the Sun at observation time |
-| `DSUN_OBS` | [m] Actual Sun–Earth distance at observation time |
+| `DSUN_OBS` | [m] Actual Sun-Earth distance at observation time |
 | `CRLN_OBS` | [deg] Carrington longitude of observer at observation time |
 | `CRLT_OBS` | [deg] Carrington latitude of observer at observation time |
 

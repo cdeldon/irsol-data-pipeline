@@ -9,7 +9,7 @@ Provides two sub-commands under ``idp slit-image``:
 
     Artifact written to ``--output-dir``:
 
-    * ``<stem>_slit_preview.png`` – six-panel slit context image
+    * ``<stem>_slit_preview.png`` - six-panel slit context image
 
     On failure an ``<stem>_slit_preview_error.json`` file is written
     instead.  If either artifact already exists in ``--output-dir``
