@@ -1,4 +1,4 @@
-"""Tests for the setup_command (user Prefect client setup)."""
+"""Tests for the user_command (user Prefect client setup)."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from irsol_data_pipeline.cli.commands.setup_command import (
+from irsol_data_pipeline.cli.commands.setup_command.user_command import (
     DEFAULT_PREFECT_PROFILE_NAME,
     _prompt_server_host,
     _prompt_server_port,
-    setup,
+    setup_user,
 )
 from irsol_data_pipeline.prefect.config import PREFECT_SERVER_HOST, PREFECT_SERVER_PORT
 
@@ -50,7 +50,7 @@ class TestPromptServerPort:
             assert _prompt_server_port() == 4200
 
 
-class TestSetup:
+class TestSetupUser:
     def _make_mock_profiles(self, *, profile_exists: bool) -> MagicMock:
         mock = MagicMock()
         mock.names = [DEFAULT_PREFECT_PROFILE_NAME] if profile_exists else []
@@ -62,15 +62,15 @@ class TestSetup:
         with (
             patch("builtins.input", side_effect=["", ""]),
             patch(
-                "irsol_data_pipeline.cli.commands.setup_command.load_profiles",
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.load_profiles",
                 return_value=mock_profiles,
             ),
             patch(
-                "irsol_data_pipeline.cli.commands.setup_command.save_profiles"
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.save_profiles"
             ) as mock_save,
             patch("builtins.print"),
         ):
-            result = setup()
+            result = setup_user()
 
         assert result == 0
         mock_profiles.add_profile.assert_called_once()
@@ -83,13 +83,15 @@ class TestSetup:
         with (
             patch("builtins.input", side_effect=["", ""]),
             patch(
-                "irsol_data_pipeline.cli.commands.setup_command.load_profiles",
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.load_profiles",
                 return_value=mock_profiles,
             ),
-            patch("irsol_data_pipeline.cli.commands.setup_command.save_profiles"),
+            patch(
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.save_profiles"
+            ),
             patch("builtins.print"),
         ):
-            result = setup()
+            result = setup_user()
 
         assert result == 0
         mock_profiles.update_profile.assert_called_once()
@@ -103,17 +105,19 @@ class TestSetup:
         with (
             patch("builtins.input", side_effect=["", ""]),
             patch(
-                "irsol_data_pipeline.cli.commands.setup_command.load_profiles",
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.load_profiles",
                 return_value=mock_profiles,
             ),
-            patch("irsol_data_pipeline.cli.commands.setup_command.save_profiles"),
             patch(
-                "irsol_data_pipeline.cli.commands.setup_command.Profile",
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.save_profiles"
+            ),
+            patch(
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.Profile",
                 mock_profile_cls,
             ),
             patch("builtins.print"),
         ):
-            setup()
+            setup_user()
 
         _args, kwargs = mock_profile_cls.call_args
         settings: dict = kwargs["settings"]
@@ -128,17 +132,19 @@ class TestSetup:
         with (
             patch("builtins.input", side_effect=["192.168.1.5", "4210"]),
             patch(
-                "irsol_data_pipeline.cli.commands.setup_command.load_profiles",
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.load_profiles",
                 return_value=mock_profiles,
             ),
-            patch("irsol_data_pipeline.cli.commands.setup_command.save_profiles"),
             patch(
-                "irsol_data_pipeline.cli.commands.setup_command.Profile",
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.save_profiles"
+            ),
+            patch(
+                "irsol_data_pipeline.cli.commands.setup_command.user_command.Profile",
                 mock_profile_cls,
             ),
             patch("builtins.print"),
         ):
-            setup()
+            setup_user()
 
         _args, kwargs = mock_profile_cls.call_args
         settings: dict = kwargs["settings"]

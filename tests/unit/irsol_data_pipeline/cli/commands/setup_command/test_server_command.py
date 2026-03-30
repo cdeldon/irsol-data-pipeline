@@ -1,4 +1,4 @@
-"""Tests for the configure_command (maintainer Prefect profile setup)."""
+"""Tests for the server_command (maintainer Prefect server profile setup)."""
 
 from __future__ import annotations
 
@@ -7,12 +7,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from irsol_data_pipeline.cli.commands.configure_command import (
+from irsol_data_pipeline.cli.commands.setup_command.server_command import (
     DEFAULT_PREFECT_PROFILE_NAME,
     _build_sqlite_connection_url,
     _prompt_api_port,
     _prompt_database_path,
-    configure_prefect,
+    setup_server,
 )
 from irsol_data_pipeline.prefect.config import PREFECT_SERVER_PORT
 
@@ -56,7 +56,7 @@ class TestPromptDatabasePath:
     def test_returns_default_when_confirmed(self) -> None:
         with patch("builtins.input", return_value="y"), patch("pathlib.Path.mkdir"):
             path = _prompt_database_path()
-            from irsol_data_pipeline.cli.commands.configure_command import (
+            from irsol_data_pipeline.cli.commands.setup_command.server_command import (
                 DEFAULT_PREFECT_DATABASE_PATH,
             )
 
@@ -78,7 +78,7 @@ class TestPromptDatabasePath:
         assert path == custom_db.resolve()
 
 
-class TestConfigurePrefect:
+class TestSetupServer:
     def _make_mock_profiles(self, *, profile_exists: bool) -> MagicMock:
         mock = MagicMock()
         mock.names = [DEFAULT_PREFECT_PROFILE_NAME] if profile_exists else []
@@ -91,15 +91,15 @@ class TestConfigurePrefect:
             patch("builtins.input", side_effect=["y", ""]),
             patch("pathlib.Path.mkdir"),
             patch(
-                "irsol_data_pipeline.cli.commands.configure_command.load_profiles",
+                "irsol_data_pipeline.cli.commands.setup_command.server_command.load_profiles",
                 return_value=mock_profiles,
             ),
             patch(
-                "irsol_data_pipeline.cli.commands.configure_command.save_profiles"
+                "irsol_data_pipeline.cli.commands.setup_command.server_command.save_profiles"
             ) as mock_save,
             patch("builtins.print"),
         ):
-            result = configure_prefect()
+            result = setup_server()
 
         assert result == 0
         mock_profiles.add_profile.assert_called_once()
@@ -113,13 +113,15 @@ class TestConfigurePrefect:
             patch("builtins.input", side_effect=["y", ""]),
             patch("pathlib.Path.mkdir"),
             patch(
-                "irsol_data_pipeline.cli.commands.configure_command.load_profiles",
+                "irsol_data_pipeline.cli.commands.setup_command.server_command.load_profiles",
                 return_value=mock_profiles,
             ),
-            patch("irsol_data_pipeline.cli.commands.configure_command.save_profiles"),
+            patch(
+                "irsol_data_pipeline.cli.commands.setup_command.server_command.save_profiles"
+            ),
             patch("builtins.print"),
         ):
-            result = configure_prefect()
+            result = setup_server()
 
         assert result == 0
         mock_profiles.update_profile.assert_called_once()
@@ -140,17 +142,19 @@ class TestConfigurePrefect:
             patch("builtins.input", side_effect=["y", ""]),
             patch("pathlib.Path.mkdir"),
             patch(
-                "irsol_data_pipeline.cli.commands.configure_command.load_profiles",
+                "irsol_data_pipeline.cli.commands.setup_command.server_command.load_profiles",
                 return_value=mock_profiles,
             ),
-            patch("irsol_data_pipeline.cli.commands.configure_command.save_profiles"),
             patch(
-                "irsol_data_pipeline.cli.commands.configure_command.Profile",
+                "irsol_data_pipeline.cli.commands.setup_command.server_command.save_profiles"
+            ),
+            patch(
+                "irsol_data_pipeline.cli.commands.setup_command.server_command.Profile",
                 mock_profile_cls,
             ),
             patch("builtins.print"),
         ):
-            configure_prefect()
+            setup_server()
 
         _args, kwargs = mock_profile_cls.call_args
         settings: dict = kwargs["settings"]

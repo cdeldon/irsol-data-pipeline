@@ -51,17 +51,20 @@ def _prompt_server_port() -> int:
         if 1 <= port <= 65535:
             return port
 
-        print("  x Port must be in range 1–65535.")
+        print("  x Port must be in range 1-65535.")
 
 
-def setup() -> int:
-    """Configure IDP and the Prefect client profile to connect to the shared
+def setup_user() -> int:
+    """Configure the local Prefect client profile to connect to the shared
     server.
 
     Creates or updates the ``default`` Prefect profile so that all ``idp``
     commands contact the correct server.  Only the API URL and analytics flag
     are written — database settings are not touched because client users do not
     run the server locally.
+
+    Run this once after installing the package as a regular user who wants to
+    interact with a Prefect server managed by someone else.
 
     Returns:
         Exit code for the command.

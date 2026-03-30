@@ -13,7 +13,8 @@ flowchart TD
     IDP["idp"]
     INFO["info"]
     SETUP["setup"]
-    CONFIGURE["configure"]
+    SETUP_USER["user"]
+    SETUP_SERVER["server"]
     PLOT["plot"]
     PREFECT["prefect"]
 
@@ -38,9 +39,11 @@ flowchart TD
 
     IDP --> INFO
     IDP --> SETUP
-    IDP --> CONFIGURE
     IDP --> PLOT
     IDP --> PREFECT
+
+    SETUP --> SETUP_USER
+    SETUP --> SETUP_SERVER
 
     PLOT --> PROFILE
     PLOT --> SLIT
@@ -86,10 +89,18 @@ and customization.
 
 ### `idp setup`
 
-Configure your local Prefect client profile to connect to the shared Prefect server.  Run this once after installing the package as a **regular user** who wants to interact with the server managed by someone else.
+The `setup` command group configures Prefect profiles.  Use `idp setup user` when connecting
+to an existing server as a regular user, or `idp setup server` when you own and run the Prefect
+server process.
+
+#### `idp setup user`
+
+Configure your local Prefect client profile to connect to the shared Prefect server.  Run this
+once after installing the package as a **regular user** who wants to interact with a server
+managed by someone else.
 
 ```bash
-idp setup
+idp setup user
 ```
 
 You will be prompted for:
@@ -106,12 +117,14 @@ The command writes a `default` Prefect profile to `~/.prefect/profiles.toml` wit
 After running this command, `idp info` should display Prefect variable values instead of `<unset>`.
 
 
-### `idp configure`
+#### `idp setup server`
 
-Maintainer-level command to create or update the Prefect **server** profile, including database location.  Intended for the user who owns and runs the Prefect server process.
+Maintainer-level command to create or update the Prefect **server** profile, including database
+location.  Intended for the user who owns and runs the Prefect server process.  This command
+does **not** require a running Prefect server.
 
 ```bash
-idp configure
+idp setup server
 ```
 
 You will be prompted for:
@@ -125,8 +138,6 @@ The command writes:
 - `PREFECT_API_DATABASE_CONNECTION_URL`
 - `PREFECT_API_URL`
 - `PREFECT_SERVER_ANALYTICS_ENABLED=false`
-
-This command does **not** require a running Prefect server.
 
 ### `idp info`
 
@@ -343,10 +354,10 @@ flowchart LR
     CLI --> SERVE_CMD
     CLI --> STATUS_CMD
     CLI --> VARS_CMD
-    SETUP_CMD["setup → configure client profile"]
-    CONFIGURE_CMD["configure → configure server profile"]
-    CLI --> SETUP_CMD
-    CLI --> CONFIGURE_CMD
+    SETUP_USER_CMD["setup user → configure client profile"]
+    SETUP_SERVER_CMD["setup server → configure server profile"]
+    CLI --> SETUP_USER_CMD
+    CLI --> SETUP_SERVER_CMD
 
     PLOT_CMD --> IO_MOD
     PLOT_CMD --> CORE
