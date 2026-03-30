@@ -8,7 +8,7 @@ For each reduced ZIMPOL `.dat` file the flat-field correction pipeline produces 
 
 | Artefact | File suffix | Format | Description |
 |----------|-------------|--------|-------------|
-| [Corrected FITS](#corrected-fits-file) | `_corrected.fits` | FITS (multi-extension) | Calibrated Stokes I, Q/I, U/I, V/I spectropolarimetric data with full WCS and SOLARNET-compliant metadata |
+| [Corrected FITS](#corrected-fits-file) | `_corrected.fits` | FITS | Calibrated Stokes I, Q/I, U/I, V/I spectropolarimetric data with full WCS and SOLARNET-compliant metadata |
 | [Processing metadata](#processing-metadata-json) | `_metadata.json` | JSON | Pipeline provenance record (flat-field used, wavelength calibration, timestamps, version) |
 | [Original Stokes profile plot](#stokes-profile-plots-png) | `_profile_original.png` | PNG | Four-panel Stokes profile before flat-field correction |
 | [Corrected Stokes profile plot](#stokes-profile-plots-png) | `_profile_corrected.png` | PNG | Four-panel Stokes profile after all corrections |
@@ -43,13 +43,12 @@ processed/
 
 An internal flat-field correction pickle (`_flat_field_correction_data.pkl`) is also written to `_cache/flat-field-cache/` for pipeline caching purposes; see [Flat-field correction cache](#flat-field-correction-cache-pkl).
 
----
 
 ## Corrected FITS File
 
 The corrected FITS file is the primary scientific output of the pipeline. It is a multi-extension FITS (MEF) file that carries all four Stokes parameters together with their World Coordinate System (WCS) mapping and a rich set of observatory, instrument, and provenance metadata.
 
-The file conforms to the [SOLARNET](https://solarnet-project.eu/fits-standard/) FITS standard.
+The file conforms to the SOLARNET FITS standard.
 
 ### HDU Layout
 
@@ -69,7 +68,6 @@ Each image extension stores a three-dimensional array with axes ordered as **(wa
 
 Every extension (including PRIMARY) carries `FILENAME`, `SWVER`, and `CHECKSUM` keywords. The four image extensions additionally carry `DATASUM`.
 
----
 
 ### Primary HDU Header
 
@@ -189,7 +187,6 @@ These keywords describe the ZIMPOL-internal calibration (distinct from the wavel
 | `GLBMEAN` | Global mean values from ZIMPOL reduction |
 | `SLTANGL` | [deg] Slit angle in the solar reference frame |
 
----
 
 ### Image Extension Headers (Stokes I, Q/I, U/I, V/I)
 
@@ -350,7 +347,6 @@ These values are computed at `DATE-OBS` for the IRSOL geodetic position.
 | `CRLN_OBS` | [deg] Carrington longitude of observer at observation time |
 | `CRLT_OBS` | [deg] Carrington latitude of observer at observation time |
 
----
 
 ## Processing Metadata JSON
 
@@ -360,22 +356,22 @@ Written alongside every successfully processed measurement. The file is human-re
 
 ```json
 {
-  "source_file": "6302_m1.dat",
-  "flat_field_used": "ff6302_m1.dat",
-  "flat_field_timestamp": "2024-03-15T08:01:00",
-  "measurement_timestamp": "2024-03-15T09:45:00",
-  "flat_field_time_delta_seconds": 6240.0,
+  "source_file": "5886_m9.dat",
+  "flat_field_used": "ff5886_m2.dat",
+  "flat_field_timestamp": "2025-11-11T07:52:57+00:00",
+  "measurement_timestamp": "2025-11-11T08:17:17+00:00",
+  "flat_field_time_delta_seconds": 1460.0,
   "auto_calibrated_wavelength": {
-    "pixel_scale": 0.0273,
-    "wavelength_offset": 6301.15,
-    "pixel_scale_error": 0.00012,
-    "wavelength_offset_error": 0.031,
-    "reference_file": "atlas_6302.fits",
-    "peak_pixels": [120, 248, 391],
-    "reference_lines": [6300.31, 6301.50, 6302.49]
+    "pixel_scale": 0.023440290681415264,
+    "wavelength_offset": 5872.073366465534,
+    "pixel_scale_error": 0.0001781430804402674,
+    "wavelength_offset_error": 0.08670102715766094,
+    "reference_file": "ref_data5886_irsol.npy",
+    "peak_pixels": "[ 47.77161679 709.42196805 814.30365032 381.03493138 503.5501199\n 245.58662134 174.29116933]",
+    "reference_lines": "[5873.18001459 5888.68596778 5891.14280512 5881.2519624  5883.79228705\n 5877.76609452 5876.10777383]"
   },
-  "processing_timestamp": "2024-03-15T12:00:00+00:00",
-  "pipeline_version": "1.4.0"
+  "processing_timestamp": "2026-03-27T13:00:01.693623+00:00",
+  "pipeline_version": "0.1.19"
 }
 ```
 
@@ -409,7 +405,7 @@ Written when processing fails. Replaces all four success artefacts.
 ```json
 {
   "source_file": "6302_m1.dat",
-  "error": "FlatFieldAssociationNotFoundException: no flat-field within 6h",
+  "error": "FlatFieldAssociationNotFoundException: no flat-field within 2h",
   "processing_timestamp": "2024-03-15T12:00:00+00:00",
   "pipeline_version": "1.4.0"
 }
@@ -422,7 +418,6 @@ Written when processing fails. Replaces all four success artefacts.
 | `processing_timestamp` | ISO-8601 (UTC) | When the failure was recorded |
 | `pipeline_version` | string | `irsol_data_pipeline` package version |
 
----
 
 ## Stokes Profile Plots (PNG)
 
@@ -435,7 +430,10 @@ Two PNG files are produced per measurement, one before and one after correction:
 
 Each plot contains four sub-panels: **I**, **Q/I**, **U/I**, **V/I**, rendered as 2-D spectrograms (spatial axis vs. wavelength axis). These files are not intended for machine reading; they serve as quick-look quality control artefacts.
 
----
+| Original profile | Corrected profile |
+|------------------|-------------------|
+| <img src="../assets/5886_m9_profile_original.png" width="400"> | <img src="../assets/5886_m9_profile_corrected.png" width="400"> |
+
 
 ## Slit Preview Image (PNG)
 
@@ -454,7 +452,8 @@ A six-panel context image that shows the position of the spectrograph slit on th
 
 The spectrograph slit is overlaid as a line on each panel. The image is purely a visual quick-look product and contains no embedded machine-readable metadata.
 
----
+![Slit preview image](../assets/5886_m9_slit_preview.png)
+
 
 ## Flat-field Correction Cache (`.pkl`)
 
@@ -475,7 +474,6 @@ The pickle stores the following fields of `FlatFieldCorrection`:
 
 > **Note** The pickle format is internal to the pipeline and is not intended as a data exchange format. Its schema may change between pipeline versions. Cached files are automatically invalidated and regenerated when the source flat-field `.dat` changes.
 
----
 
 ## Related Documentation
 
