@@ -16,8 +16,8 @@ from irsol_data_pipeline.core.models import ObservationDay, ScanResult
 from irsol_data_pipeline.pipeline.filesystem import (
     discover_measurement_files,
     discover_observation_days,
-    is_measurement_processed,
-    is_slit_preview_generated,
+    is_measurement_flat_field_processed,
+    is_measurement_slit_preview_generated,
 )
 
 ObservationDayPredicate = Callable[[ObservationDay], bool]
@@ -27,22 +27,22 @@ MeasurementDonePredicate = Callable[[Path, str], bool]
 def _scan_dataset(
     root: Path,
     *,
-    is_done: MeasurementDonePredicate,
+    is_measurment_already_processed: MeasurementDonePredicate,
     day_predicate: ObservationDayPredicate | None = None,
 ) -> ScanResult:
     """Core dataset scan implementation.
 
     Discovers observation days (optionally filtered by ``day_predicate``) and,
     for each day, collects the measurements that still need work according to
-    the ``is_done`` callable.
+    the ``is_measurment_already_processed`` callable.
 
     Args:
         root: The dataset root directory.
-        is_done: Callable ``(processed_dir, source_name) -> bool`` that returns
+        is_measurment_already_processed: Callable ``(processed_dir, source_name) -> bool`` that returns
             ``True`` when a measurement already has its output (e.g.
-            :func:`~irsol_data_pipeline.pipeline.filesystem.is_measurement_processed`
+            :func:`~irsol_data_pipeline.pipeline.filesystem.is_measurement_flat_field_processed`
             for flat-field correction or
-            :func:`~irsol_data_pipeline.pipeline.filesystem.is_slit_preview_generated`
+            :func:`~irsol_data_pipeline.pipeline.filesystem.is_measurement_slit_preview_generated`
             for slit images).
         day_predicate: Optional filter returning ``True`` for observation days
             that should be included in the scan.
@@ -60,7 +60,9 @@ def _scan_dataset(
         total += len(measurements)
 
         unprocessed = [
-            m for m in measurements if not is_done(day.processed_dir, m.name)
+            m
+            for m in measurements
+            if not is_measurment_already_processed(day.processed_dir, m.name)
         ]
 
         if unprocessed:
@@ -82,7 +84,7 @@ def _scan_dataset(
     )
 
 
-def scan_dataset(root: Path) -> ScanResult:
+def scan_flatfield_dataset(root: Path) -> ScanResult:
     """Scan the dataset root and find measurements that need flat-field
     correction.
 
@@ -96,10 +98,12 @@ def scan_dataset(root: Path) -> ScanResult:
     Returns:
         ScanResult with discovered days and pending measurements.
     """
-    return _scan_dataset(root, is_done=is_measurement_processed)
+    return _scan_dataset(
+        root, is_measurment_already_processed=is_measurement_flat_field_processed
+    )
 
 
-def build_scan_report_markdown(root: Path, scan_result: ScanResult) -> str:
+def build_scan_flatfield_report_markdown(root: Path, scan_result: ScanResult) -> str:
     """Build a markdown summary of scan results for Prefect artifacts."""
     total_processed = scan_result.total_measurements - scan_result.total_pending
     lines = [
@@ -163,7 +167,7 @@ def scan_slit_dataset(
     """
     return _scan_dataset(
         root,
-        is_done=is_slit_preview_generated,
+        is_measurment_already_processed=is_measurement_slit_preview_generated,
         day_predicate=predicate,
     )
 
