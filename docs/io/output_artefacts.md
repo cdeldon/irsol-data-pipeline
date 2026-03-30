@@ -47,7 +47,7 @@ An internal flat-field correction FITS file (`_flat_field_correction_data.fits`)
 
 ## Corrected FITS File
 
-The corrected FITS file is the primary scientific output of the pipeline. It is a multi-extension FITS (MEF) file that carries all four Stokes parameters together with their World Coordinate System (WCS) mapping and a rich set of observatory, instrument, and provenance metadata.
+The corrected FITS file is the primary scientific output of the pipeline. It is a file that carries all four Stokes parameters together with their World Coordinate System (WCS) mapping and a rich set of observatory, instrument, and provenance metadata.
 
 The file conforms to the SOLARNET FITS standard.
 
@@ -460,7 +460,7 @@ The spectrograph slit is overlaid as a line on each panel. The image is purely a
 
 File: `_cache/flat-field-cache/<stem>_flat_field_correction_data.fits`
 
-A FITS file that serialises the `FlatFieldCorrection` Pydantic model computed from the paired flat-field `.dat` file. This cache avoids recomputing the (expensive) spectroflat analysis for every measurement that shares the same flat-field.
+A FITS file that serialises result of the _Spectroflat_ analysis performed on a flat-field measurement. This cache avoids recomputing the (expensive) spectroflat analysis for every measurement that shares the same flat-field.
 
 The main FITS file uses the following HDU layout:
 
@@ -479,7 +479,6 @@ The primary header stores the following keys:
 | `TIMESTMP` | Observation time of the flat-field measurement (ISO 8601) |
 | `OMAPFILE` | Basename of the companion offset-map FITS file (absent when no offset map) |
 
-When a spectral smile offset map is available, a companion file `<stem>_flat_field_correction_data_offset_map.fits` is written alongside the main file using `spectroflat.smile.OffsetMap.dump()`.
 
 > **Note** The FITS cache format is internal to the pipeline and is not intended as a data exchange format. Its schema may change between pipeline versions. Cached files are automatically invalidated and regenerated when the source flat-field `.dat` changes.
 
