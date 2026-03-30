@@ -188,7 +188,7 @@ The command discovers flat-field files from the same directory as the measuremen
 | File | Description |
 |------|-------------|
 | `<stem>_corrected.fits` | Flat-field corrected Stokes FITS file |
-| `<stem>_flat_field_correction_data.pkl` | Serialised correction object |
+| `<stem>_flat_field_correction_data.fits` | Serialised correction object (FITS) |
 | `<stem>_metadata.json` | Processing metadata |
 | `<stem>_profile_corrected.png` | Stokes profile plot (corrected data) |
 | `<stem>_profile_original.png` | Stokes profile plot (original data) |
@@ -220,7 +220,7 @@ idp flat-field apply ./reduced/6302_m1.dat \
 | Option | Description |
 |--------|-------------|
 | `--output-dir PATH` | *(required)* Directory where processed artifacts are written |
-| `--cache-dir PATH` | Directory for flat-field correction cache `.pkl` files |
+| `--cache-dir PATH` | Directory for flat-field correction cache `.fits` files |
 | `--force` | Skip confirmation prompts and overwrite existing output files |
 
 **Exit codes:**

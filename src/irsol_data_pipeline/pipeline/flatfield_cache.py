@@ -135,7 +135,7 @@ def build_flatfield_cache(
         flatfield_paths: List of flat-field .dat file paths.
         max_delta: Maximum time delta for matching.
         allow_cached_data: If True, allows using cached analysis results if available.
-        cache_dir: Optional directory override for storing correction cache pickle
+        cache_dir: Optional directory override for storing correction cache FITS
             files. When provided, cached files are placed directly under this
             directory instead of the default day-structure-derived path. Useful
             when processing individual measurements outside the standard dataset
@@ -153,10 +153,10 @@ def build_flatfield_cache(
             flatfield_path: Path to the flat-field ``.dat`` source file.
 
         Returns:
-            Destination path for the correction cache pickle file.
+            Destination path for the correction cache FITS file.
         """
         if cache_dir is not None:
-            return cache_dir / f"{flatfield_path.stem}_correction_cache.pkl"
+            return cache_dir / f"{flatfield_path.stem}_correction_cache.fits"
         return flatfield_correction_cache_path(flatfield_path)
 
     # identify if the flatfields have already been computed and cached, and if so, load them instead of recomputing
