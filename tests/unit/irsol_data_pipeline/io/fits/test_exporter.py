@@ -9,6 +9,7 @@ from irsol_data_pipeline.core.models import (
     StokesParameters,
 )
 from irsol_data_pipeline.io.fits.exporter import write_stokes_fits
+from irsol_data_pipeline.io.fits.processing_history import ProcessingHistory
 
 ALL_STOKES = ["Stokes I", "Stokes Q/I", "Stokes U/I", "Stokes V/I"]
 
@@ -92,3 +93,108 @@ def test_fits_header_keys_presence(
             hdu = stokes_hdus[extname]
             assert hdu.header["EXTNAME"] == extname
             assert hdu.data.shape[-1] == 1
+
+
+def _make_stokes() -> StokesParameters:
+    return StokesParameters(
+        i=np.arange(20, dtype=float).reshape(4, 5) + 10.0,
+        q=np.full((4, 5), 0.1),
+        u=np.full((4, 5), 0.2),
+        v=np.full((4, 5), -0.1),
+    )
+
+
+class TestPackageVersionsInHeader:
+    def test_software_version_keys_present_in_all_hdus(
+        self, tmp_path, sample_measurement_metadata: MeasurementMetadata
+    ) -> None:
+        output_path = tmp_path / "test_versions.fits"
+        write_stokes_fits(
+            output_path=output_path,
+            stokes=_make_stokes(),
+            info=sample_measurement_metadata,
+            calibration=None,
+            solar_orientation=None,
+        )
+        version_keys = ("SWVER", "SWVERNP", "SWVERSP", "SWVERSF", "SWVERPD")
+        with fits.open(output_path) as hdul:
+            for hdu in hdul:
+                for key in version_keys:
+                    assert key in hdu.header, f"{key} missing from HDU {hdu.name!r}"
+
+    def test_software_version_values_are_strings(
+        self, tmp_path, sample_measurement_metadata: MeasurementMetadata
+    ) -> None:
+        output_path = tmp_path / "test_versions_values.fits"
+        write_stokes_fits(
+            output_path=output_path,
+            stokes=_make_stokes(),
+            info=sample_measurement_metadata,
+            calibration=None,
+            solar_orientation=None,
+        )
+        with fits.open(output_path) as hdul:
+            primary = hdul[0].header
+            for key in ("SWVER", "SWVERNP", "SWVERSP", "SWVERSF", "SWVERPD"):
+                assert isinstance(primary[key], str), f"{key} value should be a string"
+                assert len(primary[key]) > 0, f"{key} value should not be empty"
+
+
+class TestExtraHeader:
+    def test_extra_header_entries_appear_in_primary_header(
+        self, tmp_path, sample_measurement_metadata: MeasurementMetadata
+    ) -> None:
+        output_path = tmp_path / "test_extra.fits"
+        extra = {"MY_KEY": ("my_value", "a custom comment"), "MY_INT": 42}
+        write_stokes_fits(
+            output_path=output_path,
+            stokes=_make_stokes(),
+            info=sample_measurement_metadata,
+            calibration=None,
+            solar_orientation=None,
+            extra_header=extra,
+        )
+        with fits.open(output_path) as hdul:
+            primary = hdul[0].header
+            assert primary["MY_KEY"] == "my_value"
+            assert primary["MY_INT"] == 42
+            # Extra keys should NOT be in extension headers
+            for hdu in hdul[1:]:
+                assert "MY_KEY" not in hdu.header
+
+    def test_no_extra_header_does_not_break(
+        self, tmp_path, sample_measurement_metadata: MeasurementMetadata
+    ) -> None:
+        output_path = tmp_path / "test_no_extra.fits"
+        write_stokes_fits(
+            output_path=output_path,
+            stokes=_make_stokes(),
+            info=sample_measurement_metadata,
+            calibration=None,
+            solar_orientation=None,
+            extra_header=None,
+        )
+        assert output_path.exists()
+
+    def test_processing_history_integration(
+        self, tmp_path, sample_measurement_metadata: MeasurementMetadata
+    ) -> None:
+        history = ProcessingHistory()
+        history.record("flat-field correction")
+        history.record("smile correction")
+        history.record("wavelength calibration", details="reference_file=ref.npy")
+
+        output_path = tmp_path / "test_history.fits"
+        write_stokes_fits(
+            output_path=output_path,
+            stokes=_make_stokes(),
+            info=sample_measurement_metadata,
+            calibration=None,
+            solar_orientation=None,
+            extra_header=history.to_fits_header_entries(),
+        )
+        with fits.open(output_path) as hdul:
+            primary = hdul[0].header
+            assert primary["PROC_001"] == "flat-field correction"
+            assert primary["PROC_002"] == "smile correction"
+            assert primary["PROC_003"] == "wavelength calibration: reference_file=ref.npy"
