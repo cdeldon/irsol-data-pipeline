@@ -49,13 +49,13 @@ from rich.table import Table
 from irsol_data_pipeline.cli.common import get_console
 from irsol_data_pipeline.core.config import REDUCED_DIRNAME
 from irsol_data_pipeline.core.models import DayProcessingResult, ObservationDay
-from irsol_data_pipeline.pipeline.day_processor import process_observation_day
 from irsol_data_pipeline.pipeline.filesystem import (
     discover_flatfield_files,
     processed_dir_for_day,
     processed_output_path,
 )
 from irsol_data_pipeline.pipeline.flatfield_cache import build_flatfield_cache
+from irsol_data_pipeline.pipeline.flatfield_processor import process_observation_day
 from irsol_data_pipeline.pipeline.measurement_processor import (
     process_single_measurement,
 )
