@@ -31,21 +31,23 @@ All output files share the same stem as the source `.dat` file:
 
 ```
 processed/
-├── 6302_m1_corrected.fits
-├── 6302_m1_metadata.json
-├── 6302_m1_profile_original.png
-├── 6302_m1_profile_corrected.png
-├── 6302_m1_slit_preview.png
+├── 6302_m1_corrected.fits  # The flat-field corrected stokes data of the measurement, in FITS format
+├── 6302_m1_flat_field_correction_data.fits  # The spectroflat correction data used for the flat-field correction, in FITS format
+├── 6302_m1_flat_field_correction_data_offset_map.fits  # The offset map used for the flat-field correction, in FITS format
+├── 6302_m1_metadata.json   # Metadata about the processing (timestamps, flat-field used, wavelength calibration result, etc.)
+├── 6302_m1_profile_original.png  # Quick-look plot of the original Stokes profiles (before correction)
+├── 6302_m1_profile_corrected.png  # Quick-look plot of the corrected Stokes profiles (after correction)
+├── 6302_m1_slit_preview.png  # Slit preview image showing the slit position on the solar disc at observation time
 └── _cache/
     └── flat-field-cache/
-        └── 6302_m1_flat_field_correction_data.fits
-        └── 6302_m1_flat_field_correction_data_offset_map.fits
+        └── ff6302_m1_correction_cache.fits  # The cached spectroflat correction data computed on a flat-field, in FITS format
+        └── ff6302_m1_correction_cache_offset_map.fits  # The cached spectroflat offset map data computed on a flat-field, in FITS format
 ```
-
-An internal flat-field correction FITS file (`_flat_field_correction_data.fits`) is also written to `_cache/flat-field-cache/` for pipeline caching purposes; see [Flat-field correction cache](#flat-field-correction-cache-fits).
 
 
 ## Corrected FITS File
+
+File: `<stem>_corrected.fits`
 
 The corrected FITS file is the primary scientific output of the pipeline. It is a file that carries all four Stokes parameters together with their World Coordinate System (WCS) mapping and a rich set of observatory, instrument, and provenance metadata.
 
@@ -458,7 +460,9 @@ The spectrograph slit is overlaid as a line on each panel. The image is purely a
 
 ## Flat-field Correction Cache (`.fits`)
 
-File: `_cache/flat-field-cache/<stem>_flat_field_correction_data.fits`
+Files:
+ * `_cache/flat-field-cache/<stem>_correction_cache.fits`
+ * `_cache/flat-field-cache/<stem>_correction_cache_offset_map.fits`
 
 A FITS file that serialises result of the _Spectroflat_ analysis performed on a flat-field measurement. This cache avoids recomputing the (expensive) spectroflat analysis for every measurement that shares the same flat-field.
 
