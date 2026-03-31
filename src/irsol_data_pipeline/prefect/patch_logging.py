@@ -41,6 +41,7 @@ def setup_logging(level: LOG_LEVEL = "DEBUG"):
         record = message.record
         try:
             run_logger = get_run_logger()
+            run_logger.setLevel(level)
         except Exception:
             return  # Not inside a flow/task run context
 
