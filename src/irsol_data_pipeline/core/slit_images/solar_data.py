@@ -23,7 +23,6 @@ from irsol_data_pipeline.core.slit_images.config import (
     MAX_MISSING_PIXELS,
     SDO_DATA_PRODUCTS,
 )
-from irsol_data_pipeline.prefect.decorators import task
 
 
 def _fetch_sdo_map_for_product_wavelength(
@@ -97,7 +96,6 @@ def _fetch_sdo_maps_for_product(
     ]
 
 
-@task(task_run_name="slit-images/fetch-sdo-maps/{start_time}-{end_time}")
 def fetch_sdo_maps(
     start_time: datetime.datetime,
     end_time: datetime.datetime,
@@ -267,29 +265,59 @@ def _download_and_load_map(
                 url=url,
             )
             try:
-                resp = requests.get(url, timeout=120)
-                resp.raise_for_status()
-            except requests.RequestException:
-                logger.exception("Failed to download SDO data", url=url)
-                return None
-
-            if target is not None:
-                logger.debug("Writing response to target file", target=target)
-                target.write_bytes(resp.content)
-            else:
-                # Use a temp approach; write to cache_dir if available
-                with tempfile.NamedTemporaryFile(
-                    suffix=".fits",
-                    delete=False,
-                    dir=cache_dir,
-                ) as tmp_file:
-                    logger.debug(
-                        "Writing response to temporary file",
-                        temp_path=tmp_file.name,
+                with requests.get(url, timeout=120, stream=True) as resp:
+                    resp.raise_for_status()
+                    total = int(resp.headers.get("content-length", 0))
+                    logger.trace(
+                        "Starting streamed download", total_bytes=total, url=url
                     )
-                    tmp_file.write(resp.content)
-                    target = Path(tmp_file.name)
-
+                    bytes_written = 0
+                    if target is not None:
+                        logger.debug("Writing response to target file", target=target)
+                        with open(target, "wb") as f:
+                            for chunk in resp.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
+                                    bytes_written += len(chunk)
+                                    if total:
+                                        logger.trace(
+                                            "Download progress",
+                                            bytes_written=bytes_written,
+                                            percent=round(
+                                                100 * bytes_written / total, 2
+                                            ),
+                                        )
+                    else:
+                        # Use a temp approach; write to cache_dir if available
+                        with tempfile.NamedTemporaryFile(
+                            suffix=".fits",
+                            delete=False,
+                            dir=cache_dir,
+                        ) as tmp_file:
+                            logger.debug(
+                                "Writing response to temporary file",
+                                temp_path=tmp_file.name,
+                            )
+                            for chunk in resp.iter_content(chunk_size=8192):
+                                if chunk:
+                                    tmp_file.write(chunk)
+                                    bytes_written += len(chunk)
+                                    if total:
+                                        logger.trace(
+                                            "Download progress",
+                                            bytes_written=bytes_written,
+                                            percent=round(
+                                                100 * bytes_written / total, 2
+                                            ),
+                                        )
+                            target = Path(tmp_file.name)
+                    logger.trace(
+                        "Download complete",
+                        total_bytes=bytes_written,
+                        target=str(target),
+                    )
+            except Exception:
+                logger.exception("Failed to download the FITS file", url=url)
         try:
             data, header = fits.getdata(str(target), header=True)
         except Exception:
