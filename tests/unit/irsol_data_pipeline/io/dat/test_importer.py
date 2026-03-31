@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from irsol_data_pipeline.core.models import StokesParameters
+from irsol_data_pipeline.core.models import MeasurementMetadata, StokesParameters
 from irsol_data_pipeline.exceptions import DatImportError
 from irsol_data_pipeline.io import dat as dat_io
 
@@ -32,15 +32,14 @@ class TestImporter:
         expected_stokes_shape: tuple[int, ...],
         expected_info_shape: tuple[int, ...],
     ):
-        stokes, info = dat_io.read(dat_path)
+        stokes, metadata = dat_io.read(dat_path)
         assert isinstance(stokes, StokesParameters)
-        assert isinstance(info, np.ndarray)
+        assert isinstance(metadata, MeasurementMetadata)
 
         assert stokes.i.shape == expected_stokes_shape
         assert stokes.q.shape == expected_stokes_shape
         assert stokes.u.shape == expected_stokes_shape
         assert stokes.v.shape == expected_stokes_shape
-        assert info.shape == expected_info_shape
 
     def test_read_invalid_dat(self, invalid_path_extension: Path):
         with pytest.raises(DatImportError):
@@ -53,25 +52,34 @@ class TestImporter:
         sq = np.random.rand(*shape)
         su = np.random.rand(*shape)
         sv = np.random.rand(3, *shape)
-
-        info = object()
+        info_array = np.array([])
+        metadata = object()
 
         expected_si = np.mean(si, axis=0)
         expected_sq = sq
         expected_su = su
         expected_sv = np.mean(sv, axis=0)
 
-        mock_data = {"si": si, "sq": sq, "su": su, "sv": sv, "info": info}
-        with patch("irsol_data_pipeline.io.dat.importer.readsav") as mock_readsav:
+        mock_data = {"si": si, "sq": sq, "su": su, "sv": sv, "info": info_array}
+        with (
+            patch("irsol_data_pipeline.io.dat.importer.readsav") as mock_readsav,
+            patch(
+                "irsol_data_pipeline.core.models.MeasurementMetadata.from_info_array",
+                return_value=metadata,
+            ),
+        ):
             # Mock data with 3D arrays
             mock_readsav.return_value = mock_data
             path = "/abs-path-to-dummy_path.dat"
-            stokes, _ = dat_io.read(path)
+            ret_stokes, ret_metadata = dat_io.read(path)
 
             # Check that the 3D arrays were averaged to 2D
-            np.testing.assert_array_equal(stokes.i, expected_si)
-            np.testing.assert_array_equal(stokes.q, expected_sq)
-            np.testing.assert_array_equal(stokes.u, expected_su)
-            np.testing.assert_array_equal(stokes.v, expected_sv)
+            np.testing.assert_array_equal(ret_stokes.i, expected_si)
+            np.testing.assert_array_equal(ret_stokes.q, expected_sq)
+            np.testing.assert_array_equal(ret_stokes.u, expected_su)
+            np.testing.assert_array_equal(ret_stokes.v, expected_sv)
+
+            # Check that the metadata returned is the one build from the info-array
+            assert ret_metadata is metadata
 
             mock_readsav.assert_called_once_with(path, verbose=False, python_dict=True)

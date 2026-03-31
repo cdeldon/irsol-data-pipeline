@@ -104,18 +104,17 @@ def _process_single_measurement(
         processing_history = fits_io.ProcessingHistory()
 
         # 1. Load measurement
-        stokes, info = dat_io.read(meas_path)
-        measurement_metadata = MeasurementMetadata.from_info_array(info)
+        stokes, metadata = dat_io.read(meas_path)
         measurement = Measurement(
             source_path=meas_path,
-            metadata=measurement_metadata,
+            metadata=metadata,
             stokes=stokes,
         )
-        solar_orientation = compute_solar_orientation(measurement_metadata)
+        solar_orientation = compute_solar_orientation(metadata)
 
         with NamedTemporaryFile(suffix=".json") as f:
             with Path(f.name).open("w") as json_file:
-                json.dump(measurement_metadata.model_dump(), json_file, default=str)
+                json.dump(metadata.model_dump(), json_file, default=str)
             create_prefect_json_report(
                 path=Path(f.name),
                 title="Measurement metadata",
@@ -189,7 +188,7 @@ def _process_single_measurement(
                 kind="corrected_fits",
             ),
             corrected_stokes,
-            measurement_metadata,
+            metadata,
             calibration=calibration,
             solar_orientation=solar_orientation,
             extra_header=processing_history.to_fits_header_entries(),
@@ -232,7 +231,7 @@ def _process_single_measurement(
         _plot_data(
             stokes=corrected_stokes,
             calibration=calibration,
-            metadata=measurement_metadata,
+            metadata=metadata,
             solar_orientation=solar_orientation,
             filename_save=processed_output_path(
                 processed_dir,
@@ -243,7 +242,7 @@ def _process_single_measurement(
         _plot_data(
             stokes=measurement.stokes,
             calibration=calibration,
-            metadata=measurement_metadata,
+            metadata=metadata,
             solar_orientation=solar_orientation,
             filename_save=processed_output_path(
                 processed_dir,
