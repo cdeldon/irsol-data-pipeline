@@ -10,12 +10,12 @@ from irsol_data_pipeline.logging_config import setup_logging as _setup_base_logg
 
 
 class PrefectLogLevel(enum.Enum):
-    TRACE = 5
-    DEBUG = 10
-    INFO = 20
-    WARNING = 30
-    ERROR = 40
-    CRITICAL = 50
+    TRACE = "TRACE"
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
 
 _prefect_sink_added = False
@@ -41,18 +41,14 @@ def _extract_traceback_message(record: dict) -> str | None:
 
 def _extract_loguru_level_from_prefect_log_level(level: PrefectLogLevel) -> LOG_LEVEL:
     """Map PrefectLogLevel to the loguru LOG_LEVEL used in the pipeline."""
-    if level.value < PrefectLogLevel.DEBUG.value:
-        return "TRACE"
-    elif level.value < PrefectLogLevel.INFO.value:
-        return "DEBUG"
-    elif level.value < PrefectLogLevel.WARNING.value:
-        return "INFO"
-    elif level.value < PrefectLogLevel.ERROR.value:
-        return "WARNING"
-    elif level.value < PrefectLogLevel.CRITICAL.value:
-        return "ERROR"
-    else:
-        return "CRITICAL"
+    return {
+        PrefectLogLevel.TRACE: "TRACE",
+        PrefectLogLevel.DEBUG: "DEBUG",
+        PrefectLogLevel.INFO: "INFO",
+        PrefectLogLevel.WARNING: "WARNING",
+        PrefectLogLevel.ERROR: "ERROR",
+        PrefectLogLevel.CRITICAL: "CRITICAL",
+    }.get(level, "INFO")
 
 
 def _extract_std_level_from_loguru_level(level: LOG_LEVEL) -> int:
