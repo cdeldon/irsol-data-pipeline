@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from irsol_data_pipeline.core.models import StokesParameters
+from irsol_data_pipeline.core.models import MeasurementMetadata, StokesParameters
 from irsol_data_pipeline.exceptions import DatImportError
 from irsol_data_pipeline.io import dat as dat_io
 
@@ -32,15 +32,14 @@ class TestImporter:
         expected_stokes_shape: tuple[int, ...],
         expected_info_shape: tuple[int, ...],
     ):
-        stokes, info = dat_io.read(dat_path)
+        stokes, metadata = dat_io.read(dat_path)
         assert isinstance(stokes, StokesParameters)
-        assert isinstance(info, np.ndarray)
+        assert isinstance(metadata, MeasurementMetadata)
 
         assert stokes.i.shape == expected_stokes_shape
         assert stokes.q.shape == expected_stokes_shape
         assert stokes.u.shape == expected_stokes_shape
         assert stokes.v.shape == expected_stokes_shape
-        assert info.shape == expected_info_shape
 
     def test_read_invalid_dat(self, invalid_path_extension: Path):
         with pytest.raises(DatImportError):

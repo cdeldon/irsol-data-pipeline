@@ -40,13 +40,13 @@ class TestFitsMeasurementMetadataRoundtrip:
     @pytest.fixture(scope="class")
     def dat_metadata(self, dat_path: Path) -> MeasurementMetadata:
         """Load MeasurementMetadata from the .dat fixture file."""
-        _stokes, info = dat_io.read(dat_path)
-        return MeasurementMetadata.from_info_array(info)
+        _stokes, metadata = dat_io.read(dat_path)
+        return metadata
 
     @pytest.fixture(scope="class")
     def dat_stokes(self, dat_path: Path) -> StokesParameters:
         """Load Stokes parameters from the .dat fixture file."""
-        stokes, _info = dat_io.read(dat_path)
+        stokes, _metadata = dat_io.read(dat_path)
         return stokes
 
     @pytest.fixture(scope="class")

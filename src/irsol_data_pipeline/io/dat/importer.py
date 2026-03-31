@@ -9,6 +9,7 @@ from loguru import logger
 from scipy.io import readsav
 
 from irsol_data_pipeline.core.models import (
+    MeasurementMetadata,
     StokesParameters,
 )
 from irsol_data_pipeline.exceptions import DatImportError
@@ -16,14 +17,15 @@ from irsol_data_pipeline.exceptions import DatImportError
 
 def read_zimpol_dat(
     file_path: Path | str,
-) -> tuple[StokesParameters, np.ndarray]:
-    """Read a ZIMPOL ``.dat``/``.sav`` file and return Stokes + raw ``info``.
+) -> tuple[StokesParameters, MeasurementMetadata]:
+    """Read a ZIMPOL ``.dat``/``.sav`` file and return Stokes +
+    MeasurementMetadata.
 
     Args:
         file_path: Path to the .dat or .sav file.
 
     Returns:
-        Tuple of (StokesParameters, info_array).
+        Tuple of (StokesParameters, MeasurementMetadata).
     """
     path = Path(file_path).resolve()
     with logger.contextualize(path=path):
@@ -49,6 +51,9 @@ def read_zimpol_dat(
             logger.debug("Averaging 3D Stokes V over axis 0", shape=sv.shape)
             sv = np.mean(sv, axis=0)
 
+        logger.trace("Loading info file into MeasurementMetadata")
+        metadata = MeasurementMetadata.from_info_array(info)
+
         logger.debug(
             "Loaded ZIMPOL arrays",
             shape_i=si.shape,
@@ -58,4 +63,4 @@ def read_zimpol_dat(
             info_shape=info.shape,
         )
 
-    return StokesParameters(i=si, q=sq, u=su, v=sv), info
+    return StokesParameters(i=si, q=sq, u=su, v=sv), metadata

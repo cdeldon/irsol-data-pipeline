@@ -114,8 +114,7 @@ def _load_stokes_and_calibration_and_solar_orientation(
     if suffix in {".dat", ".sav"}:
         from irsol_data_pipeline.io import dat as dat_io
 
-        stokes, info = dat_io.read(input_path)
-        metadata = MeasurementMetadata.from_info_array(info)
+        stokes, metadata = dat_io.read(input_path)
         solar_orientation = compute_solar_orientation(metadata)
         if autocalibrate:
             from irsol_data_pipeline.core.calibration.autocalibrate import (
@@ -257,8 +256,7 @@ def slit(
         else None
     )
 
-    _, info = dat_io.read(input_path)
-    metadata = MeasurementMetadata.from_info_array(info)
+    _, metadata = dat_io.read(input_path)
 
     if metadata.solar_x is None or metadata.solar_y is None:
         raise ValidationError(

@@ -12,7 +12,6 @@ from loguru import logger
 
 from irsol_data_pipeline.core.models import (
     DayProcessingResult,
-    MeasurementMetadata,
     ObservationDay,
 )
 from irsol_data_pipeline.core.slit_images.coordinates import compute_slit_geometry
@@ -73,8 +72,7 @@ def generate_slit_image(
         try:
             # 1. Load measurement metadata
             logger.info("Loading measurement metadata")
-            stokes, info = dat_io.read(measurement_path)
-            metadata = MeasurementMetadata.from_info_array(info)
+            stokes, metadata = dat_io.read(measurement_path)
 
             if metadata.solar_x is None or metadata.solar_y is None:
                 raise SlitImageGenerationError(
