@@ -18,13 +18,13 @@ The `io/` package handles all data loading and saving, providing a clean abstrac
 
 
 ```python
-def read_zimpol_dat(file_path: Path | str) -> tuple[StokesParameters, np.ndarray]:
+def read_zimpol_dat(file_path: Path | str) -> tuple[StokesParameters, MeasurementMetadata]:
 ```
 
 Reads ZIMPOL `.dat` or `.sav` files using `scipy.io.readsav()`:
 
 - Extracts the four Stokes parameters (I, Q, U, V) from the IDL save structure.
-- Returns the raw info metadata array (Nx2 byte array used to construct `MeasurementMetadata`).
+- Returns the constructed `MeasurementMetadata` from the `info` array.
 - Handles 3-D → 2-D averaging for Stokes I and V when no TCU averaging was performed.
 - Raises `DatImportError` on unsupported formats or read failures.
 
