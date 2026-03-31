@@ -26,6 +26,7 @@ from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import fits as fits_io
 from irsol_data_pipeline.io import fits_flatfield as flatfield_io
 from irsol_data_pipeline.io import processing_metadata as processing_metadata_io
+from irsol_data_pipeline.io.fits.constants import FITS_KEY_FFCORR, FITS_KEY_FFFILE
 from irsol_data_pipeline.pipeline.filesystem import (
     get_processed_stem,
     processed_output_path,
@@ -191,7 +192,14 @@ def _process_single_measurement(
             metadata,
             calibration=calibration,
             solar_orientation=solar_orientation,
-            extra_header=processing_history.to_fits_header_entries(),
+            extra_header={
+                **processing_history.to_fits_header_entries(),
+                FITS_KEY_FFCORR: (True, "True if pipeline applied flat-field correction"),
+                FITS_KEY_FFFILE: (
+                    ff_correction.source_flatfield_path.name,
+                    "Flat-field file used by pipeline",
+                ),
+            },
         )
 
         # 6. Save flat-field correction data (FITS)
@@ -252,3 +260,74 @@ def _process_single_measurement(
         )
 
         logger.success("Measurement processed")
+
+
+def convert_measurement_to_fits(
+    measurement_path: Path,
+    processed_dir: Path,
+) -> None:
+    """Convert a measurement to FITS without applying flat-field correction.
+
+    This function is intended for measurements where flat-field correction
+    has failed or is unavailable.  It loads the raw ``.dat`` file, runs a
+    best-effort wavelength auto-calibration on the uncorrected Stokes data,
+    and writes the result as a ``*_converted.fits`` file together with a
+    ``*_profile_converted.png`` profile plot.
+
+    The generated FITS file includes the ``FFCORR = False`` header keyword so
+    downstream consumers can clearly identify that no flat-field correction was
+    applied.  The filename suffix (``_converted`` rather than ``_corrected``)
+    also serves as an explicit visual distinction.
+
+    Args:
+        measurement_path: Path to the measurement ``.dat`` file.
+        processed_dir: Output directory where converted artifacts are written.
+    """
+    with logger.contextualize(file=measurement_path.name):
+        logger.info("Converting measurement to FITS without flat-field correction")
+
+        # Load raw measurement
+        stokes, metadata = dat_io.read(measurement_path)
+        solar_orientation = compute_solar_orientation(metadata)
+
+        # Best-effort wavelength calibration on uncorrected data
+        calibration = calibrate_measurement(stokes)
+        logger.info(
+            "Wavelength calibration complete (best-effort on uncorrected data)",
+            pixel_scale=calibration.pixel_scale,
+            wavelength_offset=calibration.wavelength_offset,
+        )
+
+        processing_dir = processed_dir
+        processing_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write converted FITS (no flat-field correction applied)
+        fits_io.write(
+            processed_output_path(
+                processing_dir,
+                measurement_path.name,
+                kind="converted_fits",
+            ),
+            stokes,
+            metadata,
+            calibration=calibration,
+            solar_orientation=solar_orientation,
+            extra_header={
+                FITS_KEY_FFCORR: (False, "True if pipeline applied flat-field correction"),
+            },
+        )
+
+        # Generate profile plot for the converted (uncorrected) data
+        _plot_data(
+            stokes=stokes,
+            calibration=calibration,
+            metadata=metadata,
+            solar_orientation=solar_orientation,
+            filename_save=processed_output_path(
+                processing_dir,
+                measurement_path.name,
+                kind="profile_converted_png",
+            ),
+        )
+
+        logger.success("Measurement converted to FITS without flat-field correction")

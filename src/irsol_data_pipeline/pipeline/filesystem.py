@@ -15,11 +15,13 @@ from loguru import logger
 
 from irsol_data_pipeline.core.config import (
     CACHE_DIRNAME,
+    CONVERTED_FITS_SUFFIX,
     CORRECTED_FITS_SUFFIX,
     ERROR_JSON_SUFFIX,
     FLATFIELD_CORRECTION_DATA_SUFFIX,
     METADATA_JSON_SUFFIX,
     PROCESSED_DIRNAME,
+    PROFILE_CONVERTED_PNG_SUFFIX,
     PROFILE_CORRECTED_PNG_SUFFIX,
     PROFILE_ORIGINAL_PNG_SUFFIX,
     RAW_DIRNAME,
@@ -42,11 +44,13 @@ IGNORED_PREFIXES = ("cal", "dark")
 
 ProcessedOutputKind = Literal[
     "corrected_fits",
+    "converted_fits",
     "error_json",
     "metadata_json",
     "flatfield_correction_data",
     "profile_corrected_png",
     "profile_original_png",
+    "profile_converted_png",
     "slit_preview_png",
     "slit_preview_error_json",
 ]
@@ -55,11 +59,13 @@ ObservationDayPredicate = Callable[[ObservationDay], bool]
 
 _PROCESSED_SUFFIX_BY_KIND: dict[ProcessedOutputKind, str] = {
     "corrected_fits": CORRECTED_FITS_SUFFIX,
+    "converted_fits": CONVERTED_FITS_SUFFIX,
     "error_json": ERROR_JSON_SUFFIX,
     "metadata_json": METADATA_JSON_SUFFIX,
     "flatfield_correction_data": FLATFIELD_CORRECTION_DATA_SUFFIX,
     "profile_corrected_png": PROFILE_CORRECTED_PNG_SUFFIX,
     "profile_original_png": PROFILE_ORIGINAL_PNG_SUFFIX,
+    "profile_converted_png": PROFILE_CONVERTED_PNG_SUFFIX,
     "slit_preview_png": SLIT_PREVIEW_PNG_SUFFIX,
     "slit_preview_error_json": SLIT_PREVIEW_ERROR_JSON_SUFFIX,
 }
@@ -273,9 +279,12 @@ def get_processed_stem(source_name: str) -> str:
 def is_measurement_flat_field_processed(processed_dir: Path, source_name: str) -> bool:
     """Check whether a measurement has already been processed.
 
-    A measurement is considered processed if either a canonical
-    ``*_corrected.fits`` file or an ``*_error.json`` file exists in
-    the processed directory.
+    A measurement is considered processed if any of the following artifacts
+    exist in the processed directory:
+
+    * ``*_corrected.fits`` — flat-field corrected output.
+    * ``*_converted.fits`` — converted output (no flat-field correction applied).
+    * ``*_error.json`` — error recorded during a previous processing attempt.
 
     Args:
         processed_dir: Path to the processed/ folder.
@@ -290,15 +299,21 @@ def is_measurement_flat_field_processed(processed_dir: Path, source_name: str) -
             source_name,
             kind="corrected_fits",
         )
+        converted_fits = processed_output_path(
+            processed_dir,
+            source_name,
+            kind="converted_fits",
+        )
         error = processed_output_path(
             processed_dir,
             source_name,
             kind="error_json",
         )
-        is_processed = corrected_fits.exists() or error.exists()
+        is_processed = corrected_fits.exists() or converted_fits.exists() or error.exists()
         logger.debug(
             "Checked processed state",
             has_corrected_fits=corrected_fits.exists(),
+            has_converted_fits=converted_fits.exists(),
             has_error_json=error.exists(),
             is_processed=is_processed,
         )

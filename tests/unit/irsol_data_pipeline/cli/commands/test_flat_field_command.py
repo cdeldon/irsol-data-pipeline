@@ -315,6 +315,117 @@ class TestFlatFieldApply:
 
         assert exc_info.value.code == 1
 
+    def test_apply_convert_on_ff_failure_converts_when_no_flatfields(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """With --convert-on-ff-failure and no flat-fields, converts instead of exiting."""
+        measurement = tmp_path / "6302_m1.dat"
+        measurement.write_text("placeholder")
+        output_dir = tmp_path / "processed"
+
+        with (
+            patch(
+                "irsol_data_pipeline.cli.commands.flat_field_command.discover_flatfield_files",
+                return_value=[],
+            ),
+            patch(
+                "irsol_data_pipeline.cli.commands.flat_field_command.convert_measurement_to_fits",
+            ) as mock_convert,
+        ):
+            result = app(
+                [
+                    "flat-field",
+                    "apply",
+                    str(measurement),
+                    "--output-dir",
+                    str(output_dir),
+                    "--convert-on-ff-failure",
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        assert result is None
+        mock_convert.assert_called_once()
+        assert mock_convert.call_args.kwargs["measurement_path"] == measurement.resolve()
+        assert mock_convert.call_args.kwargs["processed_dir"] == output_dir.resolve()
+
+    def test_apply_convert_on_ff_failure_converts_after_process_failure(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """With --convert-on-ff-failure, a failed process triggers conversion (exits 1)."""
+        measurement = tmp_path / "6302_m1.dat"
+        measurement.write_text("placeholder")
+        output_dir = tmp_path / "processed"
+
+        ff_cache = _make_ff_cache(6302)
+
+        with (
+            patch(
+                "irsol_data_pipeline.cli.commands.flat_field_command.discover_flatfield_files",
+                return_value=[tmp_path / "ff6302_m1.dat"],
+            ),
+            patch(
+                "irsol_data_pipeline.cli.commands.flat_field_command.build_flatfield_cache",
+                return_value=ff_cache,
+            ),
+            patch(
+                "irsol_data_pipeline.cli.commands.flat_field_command.process_single_measurement",
+                side_effect=RuntimeError("processing failed"),
+            ),
+            patch(
+                "irsol_data_pipeline.cli.commands.flat_field_command.convert_measurement_to_fits",
+            ) as mock_convert,
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            app(
+                [
+                    "flat-field",
+                    "apply",
+                    str(measurement),
+                    "--output-dir",
+                    str(output_dir),
+                    "--convert-on-ff-failure",
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        assert exc_info.value.code == 1
+        mock_convert.assert_called_once()
+
+    def test_apply_no_flatfield_without_convert_flag_exits(self, tmp_path: Path) -> None:
+        """Without --convert-on-ff-failure, no flat-fields still exits with code 1."""
+        measurement = tmp_path / "6302_m1.dat"
+        measurement.write_text("placeholder")
+        output_dir = tmp_path / "processed"
+
+        with (
+            patch(
+                "irsol_data_pipeline.cli.commands.flat_field_command.discover_flatfield_files",
+                return_value=[],
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            app(
+                [
+                    "flat-field",
+                    "apply",
+                    str(measurement),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        assert exc_info.value.code == 1
+
 
 class TestFlatFieldApplyDay:
     def test_apply_day_success(self, tmp_path: Path) -> None:
@@ -539,3 +650,66 @@ class TestFlatFieldApplyDay:
             )
 
         assert exc_info.value.code == 1
+
+    def test_apply_day_convert_on_ff_failure_passed_to_processor(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """--convert-on-ff-failure is forwarded to process_observation_day."""
+        day_dir = tmp_path / "240713"
+        reduced_dir = day_dir / "reduced"
+        reduced_dir.mkdir(parents=True)
+        output_dir = tmp_path / "output"
+
+        day_result = DayProcessingResult(day_name="240713", processed=1)
+
+        with patch(
+            "irsol_data_pipeline.cli.commands.flat_field_command.process_observation_day",
+            return_value=day_result,
+        ) as mock_process:
+            app(
+                [
+                    "flat-field",
+                    "apply-day",
+                    str(day_dir),
+                    "--output-dir",
+                    str(output_dir),
+                    "--convert-on-ff-failure",
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        assert mock_process.call_args.kwargs["convert_on_ff_failure"] is True
+
+    def test_apply_day_convert_on_ff_failure_defaults_false(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """convert_on_ff_failure defaults to False when flag is absent."""
+        day_dir = tmp_path / "240713"
+        reduced_dir = day_dir / "reduced"
+        reduced_dir.mkdir(parents=True)
+        output_dir = tmp_path / "output"
+
+        day_result = DayProcessingResult(day_name="240713", processed=1)
+
+        with patch(
+            "irsol_data_pipeline.cli.commands.flat_field_command.process_observation_day",
+            return_value=day_result,
+        ) as mock_process:
+            app(
+                [
+                    "flat-field",
+                    "apply-day",
+                    str(day_dir),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+                exit_on_error=False,
+                print_error=False,
+                result_action="return_value",
+            )
+
+        assert mock_process.call_args.kwargs["convert_on_ff_failure"] is False
