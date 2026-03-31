@@ -133,7 +133,7 @@ def write_stokes_fits(
             info=info,
             calibration=calibration,
             solar_orientation=solar_orientation,
-            extra_header=extra_header,
+            extra_header=extra_header or {},
         )
         hdu_list.writeto(output_path, output_verify="ignore", overwrite=True)
         logger.debug("Stokes FITS written")
@@ -145,7 +145,7 @@ def _build_fits_hdu_list(
     info: MeasurementMetadata,
     calibration: Optional[CalibrationResult],
     solar_orientation: Optional[SolarOrientationInfo],
-    extra_header: dict[str, FitsHeaderEntry] | None = None,
+    extra_header: dict[str, FitsHeaderEntry],
 ) -> fits.HDUList:
     """Build a FITS HDU list from Stokes data and raw info metadata.
 
@@ -182,7 +182,7 @@ def _build_hdu_list(
     a1_err: Optional[float],
     a0_err: Optional[float],
     solar_orientation: Optional[SolarOrientationInfo],
-    extra_header: dict[str, FitsHeaderEntry] | None = None,
+    extra_header: dict[str, FitsHeaderEntry],
 ) -> fits.HDUList:
     """Build a complete multi-extension FITS HDU list."""
 

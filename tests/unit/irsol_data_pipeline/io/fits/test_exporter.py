@@ -10,6 +10,7 @@ from irsol_data_pipeline.core.models import (
 )
 from irsol_data_pipeline.io.fits.exporter import write_stokes_fits
 from irsol_data_pipeline.io.fits.processing_history import ProcessingHistory
+from irsol_data_pipeline.version import __relevant_distribution_versions__, __version__
 
 ALL_STOKES = ["Stokes I", "Stokes Q/I", "Stokes U/I", "Stokes V/I"]
 
@@ -105,7 +106,7 @@ def _make_stokes() -> StokesParameters:
 
 
 class TestPackageVersionsInHeader:
-    def test_software_version_keys_present_in_all_hdus(
+    def test_irsol_data_pipeline_software_version_key_present_in_all_hdus(
         self, tmp_path, sample_measurement_metadata: MeasurementMetadata
     ) -> None:
         output_path = tmp_path / "test_versions.fits"
@@ -116,16 +117,15 @@ class TestPackageVersionsInHeader:
             calibration=None,
             solar_orientation=None,
         )
-        version_keys = ("SWVER", "SWVERNP", "SWVERSP", "SWVERSF", "SWVERPD")
         with fits.open(output_path) as hdul:
             for hdu in hdul:
-                for key in version_keys:
-                    assert key in hdu.header, f"{key} missing from HDU {hdu.name!r}"
+                assert "SWVER" in hdu.header, f"SWVER missing from HDU {hdu.name!r}"
+                assert hdu.header["SWVER"] == __version__
 
-    def test_software_version_values_are_strings(
+    def test_relevant_distribution_versions_included_in_primary_header(
         self, tmp_path, sample_measurement_metadata: MeasurementMetadata
     ) -> None:
-        output_path = tmp_path / "test_versions_values.fits"
+        output_path = tmp_path / "test_dist_versions.fits"
         write_stokes_fits(
             output_path=output_path,
             stokes=_make_stokes(),
@@ -135,9 +135,12 @@ class TestPackageVersionsInHeader:
         )
         with fits.open(output_path) as hdul:
             primary = hdul[0].header
-            for key in ("SWVER", "SWVERNP", "SWVERSP", "SWVERSF", "SWVERPD"):
-                assert isinstance(primary[key], str), f"{key} value should be a string"
-                assert len(primary[key]) > 0, f"{key} value should not be empty"
+            for dist_name, dist_version in __relevant_distribution_versions__:
+                key = f"SWVER{dist_name.upper()[:5]}"
+                assert key in primary, f"{key} missing from primary header"
+                assert primary[key] == dist_version, (
+                    f"{key} value mismatch: expected {dist_version}, got {primary[key]}"
+                )
 
 
 class TestExtraHeader:
