@@ -41,18 +41,27 @@ def _extract_traceback_message(record: dict) -> str | None:
 
 def _extract_loguru_level_from_prefect_log_level(level: PrefectLogLevel) -> LOG_LEVEL:
     """Map PrefectLogLevel to the loguru LOG_LEVEL used in the pipeline."""
-    return {
+    mapping: dict[PrefectLogLevel, LOG_LEVEL] = {
         PrefectLogLevel.TRACE: "TRACE",
         PrefectLogLevel.DEBUG: "DEBUG",
         PrefectLogLevel.INFO: "INFO",
         PrefectLogLevel.WARNING: "WARNING",
         PrefectLogLevel.ERROR: "ERROR",
         PrefectLogLevel.CRITICAL: "CRITICAL",
-    }.get(level, "INFO")
+    }
+    return mapping.get(level, "INFO")
 
 
 def _extract_std_level_from_loguru_level(level: LOG_LEVEL) -> int:
-    pass
+    mapping: dict[LOG_LEVEL, int] = {
+        "TRACE": stdlib_logging.DEBUG,
+        "DEBUG": stdlib_logging.DEBUG,
+        "INFO": stdlib_logging.INFO,
+        "WARNING": stdlib_logging.WARNING,
+        "ERROR": stdlib_logging.ERROR,
+        "CRITICAL": stdlib_logging.CRITICAL,
+    }
+    return mapping.get(level, stdlib_logging.INFO)
 
 
 def setup_logging(level: PrefectLogLevel):
