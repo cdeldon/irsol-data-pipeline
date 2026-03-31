@@ -30,13 +30,9 @@ class TestCliPlot:
         with (
             patch(
                 "irsol_data_pipeline.io.dat.read",
-                return_value=(stokes, np.array([])),
+                return_value=(stokes, mock_metadata_return_value),
             ) as read_dat,
             patch("irsol_data_pipeline.plotting.profile.plot") as plot_profile,
-            patch(
-                "irsol_data_pipeline.core.models.MeasurementMetadata.from_info_array",
-                return_value=mock_metadata_return_value,
-            ),
             patch(
                 "irsol_data_pipeline.core.solar_orientation.compute_solar_orientation",
                 return_value=mock_solar_orientation_return_value,
