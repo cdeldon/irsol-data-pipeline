@@ -272,10 +272,11 @@ def _download_and_load_map(
                         "Starting streamed download", total_bytes=total, url=url
                     )
                     bytes_written = 0
+                    bytes_2mb = 2 * 1024 * 1024
                     if target is not None:
                         logger.debug("Writing response to target file", target=target)
                         with open(target, "wb") as f:
-                            for chunk in resp.iter_content(chunk_size=8192):
+                            for chunk in resp.iter_content(chunk_size=bytes_2mb):
                                 if chunk:
                                     f.write(chunk)
                                     bytes_written += len(chunk)
@@ -298,7 +299,7 @@ def _download_and_load_map(
                                 "Writing response to temporary file",
                                 temp_path=tmp_file.name,
                             )
-                            for chunk in resp.iter_content(chunk_size=8192):
+                            for chunk in resp.iter_content(chunk_size=bytes_2mb):
                                 if chunk:
                                     tmp_file.write(chunk)
                                     bytes_written += len(chunk)
