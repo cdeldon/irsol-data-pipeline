@@ -15,7 +15,7 @@ from loguru import logger
 
 from irsol_data_pipeline.core.config import DEFAULT_MAX_DELTA
 from irsol_data_pipeline.core.correction.analyzer import analyze_flatfield
-from irsol_data_pipeline.core.models import FlatFieldCorrection, MeasurementMetadata
+from irsol_data_pipeline.core.models import FlatFieldCorrection
 from irsol_data_pipeline.io import dat as dat_io
 from irsol_data_pipeline.io import fits_flatfield as flatfield_io
 from irsol_data_pipeline.pipeline.filesystem import flatfield_correction_cache_path
@@ -98,8 +98,7 @@ class FlatFieldCache:
 def _analyze_flatfield(path: Path) -> FlatFieldCorrection:
     """Helper function to analyze a single flat-field file for parallel
     processing."""
-    stokes, info = dat_io.read(path)
-    metadata = MeasurementMetadata.from_info_array(info)
+    stokes, metadata = dat_io.read(path)
 
     with NamedTemporaryFile(suffix=".json") as f:
         with Path(f.name).open("w") as json_file:
