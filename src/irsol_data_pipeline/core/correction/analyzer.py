@@ -30,6 +30,10 @@ def create_config_for_data(flat_field: np.ndarray) -> Config:
 
     roi = parse_shape(f"[1:{ff_shape[0] - 2},1:{ff_shape[1] - 2}]")
 
+    logger.debug(
+        "Creating spectroflat config", flat_field_shape=flat_field.shape, roi=str(roi)
+    )
+
     config = Config(roi=roi, iterations=2)
 
     config.sensor_flat = SensorFlatConfig(
@@ -91,5 +95,11 @@ def analyze_flatfield(
     logger.info("Starting flat-field analysis")
     analyser = Analyser(ff_data, config, rpath)  # type: ignore
     analyser.run()
+
+    logger.success(
+        "Flat-field analysis complete",
+        dust_flat_shape=analyser.dust_flat.shape,
+        desmiled_shape=analyser.desmiled.shape,
+    )
 
     return analyser.dust_flat, analyser.offset_map, analyser.desmiled

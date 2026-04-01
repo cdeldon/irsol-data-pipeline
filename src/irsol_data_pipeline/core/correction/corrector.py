@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+from loguru import logger
 from spectroflat.smile import OffsetMap
 from spectroflat.smile.interpolated_correction import SmileInterpolator
 
@@ -28,6 +29,12 @@ def apply_correction(
     Returns:
         Corrected StokesParameters.
     """
+    logger.debug(
+        "Applying flat-field and smile correction",
+        stokes_shape=stokes.i.shape,
+        dust_flat_shape=dust_flat.shape,
+    )
+
     # Handle extra dimension in dust_flat
     if dust_flat.ndim == 3:  # noqa: PLR2004 - magic numbers are ok in this case
         dust_flat = np.squeeze(dust_flat, axis=0)
@@ -36,6 +43,8 @@ def apply_correction(
     sq_corrected = _desmile(stokes.q, offset_map)
     su_corrected = _desmile(stokes.u, offset_map)
     sv_corrected = _desmile(stokes.v, offset_map)
+
+    logger.debug("Flat-field and smile correction applied")
 
     return StokesParameters(
         i=si_corrected,
@@ -51,5 +60,6 @@ def _desmile(data: np.ndarray, offset_map: OffsetMap) -> np.ndarray:
     desmiled = interpolator.run()
     result = desmiled.result
     if result is None:
+        logger.error("Smile correction produced no result", data_shape=data.shape)
         raise SmileCorrectionException("Smile correction produced no result")
     return result

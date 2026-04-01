@@ -8,6 +8,7 @@ from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from loguru import logger
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.patches import Ellipse, FancyArrow, Rectangle
@@ -535,6 +536,7 @@ def plot(
     fig.supylabel("Spatial dimension [px]", fontsize=AXIS_LABEL_FONT_SIZE)
     # fig.tight_layout()
     if filename_save is not None:
+        logger.debug("Saving Stokes profile plot", output_path=str(filename_save))
         fig.savefig(filename_save)
     if show:
         plt.show()
