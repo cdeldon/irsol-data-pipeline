@@ -160,7 +160,7 @@ def run_day_web_assets_subflow_task(
     ),
 )
 def publish_web_assets_for_root(
-    roots: str = "",
+    roots: tuple[str, ...],
     piombo_base_path: str = "",
     piombo_hostname: str = "",
     piombo_username: str = "",
@@ -170,12 +170,11 @@ def publish_web_assets_for_root(
     max_concurrent_days: int = max(1, min(8, (os.cpu_count() or 1) - 1)),
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
 ) -> list[DayProcessingResult]:
-    """Scan one or more roots and run web-assets compatibility processing per day.
+    """Scan one or more roots and run web-assets compatibility processing per
+    day.
 
     Args:
-        roots: Dataset root path(s).  May be a single path or a
-            comma-separated list of paths (e.g. ``/srv/data1,/srv/data2``).
-            If not set, the default path(s) from the Prefect Variable
+        roots: Dataset root path(s). If not set, the default path(s) from the Prefect Variable
             ``data-root-path`` are used.
         piombo_base_path: Piombo base path; if not provided, Prefect variable default is used.
         piombo_hostname: SSH hostname for Piombo upload; if not provided, Prefect variable default is used.

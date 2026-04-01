@@ -158,7 +158,7 @@ def run_day_slit_generation_task(
     description="Scans the dataset roots and generates slit preview images for all observation days with pending work",
 )
 def generate_slit_images(
-    roots: str = "",
+    roots: tuple[str, ...] = (),
     jsoc_email: str = "",
     use_limbguider: bool = False,
     max_concurrent_days: int = max(1, min(4, (os.cpu_count() or 1) - 1)),
@@ -173,9 +173,7 @@ def generate_slit_images(
     correction pipeline.
 
     Args:
-        roots: Dataset root path(s).  May be a single path or a
-            comma-separated list of paths (e.g. ``/srv/data1,/srv/data2``).
-            If not set, the default path(s) from the Prefect Variable
+        roots: Dataset root path(s). If not set, the default path(s) from the Prefect Variable
             ``data-root-path`` are used.
         jsoc_email: Optional JSOC email override for DRMS queries. If unset,
             the Prefect Variable ``jsoc-email`` is used.
@@ -216,7 +214,9 @@ def generate_slit_images(
 
     # Scan all roots and collect pending day paths
     all_scan_results = [
-        scan_slit_dataset_task(root=root_path, jsoc_data_delay_days=jsoc_data_delay_days)
+        scan_slit_dataset_task(
+            root=root_path, jsoc_data_delay_days=jsoc_data_delay_days
+        )
         for root_path in root_paths
     ]
 

@@ -115,15 +115,14 @@ def delete_old_day_cache_files_task(
     description=("Delete old cache files from processed/_cache"),
 )
 def delete_old_cache_files(
-    roots: str = "",
+    roots: tuple[str, ...] = tuple(),
     hours: float = 0.0,
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
 ) -> list[CacheCleanupDayResult]:
     """Delete stale cache files across all observation days.
 
     Args:
-        roots: Dataset root path(s).  May be a single path or a
-            comma-separated list of paths (e.g. ``/srv/data1,/srv/data2``).
+        roots: Dataset root path(s).
             If not set, the default path(s) from the Prefect Variable
             ``data-root-path`` are used.
         hours: Optional cache retention window in hours. If unset (0),
@@ -147,35 +146,35 @@ def delete_old_cache_files(
         hours=hours,
     )
 
-    all_results: list[CacheCleanupDayResult] = []
+    all_days: list[ObservationDay] = []
     for root_path in root_paths:
         days = scan_observation_days_task(root_path)
         if not days:
             logger.info("No observation days found for cache cleanup", root=root_path)
             continue
+            all_days.extend(days)
 
-        root_results = delete_old_day_cache_files_task.map(
-            day_path=[day.path for day in days],
-            hours=unmapped(hours),
-            log_level=unmapped(log_level),
-        ).result()
+    results = delete_old_day_cache_files_task.map(
+        day_path=[day.path for day in all_days],
+        hours=unmapped(hours),
+        log_level=unmapped(log_level),
+    ).result()
 
-        report = build_cache_cleanup_report(root=root_path, results=root_results, hours=hours)
-        create_prefect_markdown_report(
-            content=report,
-            description="Cache cleanup summary: deleted and retained .pkl files per observation day",
-            key=f"cache-cleanup-report-{root_path.name}",
-        )
-        all_results.extend(root_results)
+    report = build_cache_cleanup_report(root=root_path, results=results, hours=hours)
+    create_prefect_markdown_report(
+        content=report,
+        description="Cache cleanup summary: deleted and retained temporary files per observation day",
+        key="cache-cleanup-report",
+    )
 
     logger.success(
         "Cache cleanup completed",
-        day_count=len(all_results),
-        checked_files=sum(r.checked_files for r in all_results),
-        deleted_files=sum(r.deleted_files for r in all_results),
-        deleted_bytes=sum(r.deleted_bytes for r in all_results),
-        skipped_recent_files=sum(r.skipped_recent_files for r in all_results),
-        skipped_bytes=sum(r.skipped_bytes for r in all_results),
-        failed_files=sum(r.failed_files for r in all_results),
+        day_count=len(all_days),
+        checked_files=sum(r.checked_files for r in results),
+        deleted_files=sum(r.deleted_files for r in results),
+        deleted_bytes=sum(r.deleted_bytes for r in results),
+        skipped_recent_files=sum(r.skipped_recent_files for r in results),
+        skipped_bytes=sum(r.skipped_bytes for r in results),
+        failed_files=sum(r.failed_files for r in results),
     )
-    return all_results
+    return results
