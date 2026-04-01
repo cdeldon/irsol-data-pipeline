@@ -100,3 +100,49 @@ def resolve_dataset_root(root: str | Path | None = None) -> Path:
         return Path(configured_root)
 
     raise DatasetRootNotConfiguredError(PrefectVariableName.DATA_ROOT_PATH.value)
+
+
+def resolve_dataset_roots(roots: str | Path | None = None) -> list[Path]:
+    """Resolve one or more dataset roots from an explicit argument or Prefect Variable.
+
+    The argument or Prefect Variable value may be a single path or a
+    comma-separated list of paths (e.g. ``/srv/data1,/srv/data2``).
+
+    Args:
+        roots: Explicit dataset root path(s) override.  May be a single path
+            or a comma-separated list of paths.
+
+    Returns:
+        List of resolved dataset root paths (at least one element).
+
+    Raises:
+        DatasetRootNotConfiguredError: If neither an argument nor a configured
+            Prefect Variable is available, or if all provided paths are blank.
+    """
+    raw = ""
+    if roots is not None:
+        raw = str(roots).strip()
+
+    if not raw:
+        raw = str(
+            get_variable(PrefectVariableName.DATA_ROOT_PATH, default=""),
+        ).strip()
+
+    if not raw:
+        raise DatasetRootNotConfiguredError(PrefectVariableName.DATA_ROOT_PATH.value)
+
+    paths = [Path(p.strip()) for p in raw.split(",") if p.strip()]
+
+    if not paths:
+        raise DatasetRootNotConfiguredError(PrefectVariableName.DATA_ROOT_PATH.value)
+
+    if len(paths) == 1:
+        logger.info("Using single dataset root", root=str(paths[0]))
+    else:
+        logger.info(
+            "Using multiple dataset roots",
+            roots=[str(p) for p in paths],
+            count=len(paths),
+        )
+
+    return paths

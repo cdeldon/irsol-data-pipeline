@@ -1,8 +1,8 @@
 """Prefect orchestration flows for web-assets compatibility deployment.
 
 Two flows:
-1. publish_web_assets_for_root (web-assets-compatibility-full) — scans a dataset
-   root and processes all discovered observation days.
+1. publish_web_assets_for_root (web-assets-compatibility-full) — scans one or
+   more dataset roots and processes all discovered observation days.
 2. publish_web_assets_for_day (web-assets-compatibility-daily) — processes one
    day folder only.
 """
@@ -37,7 +37,7 @@ from irsol_data_pipeline.prefect.utils import create_prefect_markdown_report
 from irsol_data_pipeline.prefect.variables import (
     PrefectVariableName,
     get_variable,
-    resolve_dataset_root,
+    resolve_dataset_roots,
 )
 
 
@@ -153,14 +153,14 @@ def run_day_web_assets_subflow_task(
 
 @flow(
     name="web-assets-compatibility-full",
-    flow_run_name="web-assets-compatibility/full/{root}",
+    flow_run_name="web-assets-compatibility/full",
     description=(
-        "Scans a dataset root and deploys legacy-compatible quicklook/context JPG "
+        "Scans dataset roots and deploys legacy-compatible quicklook/context JPG "
         "assets for all day folders"
     ),
 )
 def publish_web_assets_for_root(
-    root: str = "",
+    roots: str = "",
     piombo_base_path: str = "",
     piombo_hostname: str = "",
     piombo_username: str = "",
@@ -170,10 +170,13 @@ def publish_web_assets_for_root(
     max_concurrent_days: int = max(1, min(8, (os.cpu_count() or 1) - 1)),
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
 ) -> list[DayProcessingResult]:
-    """Scan a root and run web-assets compatibility processing per day.
+    """Scan one or more roots and run web-assets compatibility processing per day.
 
     Args:
-        root: Dataset root path; if empty, Prefect variable default is used.
+        roots: Dataset root path(s).  May be a single path or a
+            comma-separated list of paths (e.g. ``/srv/data1,/srv/data2``).
+            If not set, the default path(s) from the Prefect Variable
+            ``data-root-path`` are used.
         piombo_base_path: Piombo base path; if not provided, Prefect variable default is used.
         piombo_hostname: SSH hostname for Piombo upload; if not provided, Prefect variable default is used.
         piombo_username: SSH username for Piombo upload; if not provided, Prefect variable default is used.
@@ -187,7 +190,7 @@ def publish_web_assets_for_root(
         One DayProcessingResult per scanned day.
     """
     setup_logging(level=log_level)
-    dataset_root = resolve_dataset_root(root)
+    root_paths = resolve_dataset_roots(roots)
     piombo_base_path = piombo_base_path or get_variable(
         PrefectVariableName.PIOMBO_BASE_PATH,
         default="",
@@ -207,19 +210,25 @@ def publish_web_assets_for_root(
 
     logger.info(
         "Starting web-assets compatibility flow",
-        root=dataset_root,
+        roots=[str(p) for p in root_paths],
+        root_count=len(root_paths),
         piombo_base_path=piombo_base_path,
         jpeg_quality=jpeg_quality,
         force_overwrite=force_overwrite,
         max_concurrent_days=max_concurrent_days,
     )
 
-    observation_days = scan_observation_days_task(root=dataset_root)
-    if not observation_days:
+    # Collect observation days from all roots
+    all_observation_days: list[ObservationDay] = []
+    for root_path in root_paths:
+        observation_days = scan_observation_days_task(root=root_path)
+        all_observation_days.extend(observation_days)
+
+    if not all_observation_days:
         logger.info("No observation days found")
         return []
 
-    day_paths = [day.path for day in observation_days]
+    day_paths = [day.path for day in all_observation_days]
     with ThreadPoolTaskRunner(max_workers=max_concurrent_days) as runner:
         results = runner.map(
             run_day_web_assets_subflow_task,

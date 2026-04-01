@@ -5,8 +5,8 @@ in :mod:`irsol_data_pipeline.pipeline.cache_cleanup`.
 
 Two flows are exposed:
 
-- :func:`delete_old_cache_files` — top-level flow that scans the dataset root
-  and dispatches one subflow per observation day.
+- :func:`delete_old_cache_files` — top-level flow that scans one or more
+  dataset roots and dispatches one subflow per observation day.
 - :func:`delete_old_day_cache_files` — per-day subflow; can also be triggered
   manually for a single day.
 """
@@ -36,7 +36,7 @@ from irsol_data_pipeline.prefect.utils import create_prefect_markdown_report
 from irsol_data_pipeline.prefect.variables import (
     PrefectVariableName,
     get_variable,
-    resolve_dataset_root,
+    resolve_dataset_roots,
 )
 
 
@@ -115,14 +115,17 @@ def delete_old_day_cache_files_task(
     description=("Delete old cache files from processed/_cache"),
 )
 def delete_old_cache_files(
-    root: str = "",
+    roots: str = "",
     hours: float = 0.0,
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
 ) -> list[CacheCleanupDayResult]:
     """Delete stale cache files across all observation days.
 
     Args:
-        root: Dataset root path. If not set, the default path from Prefect Variable is used.
+        roots: Dataset root path(s).  May be a single path or a
+            comma-separated list of paths (e.g. ``/srv/data1,/srv/data2``).
+            If not set, the default path(s) from the Prefect Variable
+            ``data-root-path`` are used.
         hours: Optional cache retention window in hours. If unset (0),
             the Prefect Variable ``cache-expiration-hours`` is used.
         log_level: Logging level for the Prefect flow.
@@ -136,35 +139,43 @@ def delete_old_cache_files(
         get_variable(PrefectVariableName.CACHE_EXPIRATION_HOURS, default="672"),
     )
 
-    root_path = resolve_dataset_root(root)
-    logger.info("Starting cache cleanup", root=root_path, hours=hours)
-
-    days = scan_observation_days_task(root_path)
-    if not days:
-        logger.info("No observation days found for cache cleanup", root=root_path)
-        return []
-
-    results = delete_old_day_cache_files_task.map(
-        day_path=[day.path for day in days],
-        hours=unmapped(hours),
-        log_level=unmapped(log_level),
-    ).result()
-
-    report = build_cache_cleanup_report(root=root_path, results=results, hours=hours)
-    create_prefect_markdown_report(
-        content=report,
-        description="Cache cleanup summary: deleted and retained .pkl files per observation day",
-        key=f"cache-cleanup-report-{root_path.name}",
+    root_paths = resolve_dataset_roots(roots)
+    logger.info(
+        "Starting cache cleanup",
+        roots=[str(p) for p in root_paths],
+        root_count=len(root_paths),
+        hours=hours,
     )
+
+    all_results: list[CacheCleanupDayResult] = []
+    for root_path in root_paths:
+        days = scan_observation_days_task(root_path)
+        if not days:
+            logger.info("No observation days found for cache cleanup", root=root_path)
+            continue
+
+        root_results = delete_old_day_cache_files_task.map(
+            day_path=[day.path for day in days],
+            hours=unmapped(hours),
+            log_level=unmapped(log_level),
+        ).result()
+
+        report = build_cache_cleanup_report(root=root_path, results=root_results, hours=hours)
+        create_prefect_markdown_report(
+            content=report,
+            description="Cache cleanup summary: deleted and retained .pkl files per observation day",
+            key=f"cache-cleanup-report-{root_path.name}",
+        )
+        all_results.extend(root_results)
 
     logger.success(
         "Cache cleanup completed",
-        day_count=len(results),
-        checked_files=sum(r.checked_files for r in results),
-        deleted_files=sum(r.deleted_files for r in results),
-        deleted_bytes=sum(r.deleted_bytes for r in results),
-        skipped_recent_files=sum(r.skipped_recent_files for r in results),
-        skipped_bytes=sum(r.skipped_bytes for r in results),
-        failed_files=sum(r.failed_files for r in results),
+        day_count=len(all_results),
+        checked_files=sum(r.checked_files for r in all_results),
+        deleted_files=sum(r.deleted_files for r in all_results),
+        deleted_bytes=sum(r.deleted_bytes for r in all_results),
+        skipped_recent_files=sum(r.skipped_recent_files for r in all_results),
+        skipped_bytes=sum(r.skipped_bytes for r in all_results),
+        failed_files=sum(r.failed_files for r in all_results),
     )
-    return results
+    return all_results

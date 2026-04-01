@@ -98,7 +98,10 @@ class PrefectSecretMetadata:
 PREFECT_VARIABLES: tuple[PrefectVariableMetadata, ...] = (
     PrefectVariableMetadata(
         prefect_name=PrefectVariableName.DATA_ROOT_PATH,
-        prompt_text="Default dataset root path used by Prefect flows",
+        prompt_text=(
+            "Default dataset root path(s) used by Prefect flows "
+            "(single path or comma-separated list, e.g. /srv/data1,/srv/data2)"
+        ),
         required=True,
         topic_tags=(
             PrefectDeploymentTopicTag.FLAT_FIELD_CORRECTION,
