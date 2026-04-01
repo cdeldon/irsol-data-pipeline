@@ -22,7 +22,7 @@ flowchart TD
         P2["4.2 Find closest flat-field"]
         P3["4.3 Apply flat-field correction"]
         P4["4.4 Wavelength auto-calibration"]
-        P5["4.5 Write corrected FITS<br/><i>*_corrected.fits</i><br/>FFCORR=True, FFFILE=&lt;filename&gt;"]
+        P5["4.5 Write corrected FITS<br/><i>*_corrected.fits</i><br/>FFCORR=True,<br/>FFFILE=&lt;filename&gt;"]
         P6["4.6 Write correction data (FITS)"]
         P7["4.7 Write processing metadata (JSON)"]
         P8["4.8 Generate profile plots (PNG)<br/><i>*_profile_original.png</i><br/><i>*_profile_corrected.png</i>"]
@@ -45,8 +45,8 @@ flowchart TD
     LOAD["4.1 Load .dat file"]
     FAIL["4.2 Flat-field correction<br/>FAILS"]
     ERROR["Write *_error.json"]
-    CONVERT_CHECK{{"convert_on_ff_failure\nenabled?"}}
-    CALIBRATE["Best-effort wavelength\nauto-calibration"]
+    CONVERT_CHECK{{"convert_on_ff_failure<br/>enabled?"}}
+    CALIBRATE["Best-effort wavelength<br/>auto-calibration"]
     CONVERT["Write *_converted.fits<br/>FFCORR=False"]
     PLOT_CONV["Write *_profile_converted.png"]
     SKIP["Skip conversion"]
@@ -60,9 +60,9 @@ flowchart TD
 
 | Scenario | FITS file | Profile plot | `FFCORR` header |
 |----------|-----------|--------------|-----------------|
-| Correction succeeded | `*_corrected.fits` | `*_profile_corrected.png`, `*_profile_original.png` | `True` |
-| Correction failed, `convert_on_ff_failure=True` | `*_converted.fits` | `*_profile_converted.png` | `False` |
-| Correction failed, `convert_on_ff_failure=False` | — | — | — |
+| Correction *succeeded* | `*_corrected.fits` | `*_profile_corrected.png`, `*_profile_original.png` | `True` |
+| Correction *failed*, `convert_on_ff_failure=True` | `*_converted.fits` | `*_profile_converted.png` | `False` |
+| Correction *failed*, `convert_on_ff_failure=False` | — | — | — |
 
 The `FFCORR` FITS keyword (boolean) and `FFFILE` keyword (flat-field filename,
 only present when `FFCORR=True`) are written to the primary HDU header so that
