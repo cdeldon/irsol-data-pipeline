@@ -21,6 +21,7 @@ from irsol_data_pipeline.pipeline.flatfield_cache import (
     build_flatfield_cache,
 )
 from irsol_data_pipeline.pipeline.measurement_processor import (
+    convert_measurement_to_fits,
     process_single_measurement,
 )
 from irsol_data_pipeline.prefect.utils import (
@@ -32,6 +33,7 @@ def process_observation_day(
     day: ObservationDay,
     max_delta_policy: MaxDeltaPolicy | None = None,
     force: bool = False,
+    convert_on_ff_failure: bool = False,
 ) -> DayProcessingResult:
     """Process all measurements for a single observation day.
 
@@ -45,10 +47,17 @@ def process_observation_day(
     If any step fails for a measurement, an error file is written and
     processing continues with the next measurement.
 
+    When ``convert_on_ff_failure`` is ``True`` and a measurement fails the
+    flat-field correction step (or any preceding step), the raw measurement is
+    additionally converted to a ``*_converted.fits`` FITS file and a
+    ``*_profile_converted.png`` profile plot is generated.  These outputs are
+    clearly distinguishable from the happy-path ``*_corrected.fits`` artifacts
+    both by filename suffix and by the ``FFCORR = False`` FITS header keyword.
+
     By default, measurements that have already been processed (i.e. a
-    ``*_corrected.fits`` or ``*_error.json`` artifact exists in
-    ``day.processed_dir``) are skipped.  Pass ``force=True`` to bypass
-    this check and reprocess all measurements regardless of existing
+    ``*_corrected.fits``, ``*_converted.fits``, or ``*_error.json`` artifact
+    exists in ``day.processed_dir``) are skipped.  Pass ``force=True`` to
+    bypass this check and reprocess all measurements regardless of existing
     artifacts.
 
     Args:
@@ -57,6 +66,9 @@ def process_observation_day(
         force: When True, skip the "already processed" check and reprocess
             every measurement even if an output or error artifact already
             exists.
+        convert_on_ff_failure: When True, measurements that fail flat-field
+            correction are additionally converted to ``*_converted.fits`` and
+            a ``*_profile_converted.png`` profile plot is generated.
 
     Returns:
         DayProcessingResult summary.
@@ -132,5 +144,22 @@ def process_observation_day(
                         title=f"Error for failed processed measurement {stem}",
                         key=f"error-metadata-{meas_path.name}",
                     )
+
+                    # If requested, convert the raw measurement to FITS so
+                    # consumers can still access the uncorrected Stokes data.
+                    if convert_on_ff_failure:
+                        try:
+                            logger.info(
+                                "Writing converted FITS file for original dat file, non-flat-field corrected."
+                            )
+                            convert_measurement_to_fits(
+                                measurement_path=meas_path,
+                                processed_dir=day.processed_dir,
+                            )
+                        except Exception:
+                            logger.exception(
+                                "Failed to convert measurement to FITS after "
+                                "flat-field correction failure",
+                            )
 
         return result

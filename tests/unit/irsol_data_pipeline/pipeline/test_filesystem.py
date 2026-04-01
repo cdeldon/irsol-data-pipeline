@@ -6,11 +6,13 @@ from pathlib import Path
 
 from irsol_data_pipeline.core.config import (
     CACHE_DIRNAME,
+    CONVERTED_FITS_SUFFIX,
     CORRECTED_FITS_SUFFIX,
     ERROR_JSON_SUFFIX,
     FLATFIELD_CORRECTION_DATA_SUFFIX,
     METADATA_JSON_SUFFIX,
     PROCESSED_DIRNAME,
+    PROFILE_CONVERTED_PNG_SUFFIX,
     PROFILE_CORRECTED_PNG_SUFFIX,
     PROFILE_ORIGINAL_PNG_SUFFIX,
     RAW_DIRNAME,
@@ -228,6 +230,18 @@ class TestProcessedOutputPath:
         )
         assert path == tmp_path / f"6302_m1{PROFILE_ORIGINAL_PNG_SUFFIX}"
 
+    def test_converted_fits_path(self, tmp_path: Path):
+        path = processed_output_path(tmp_path, "6302_m1.dat", kind="converted_fits")
+        assert path == tmp_path / f"6302_m1{CONVERTED_FITS_SUFFIX}"
+
+    def test_profile_converted_png_path(self, tmp_path: Path):
+        path = processed_output_path(
+            tmp_path,
+            "6302_m1.dat",
+            kind="profile_converted_png",
+        )
+        assert path == tmp_path / f"6302_m1{PROFILE_CONVERTED_PNG_SUFFIX}"
+
     def test_processed_output_uses_stem_of_source_name(self, tmp_path: Path):
         path = processed_output_path(tmp_path, "nested.name.dat", kind="corrected_fits")
         assert path == tmp_path / f"nested.name{CORRECTED_FITS_SUFFIX}"
@@ -239,6 +253,10 @@ class TestIsMeasurementProcessed:
 
     def test_corrected_fits_exists(self, tmp_path: Path):
         processed_output_path(tmp_path, "6302_m1.dat", kind="corrected_fits").touch()
+        assert is_measurement_flat_field_processed(tmp_path, "6302_m1.dat")
+
+    def test_converted_fits_exists(self, tmp_path: Path):
+        processed_output_path(tmp_path, "6302_m1.dat", kind="converted_fits").touch()
         assert is_measurement_flat_field_processed(tmp_path, "6302_m1.dat")
 
     def test_error_exists(self, tmp_path: Path):

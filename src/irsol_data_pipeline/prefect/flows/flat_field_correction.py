@@ -67,6 +67,7 @@ def run_day_processing_subflow_task(
     day_path: Path,
     max_delta_hours: float = 2.0,
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
+    convert_on_ff_failure: bool = False,
 ) -> DayProcessingResult:
     """Prefect task: execute the day-processing flow as a sub-flow."""
     with logger.contextualize(day=day_path.name):
@@ -75,6 +76,7 @@ def run_day_processing_subflow_task(
             day_path=day_path,
             max_delta_hours=max_delta_hours,
             log_level=log_level,
+            convert_on_ff_failure=convert_on_ff_failure,
         )
         logger.success("Daily flat field correction completed")
         return result
@@ -90,6 +92,7 @@ def process_unprocessed_measurements(
     max_delta_hours: float = 2.0,
     max_concurrent_days_to_process: int = max(1, min(12, (os.cpu_count() or 1) - 1)),
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
+    convert_on_ff_failure: bool = False,
 ) -> list[DayProcessingResult]:
     """Scan the dataset and process all days with pending measurements.
 
@@ -98,6 +101,10 @@ def process_unprocessed_measurements(
         max_delta_hours: Maximum flat-field time delta in hours.
         max_concurrent_days_to_process: Maximum number of concurrent day processing tasks. Defaults to CPU count - 1, capped at 12.
         log_level: Logging level for the Prefect flow.
+        convert_on_ff_failure: When True, measurements that fail flat-field
+            correction are converted to ``*_converted.fits`` FITS files with a
+            ``*_profile_converted.png`` profile plot so their data is still
+            accessible to downstream consumers.
 
     Returns:
         List of DayProcessingResult for each processed day.
@@ -108,6 +115,7 @@ def process_unprocessed_measurements(
         "Starting dataset scan flow",
         root=dataset_root,
         max_delta_hours=max_delta_hours,
+        convert_on_ff_failure=convert_on_ff_failure,
     )
 
     # Scan
@@ -142,6 +150,7 @@ def process_unprocessed_measurements(
                 "day_path": selected_day_paths,
                 "max_delta_hours": unmapped(max_delta_hours),
                 "log_level": unmapped(log_level),
+                "convert_on_ff_failure": unmapped(convert_on_ff_failure),
             },
         ).result()
 
@@ -167,6 +176,7 @@ def process_daily_unprocessed_measurements(
     day_path: Path,
     max_delta_hours: float = 2.0,
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
+    convert_on_ff_failure: bool = False,
 ) -> DayProcessingResult:
     """Process a single observation day.
 
@@ -174,6 +184,10 @@ def process_daily_unprocessed_measurements(
         day_path: Path to the observation day directory.
         max_delta_hours: Maximum flat-field time delta in hours.
         log_level: Logging level for the Prefect flow.
+        convert_on_ff_failure: When True, measurements that fail flat-field
+            correction are converted to ``*_converted.fits`` FITS files with a
+            ``*_profile_converted.png`` profile plot so their data is still
+            accessible to downstream consumers.
 
     Returns:
         DayProcessingResult summary.
@@ -183,6 +197,7 @@ def process_daily_unprocessed_measurements(
         "Starting day processing flow",
         day_path=day_path,
         max_delta_hours=max_delta_hours,
+        convert_on_ff_failure=convert_on_ff_failure,
     )
 
     path = Path(day_path)
@@ -197,6 +212,7 @@ def process_daily_unprocessed_measurements(
     result = process_observation_day(
         day=day,
         max_delta_policy=policy,
+        convert_on_ff_failure=convert_on_ff_failure,
     )
 
     logger.success(

@@ -102,3 +102,12 @@ FITS_KEY_GLBMEAN = "GLBMEAN"  # global_mean
 # ---------------------------------------------------------------------------
 
 FITS_KEY_SLTANGL = "SLTANGL"  # SolarOrientationInfo.slit_angle_solar_deg
+
+# ---------------------------------------------------------------------------
+# Pipeline flat-field provenance
+# ---------------------------------------------------------------------------
+
+FITS_KEY_FFCORR = "FFCORR"  # True when the pipeline applied flat-field correction
+FITS_KEY_FFFILE = (
+    "FFFILE"  # Filename of the flat-field used (set only when FFCORR=True)
+)

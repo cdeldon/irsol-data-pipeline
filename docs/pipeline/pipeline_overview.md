@@ -4,6 +4,8 @@ The pipeline layer orchestrates end-to-end processing of solar observation data.
 
 ## Flat-field correction
 
+### Happy path (flat-field correction succeeds)
+
 ```mermaid
 flowchart TD
     SCAN["<b>1. Scan</b><br/>Discover observation days<br/>and pending measurements"]
@@ -14,16 +16,16 @@ flowchart TD
 
     SCAN --> DISCOVER --> CACHE --> PROCESS --> RESULT
 
-    subgraph "Step 4: Per-Measurement Pipeline"
+    subgraph "Step 4: Per-Measurement Pipeline (happy path)"
         direction TB
         P1["4.1 Load .dat file"]
         P2["4.2 Find closest flat-field"]
         P3["4.3 Apply flat-field correction"]
         P4["4.4 Wavelength auto-calibration"]
-        P5["4.5 Write corrected FITS"]
+        P5["4.5 Write corrected FITS<br/><i>*_corrected.fits</i><br/>FFCORR=True,<br/>FFFILE=&lt;filename&gt;"]
         P6["4.6 Write correction data (FITS)"]
         P7["4.7 Write processing metadata (JSON)"]
-        P8["4.8 Generate profile plots (PNG)"]
+        P8["4.8 Generate profile plots (PNG)<br/><i>*_profile_original.png</i><br/><i>*_profile_corrected.png</i>"]
 
         P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8
     end
@@ -31,12 +33,47 @@ flowchart TD
     PROCESS -.-> P1
 ```
 
+### Non-happy path (flat-field correction fails)
+
+When flat-field correction fails, an `*_error.json` artifact is always written.
+If the `convert_on_ff_failure` option is enabled, the pipeline additionally
+converts the raw measurement to a FITS file and generates a profile plot so
+downstream consumers can still access the Stokes data.
+
+```mermaid
+flowchart TD
+    LOAD["4.1 Load .dat file"]
+    FAIL["4.2 Flat-field correction<br/>FAILS"]
+    ERROR["Write *_error.json"]
+    CONVERT_CHECK{{"convert_on_ff_failure<br/>enabled?"}}
+    CALIBRATE["Best-effort wavelength<br/>auto-calibration"]
+    CONVERT["Write *_converted.fits<br/>FFCORR=False"]
+    PLOT_CONV["Write *_profile_converted.png"]
+    SKIP["Skip conversion"]
+
+    LOAD --> FAIL --> ERROR --> CONVERT_CHECK
+    CONVERT_CHECK -- "Yes" --> CALIBRATE --> CONVERT --> PLOT_CONV
+    CONVERT_CHECK -- "No" --> SKIP
+```
+
+#### Output file naming
+
+| Scenario | FITS file | Profile plot | `FFCORR` header |
+|----------|-----------|--------------|-----------------|
+| Correction *succeeded* | `*_corrected.fits` | `*_profile_corrected.png`, `*_profile_original.png` | `True` |
+| Correction *failed*, `convert_on_ff_failure=True` | `*_converted.fits` | `*_profile_converted.png` | `False` |
+| Correction *failed*, `convert_on_ff_failure=False` | — | — | — |
+
+The `FFCORR` FITS keyword (boolean) and `FFFILE` keyword (flat-field filename,
+only present when `FFCORR=True`) are written to the primary HDU header so that
+consumers can unambiguously determine whether the Stokes data has been
+flat-field corrected and, if so, by which flat-field file.
 
 ### Stage 1 — Dataset Scanning
 
 - Discovers all observation day directories under the dataset root.
 - For each day, compares measurements in `reduced/` against outputs in `processed/`.
-- A measurement is considered **processed** if either `*_corrected.fits` or `*_error.json` exists.
+- A measurement is considered **processed** if any of `*_corrected.fits`, `*_converted.fits`, or `*_error.json` exists.
 
 ### Stage 2 — File Discovery
 
@@ -62,7 +99,7 @@ This returns the closest correction within `max_delta` (default: 2 hours), or `N
 
 ### Stage 4 — Single Measurement Processing
 
-The 8-step pipeline for each measurement:
+The 8-step pipeline for each measurement (happy path):
 
 | Step | Operation | Output |
 |------|-----------|--------|
@@ -70,12 +107,35 @@ The 8-step pipeline for each measurement:
 | 4.2 | Find closest flat-field correction | `FlatFieldCorrection` (from cache) |
 | 4.3 | Apply dust-flat + smile correction | Corrected `StokesParameters` |
 | 4.4 | Run wavelength auto-calibration | `CalibrationResult` |
-| 4.5 | Write corrected FITS | `*_corrected.fits` |
+| 4.5 | Write corrected FITS | `*_corrected.fits` with `FFCORR=True`, `FFFILE=<flat-field filename>` |
 | 4.6 | Write flat-field correction data | `*_flat_field_correction_data.fits` |
 | 4.7 | Write processing metadata | `*_metadata.json` |
 | 4.8 | Generate profile plots | `*_profile_original.png`, `*_profile_corrected.png` |
 
 If any step fails, an error JSON (`*_error.json`) is written and the measurement is marked as failed.
+When `convert_on_ff_failure=True`, a best-effort FITS conversion is also attempted (see [Non-happy path](#non-happy-path-flat-field-correction-fails)).
+
+### Configuring `convert_on_ff_failure`
+
+The option is exposed at every level of the stack:
+
+**Prefect flows:**
+```python
+process_daily_unprocessed_measurements(
+    day_path=Path("/data/2025/250101"),
+    convert_on_ff_failure=True,
+)
+```
+
+**CLI — single measurement:**
+```bash
+idp flat-field apply 6302_m1.dat --output-dir processed/ --convert-on-ff-failure
+```
+
+**CLI — observation day:**
+```bash
+idp flat-field apply-day 2025/250101 --convert-on-ff-failure
+```
 
 
 ## Slit Image Generation
