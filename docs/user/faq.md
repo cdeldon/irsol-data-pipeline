@@ -2,8 +2,6 @@
 
 Common questions and answers for developing with and operating the IRSOL Data Pipeline.
 
----
-
 ## Installation Issues
 
 ### Should I use `uv` or `pip`?
@@ -20,7 +18,7 @@ We recommend **[uv](https://docs.astral.sh/uv/getting-started/installation/)** f
 
 ### When should I use `irsol-data-pipeline-cli` vs `irsol-data-pipeline`?
 
-Two packages are published to PyPI on each release. They contain the **same code** but differ in how their dependencies are declared:
+Two packages are published to PyPI on each [release](./../../.github/workflows/release.yml). They contain the **same code** but differ in how their dependencies are declared:
 
 | Aspect | `irsol-data-pipeline` | `irsol-data-pipeline-cli` |
 |--------|----------------------|---------------------------|
@@ -34,8 +32,6 @@ Two packages are published to PyPI on each release. They contain the **same code
 - Use **`irsol-data-pipeline`** when you are writing Python scripts that import from the library, or when developing locally.
 - Use **`irsol-data-pipeline-cli`** when you only need the `idp` command-line tool in a production environment (e.g., on `sirius`). Install it as an isolated tool with `uv tool install` — **never** add it as a project dependency.
 
----
-
 ## How to Run Flat-Field Correction on a Specific Measurement
 
 The pipeline's flat-field correction involves two stages: (1) **analyzing** a flat-field file to produce a dust-flat map and an offset map, and (2) **applying** that correction to a measurement's Stokes parameters.
@@ -43,8 +39,6 @@ The pipeline's flat-field correction involves two stages: (1) **analyzing** a fl
 ### Minimal code example
 
 ```python
-from __future__ import annotations
-
 from pathlib import Path
 
 from irsol_data_pipeline.core.correction.analyzer import analyze_flatfield
@@ -86,8 +80,6 @@ fits_io.write(output_path, corrected_stokes, metadata)
 
 For more details see [Flat-Field Correction](../core/flat_field_correction.md) and the [Pipeline Overview](../pipeline/pipeline_overview.md).
 
----
-
 ## How to Run Slit-Image Generation on a Specific Measurement
 
 Slit-image generation produces a six-panel SDO context image showing the spectrograph slit position on the solar disc. It requires a [JSOC](http://jsoc.stanford.edu/) registered email to fetch SDO/AIA and SDO/HMI data.
@@ -95,8 +87,6 @@ Slit-image generation produces a six-panel SDO context image showing the spectro
 ### Minimal code example
 
 ```python
-from __future__ import annotations
-
 from pathlib import Path
 
 from irsol_data_pipeline.core.slit_images.coordinates import compute_slit_geometry
@@ -135,11 +125,9 @@ plot_slit(maps=maps, slit=slit_geometry, output_path=output_path)
 
 For more details see [Slit Image Creation](../core/slit_image_creation.md).
 
----
-
 ## How to Create a New Release
 
-Releases are automated via GitHub Actions. When a git tag matching `v*` is pushed, the workflow builds and publishes both `irsol-data-pipeline` and `irsol-data-pipeline-cli` to PyPI.
+Releases are automated via GitHub Actions. When a git tag matching `v*` is pushed, the [workflow](./../../.github/workflows/release.yml) builds and publishes both `irsol-data-pipeline` and `irsol-data-pipeline-cli` to PyPI.
 
 ### Steps
 
@@ -162,8 +150,6 @@ Releases are automated via GitHub Actions. When a git tag matching `v*` is pushe
 | Pre-release (`v1.0.0-alpha.1`) | Testing | Unstable versions for testing before a final release |
 
 For the full step-by-step guide with screenshots, see [Creating a Release](../maintainer/create_a_release.md).
-
----
 
 ## How to Install the Deployed Release on Sirius as a UV Tool
 
@@ -192,8 +178,8 @@ uv tool upgrade irsol-data-pipeline-cli --no-cache-dir --python 3.10
 After installation, configure Prefect and start the services:
 
 ```bash
-# Configure the default Prefect profile
-idp configure
+# Configure the default Prefect profile for running the server
+idp setup server
 
 # Start the Prefect server
 idp prefect start
@@ -202,8 +188,6 @@ idp prefect start
 idp prefect variables configure
 idp prefect secrets configure
 ```
-
----
 
 ## How Can I Access the Deployed Prefect Dashboard Locally?
 
@@ -234,8 +218,6 @@ The Prefect dashboard runs on `sirius` on port `4200`. Since it is not exposed t
 > **Prerequisite:** The Prefect server must be running on `sirius`. If it is not, ask a maintainer to start it with `idp prefect start` or check the systemd service status with `systemctl status irsol-prefect-server`.
 
 For the full production operations guide, see [Prefect Operations](../maintainer/prefect_operations.md).
-
----
 
 ## Related Documentation
 
