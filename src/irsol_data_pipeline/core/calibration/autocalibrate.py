@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+from loguru import logger
 from scipy.optimize import curve_fit
 from scipy.signal import correlate
 
@@ -41,6 +42,7 @@ def calibrate_measurement(
     Raises:
         RuntimeError: If calibration fails.
     """
+    logger.debug("Starting wavelength auto-calibration")
     simean = _prepare_mean_spectrum(stokes.i, stokes.v)
     ref_data, reference_peaks, lines, reference_params, shift = _find_refdata(
         simean,
@@ -60,13 +62,10 @@ def calibrate_measurement(
         a0_err_in_pix = a0_err / abs(a1)
         a1_err_in_pix = a1_err / abs(a1)
         if a0_err_in_pix > 5 or a1_err_in_pix > 0.1:  # noqa: PLR2004 - magic numbers are ok in this case
-            import warnings
-
-            warnings.warn(
-                f"High fitting error in wavelength calibration: "
-                f"a0_err = {a0_err_in_pix:.2f} pixels, "
-                f"a1_err = {a1_err_in_pix:.2f} pixels.",
-                stacklevel=2,
+            logger.warning(
+                "High fitting error in wavelength calibration",
+                a0_err_pixels=round(a0_err_in_pix, 2),
+                a1_err_pixels=round(a1_err_in_pix, 2),
             )
 
     return CalibrationResult(
@@ -145,6 +144,10 @@ def _find_refdata(
     if not ref_datasets:
         raise AutocalibrationReferenceFilesNotFound(refdata_dir)
 
+    logger.debug(
+        "Loaded reference datasets for cross-correlation", count=len(ref_datasets)
+    )
+
     correlations = [None] * len(ref_datasets)
     correlation_coefficients = [0.0] * len(ref_datasets)
 
@@ -175,6 +178,12 @@ def _find_refdata(
     reference_peaks = ref_data["rp"]
     lines = ref_data["rl"]
     reference_params = ref_data["rparams"]
+
+    logger.debug(
+        "Selected reference dataset",
+        filename=ref_data["filename"],
+        correlation_score=round(float(correlation_coefficients[best_idx]), 4),
+    )
 
     shift = correlations[best_idx].size / 2 - np.argmax(correlations[best_idx])
 
@@ -261,8 +270,18 @@ def _fit_line_position(prange: np.ndarray, simean: np.ndarray, index: int) -> fl
             result = ap[0][1]
 
         if result > b + 2 or result < b - 2:
+            logger.trace(
+                "Gaussian fit result out of bounds, using discrete minimum",
+                line_index=index,
+                fitted=round(result, 3),
+                expected_center=round(b, 3),
+            )
             result = b
     except Exception:
+        logger.trace(
+            "Gaussian fitting failed, using discrete minimum",
+            line_index=index,
+        )
         result = b
 
     return result

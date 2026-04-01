@@ -191,6 +191,15 @@ def compute_slit_geometry(
                 observation_name = part
                 break
 
+    logger.debug(
+        "Computed slit geometry",
+        center_solar_x=round(center_solar_x, 2),
+        center_solar_y=round(center_solar_y, 2),
+        mu=round(float(mu), 3),
+        telescope=telescope,
+        needs_rotation=needs_rotation,
+    )
+
     return SlitGeometry(
         center_solar_x=center_solar_x,
         center_solar_y=center_solar_y,
