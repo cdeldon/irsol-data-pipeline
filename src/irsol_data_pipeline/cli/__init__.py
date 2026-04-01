@@ -35,7 +35,8 @@ app = App(
         "  slit-image    Generate slit context images from measurements.\n"
         "  plot          Render Stokes profile and slit context plots.\n"
         "  prefect       Run Prefect server commands.\n"
-        "  setup         Configure local or server Prefect profiles."
+        "  setup         Configure local or server Prefect profiles.\n"
+        "  install       Install pipeline components as system services."
     ),
     version=_build_version_string(),
 )
@@ -70,6 +71,11 @@ app.command(
     "irsol_data_pipeline.cli.commands.setup_command:setup_app",
     name="setup",
     help="Configure local (user) or server (maintainer) Prefect profiles.",
+)
+app.command(
+    "irsol_data_pipeline.cli.commands.install_command:install_app",
+    name="install",
+    help="Install pipeline components as system services.",
 )
 
 _VERBOSE_TO_LOG_LEVEL: dict[int, LOG_LEVEL] = {

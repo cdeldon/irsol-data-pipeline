@@ -1,0 +1,13 @@
+[Unit]
+Description=IRSOL Prefect Server
+After=network.target
+
+[Service]
+Type=simple
+User=${user}
+ExecStart=${idp_executable_path} prefect start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
