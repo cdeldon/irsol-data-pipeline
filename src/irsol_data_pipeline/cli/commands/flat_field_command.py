@@ -57,6 +57,7 @@ from irsol_data_pipeline.pipeline.filesystem import (
 from irsol_data_pipeline.pipeline.flatfield_cache import build_flatfield_cache
 from irsol_data_pipeline.pipeline.flatfield_processor import process_observation_day
 from irsol_data_pipeline.pipeline.measurement_processor import (
+    convert_measurement_to_fits,
     process_single_measurement,
 )
 
@@ -105,6 +106,18 @@ _FORCE_OPTION = Parameter(
     negative=(),
 )
 
+_CONVERT_ON_FF_FAILURE_OPTION = Parameter(
+    name="--convert-on-ff-failure",
+    help=(
+        "When a measurement fails flat-field correction, still convert it to a "
+        "``*_converted.fits`` FITS file and generate a ``*_profile_converted.png`` "
+        "profile plot.  The output file names and the ``FFCORR = False`` FITS "
+        "header keyword clearly distinguish converted artifacts from fully "
+        "corrected ones (``*_corrected.fits``)."
+    ),
+    negative=(),
+)
+
 
 def _print_day_result(result: DayProcessingResult, console: Console) -> None:
     """Render a DayProcessingResult summary table.
@@ -145,11 +158,13 @@ def _find_existing_outputs(processed_dir: Path, source_name: str) -> list[Path]:
 
     kinds: list[ProcessedOutputKind] = [
         "corrected_fits",
+        "converted_fits",
         "error_json",
         "metadata_json",
         "flatfield_correction_data",
         "profile_corrected_png",
         "profile_original_png",
+        "profile_converted_png",
     ]
     existing = []
     for kind in kinds:
@@ -172,7 +187,9 @@ def _find_existing_outputs(processed_dir: Path, source_name: str) -> list[Path]:
         "  • If --cache-dir is provided, flat-field analysis results are cached "
         "there as .pkl files to speed up subsequent runs.\n"
         "  • Prompts for confirmation when output artifacts already exist "
-        "(bypassed by --force)."
+        "(bypassed by --force).\n"
+        "  • With --convert-on-ff-failure, a failed measurement is additionally "
+        "converted to *_converted.fits and *_profile_converted.png."
     ),
 )
 def apply(
@@ -182,6 +199,7 @@ def apply(
     output_dir: Annotated[Path, _OUTPUT_DIR_OPTION],
     cache_dir: Annotated[Path | None, _CACHE_DIR_OPTION] = None,
     force: Annotated[bool, _FORCE_OPTION] = False,
+    convert_on_ff_failure: Annotated[bool, _CONVERT_ON_FF_FAILURE_OPTION] = False,
 ) -> None:
     """Apply flat-field correction to a single measurement .dat file.
 
@@ -194,6 +212,9 @@ def apply(
         cache_dir: Optional directory for flat-field correction cache files.
         force: When True, skip confirmation prompts and "already processed"
             checks.
+        convert_on_ff_failure: When True, a failed measurement is converted to
+            ``*_converted.fits`` and ``*_profile_converted.png`` even if
+            flat-field correction cannot be applied.
     """
     console = get_console()
     resolved_measurement = measurement_path.resolve()
@@ -222,6 +243,31 @@ def apply(
     flatfield_paths = discover_flatfield_files(reduced_dir)
 
     if not flatfield_paths:
+        if convert_on_ff_failure:
+            console.print(
+                f"[yellow]No flat-field files found in {reduced_dir}. "
+                "Flat-field correction is not possible — converting measurement "
+                "to FITS without correction (--convert-on-ff-failure).[/yellow]",
+            )
+            resolved_output_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                with console.status(f"Converting {resolved_measurement.name}…"):
+                    convert_measurement_to_fits(
+                        measurement_path=resolved_measurement,
+                        processed_dir=resolved_output_dir,
+                    )
+                console.print(
+                    f"[bold yellow]⚠ Converted (no flat-field correction) "
+                    f"{resolved_measurement.name}[/bold yellow]",
+                )
+                console.print(f"  Output directory: {resolved_output_dir}")
+            except Exception as exc:
+                console.print(
+                    f"[bold red]✗ Failed to convert "
+                    f"{resolved_measurement.name}: {exc}[/bold red]",
+                )
+                sys.exit(1)
+            return
         console.print(
             f"[bold red]No flat-field files found in {reduced_dir}. "
             "Cannot apply flat-field correction.[/bold red]",
@@ -263,6 +309,26 @@ def apply(
             f"[bold red]✗ Failed to process "
             f"{resolved_measurement.name}: {exc}[/bold red]",
         )
+        if convert_on_ff_failure:
+            console.print(
+                "[yellow]Attempting to convert measurement to FITS without "
+                "flat-field correction (--convert-on-ff-failure)…[/yellow]",
+            )
+            try:
+                with console.status(f"Converting {resolved_measurement.name}…"):
+                    convert_measurement_to_fits(
+                        measurement_path=resolved_measurement,
+                        processed_dir=resolved_output_dir,
+                    )
+                console.print(
+                    f"[bold yellow]⚠ Converted (no flat-field correction) "
+                    f"{resolved_measurement.name}[/bold yellow]",
+                )
+                console.print(f"  Output directory: {resolved_output_dir}")
+            except Exception as conv_exc:
+                console.print(
+                    f"[bold red]✗ Conversion also failed: {conv_exc}[/bold red]",
+                )
         sys.exit(1)
 
 
@@ -278,10 +344,13 @@ def apply(
         "  • Writes multiple artifacts per measurement to --output-dir "
         "(corrected FITS, flat field correction FITS, metadata JSON, profile PNG "
         "plots).\n"
-        "  • Measurements with an existing *_corrected.fits or *_error.json "
-        "artifact are silently skipped (use --force to reprocess them).\n"
+        "  • Measurements with an existing *_corrected.fits, *_converted.fits, or "
+        "*_error.json artifact are silently skipped (use --force to reprocess "
+        "them).\n"
         "  • When a measurement fails, an *_error.json artifact is written and "
         "processing continues with the remaining measurements.\n"
+        "  • With --convert-on-ff-failure, failed measurements are additionally "
+        "converted to *_converted.fits and *_profile_converted.png.\n"
         "  • Prompts for confirmation when --output-dir already exists "
         "(bypassed by --force)."
     ),
@@ -308,6 +377,7 @@ def apply_day(
         ),
     ] = None,
     force: Annotated[bool, _FORCE_OPTION] = False,
+    convert_on_ff_failure: Annotated[bool, _CONVERT_ON_FF_FAILURE_OPTION] = False,
 ) -> None:
     """Apply flat-field correction to all measurements in an observation day.
 
@@ -321,6 +391,9 @@ def apply_day(
             ``<day_path>/processed/``.
         force: When True, skip confirmation prompts and reprocess every
             measurement regardless of existing artifacts.
+        convert_on_ff_failure: When True, measurements that fail flat-field
+            correction are converted to ``*_converted.fits`` and
+            ``*_profile_converted.png``.
     """
     console = get_console()
     resolved_day_path = day_path.resolve()
@@ -372,12 +445,18 @@ def apply_day(
         console.print(
             "  [yellow]--force: all measurements will be reprocessed[/yellow]",
         )
+    if convert_on_ff_failure:
+        console.print(
+            "  [yellow]--convert-on-ff-failure: failed measurements will be "
+            "converted to FITS without flat-field correction[/yellow]",
+        )
 
     try:
         with console.status(f"Processing day {resolved_day_path.name}…"):
             result = process_observation_day(
                 day=observation_day,
                 force=force,
+                convert_on_ff_failure=convert_on_ff_failure,
             )
     except Exception as exc:
         console.print(

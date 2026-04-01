@@ -111,7 +111,7 @@ def delete_old_day_cache_files_task(
 @flow(
     name="maintenance-cache-cleanup",
     flow_run_name="maintenance/cache-cleanup",
-    task_runner=ThreadPoolTaskRunner(max_workers=16),
+    task_runner=ThreadPoolTaskRunner(max_workers=4),
     description=("Delete old cache files from processed/_cache"),
 )
 def delete_old_cache_files(

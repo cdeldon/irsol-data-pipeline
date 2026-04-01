@@ -17,6 +17,8 @@ METADATA_JSON_SUFFIX = "_metadata.json"
 FLATFIELD_CORRECTION_DATA_SUFFIX = "_flat_field_correction_data.fits"
 PROFILE_CORRECTED_PNG_SUFFIX = "_profile_corrected.png"
 PROFILE_ORIGINAL_PNG_SUFFIX = "_profile_original.png"
+CONVERTED_FITS_SUFFIX = "_converted.fits"
+PROFILE_CONVERTED_PNG_SUFFIX = "_profile_converted.png"
 
 
 # Slit image generation output suffixes

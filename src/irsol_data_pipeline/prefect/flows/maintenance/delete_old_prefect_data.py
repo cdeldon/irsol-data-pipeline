@@ -61,7 +61,7 @@ async def retrieve_old_flow_ids(dt: datetime.timedelta) -> list[UUID]:
 
 @flow(
     name="maintenance-cleanup",
-    task_runner=ThreadPoolTaskRunner(max_workers=12),
+    task_runner=ThreadPoolTaskRunner(max_workers=4),
     flow_run_name="maintenance/cleanup-flows",
 )
 async def delete_flow_runs_older_than(
