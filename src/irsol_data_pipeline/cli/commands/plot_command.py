@@ -30,13 +30,7 @@ _MEASUREMENT_INPUT = Parameter(
         dir_okay=False,
     ),
 )
-_SLIT_INPUT = Parameter(
-    validator=validators.Path(
-        ext=("dat",),
-        exists=True,
-        dir_okay=False,
-    ),
-)
+
 _OUTPUT_PATH_OPTION = Parameter(
     name="output-path",
     validator=validators.Path(ext=("png", "jpg", "jpeg"), dir_okay=False),
@@ -216,7 +210,7 @@ def profile(
     help="Load a .dat file and render its slit context image.",
 )
 def slit(
-    input_file_path: Annotated[Path, _SLIT_INPUT],
+    input_file_path: Annotated[Path, _MEASUREMENT_INPUT],
     jsoc_email: str,
     output_path_option: Annotated[Path | None, _OUTPUT_PATH_OPTION] = None,
     show: bool = False,
@@ -246,7 +240,6 @@ def slit(
 
     from irsol_data_pipeline.core.slit_images.coordinates import compute_slit_geometry
     from irsol_data_pipeline.core.slit_images.solar_data import fetch_sdo_maps
-    from irsol_data_pipeline.io import dat as dat_io
     from irsol_data_pipeline.plotting.slit import plot as plot_slit
 
     input_path = input_file_path.expanduser().resolve()
@@ -255,8 +248,15 @@ def slit(
         if output_path_option is not None
         else None
     )
-
-    _, metadata = dat_io.read(input_path)
+    (stokes, metadata), calibration, solar_orientation = (
+        _load_stokes_and_calibration_and_solar_orientation(
+            input_path, autocalibrate=False
+        )
+    )
+    if metadata is None:
+        raise ValidationError(
+            f"No metadata found in measurement {input_path.name}",
+        )
 
     if metadata.solar_x is None or metadata.solar_y is None:
         raise ValidationError(
