@@ -147,34 +147,37 @@ def delete_old_cache_files(
     )
 
     all_days: list[ObservationDay] = []
+    all_results: list[CacheCleanupDayResult] = []
     for root_path in root_paths:
         days = scan_observation_days_task(root_path)
         if not days:
             logger.info("No observation days found for cache cleanup", root=root_path)
             continue
-            all_days.extend(days)
 
-    results = delete_old_day_cache_files_task.map(
-        day_path=[day.path for day in all_days],
-        hours=unmapped(hours),
-        log_level=unmapped(log_level),
-    ).result()
+        results = delete_old_day_cache_files_task.map(
+            day_path=[day.path for day in days],
+            hours=unmapped(hours),
+            log_level=unmapped(log_level),
+        ).result()
+        all_results.extend(results)
 
-    report = build_cache_cleanup_report(root=root_path, results=results, hours=hours)
-    create_prefect_markdown_report(
-        content=report,
-        description="Cache cleanup summary: deleted and retained temporary files per observation day",
-        key="cache-cleanup-report",
-    )
+        report = build_cache_cleanup_report(
+            root=root_path, results=results, hours=hours
+        )
+        create_prefect_markdown_report(
+            content=report,
+            description=f"Cache cleanup summary: deleted and retained temporary files per observation day for {root_path}",
+            key=f"cache-cleanup-report-{root_path.name}",
+        )
 
     logger.success(
         "Cache cleanup completed",
         day_count=len(all_days),
-        checked_files=sum(r.checked_files for r in results),
-        deleted_files=sum(r.deleted_files for r in results),
-        deleted_bytes=sum(r.deleted_bytes for r in results),
-        skipped_recent_files=sum(r.skipped_recent_files for r in results),
-        skipped_bytes=sum(r.skipped_bytes for r in results),
-        failed_files=sum(r.failed_files for r in results),
+        checked_files=sum(r.checked_files for r in all_results),
+        deleted_files=sum(r.deleted_files for r in all_results),
+        deleted_bytes=sum(r.deleted_bytes for r in all_results),
+        skipped_recent_files=sum(r.skipped_recent_files for r in all_results),
+        skipped_bytes=sum(r.skipped_bytes for r in all_results),
+        failed_files=sum(r.failed_files for r in all_results),
     )
-    return results
+    return all_results
