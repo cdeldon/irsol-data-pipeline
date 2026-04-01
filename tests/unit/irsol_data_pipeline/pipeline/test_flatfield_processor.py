@@ -3,16 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
-
-import numpy as np
-import pytest
+from unittest.mock import MagicMock, patch
 
 from irsol_data_pipeline.core.models import (
-    DayProcessingResult,
     MeasurementMetadata,
     ObservationDay,
-    StokesParameters,
 )
 from irsol_data_pipeline.pipeline.flatfield_processor import process_observation_day
 
@@ -142,8 +137,8 @@ class TestProcessObservationDayErrorPath:
         self,
         tmp_path: Path,
     ) -> None:
-        """If plot_original_profile itself raises, the pipeline continues
-        and the result still reflects the original measurement failure."""
+        """If plot_original_profile itself raises, the pipeline continues and
+        the result still reflects the original measurement failure."""
         day = _make_day(tmp_path)
         meas1 = _write_measurement(day.reduced_dir, "6302_m1.dat")
         meas2 = _write_measurement(day.reduced_dir, "6302_m2.dat")
