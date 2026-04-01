@@ -102,8 +102,8 @@ cache.find_best_correction(
 | Filter | Condition | Default |
 |--------|-----------|---------|
 | Wavelength | Exact integer match (Å) | — |
-| Time delta | `|Δt| ≤ max_delta` | 2 hours |
-| Angle | Circular `|Δangle| ≤ max_angle_delta` | 5° |
+| Time delta | `abs(Δt) ≤ max_delta` | 2 hours |
+| Angle | Circular `abs(Δangle) ≤ max_angle_delta` | 5° |
 
 Among all eligible candidates the **temporally closest** one is returned.  If either the measurement or the flat-field has no recorded `position_angle`, the angle filter is skipped.
 
