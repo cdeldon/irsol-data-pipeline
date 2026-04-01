@@ -37,7 +37,8 @@ class TestFetchFitsFile:
         assert target.read_bytes() == fake_content
 
     def test_retries_on_http_error(self, tmp_path: Path) -> None:
-        """The function should be retried on failure (tenacity decorator present)."""
+        """The function should be retried on failure (tenacity decorator
+        present)."""
         import requests as req_mod
         from tenacity import stop_after_attempt
 
@@ -108,10 +109,9 @@ class TestDownloadAndLoadMap:
         fits.writeto(str(fpath), data, hdr, overwrite=True)
         return fpath
 
-    def test_temp_file_deleted_after_successful_load(
-        self, tmp_path: Path
-    ) -> None:
-        """Temporary FITS file must be removed after loading into a SunPy map."""
+    def test_temp_file_deleted_after_successful_load(self, tmp_path: Path) -> None:
+        """Temporary FITS file must be removed after loading into a SunPy
+        map."""
         fits_path = self._make_fake_fits(tmp_path)
         fits_bytes = fits_path.read_bytes()
         created_tmp: list[Path] = []
@@ -157,9 +157,7 @@ class TestDownloadAndLoadMap:
         for tmp in created_tmp:
             assert not tmp.exists(), f"Temp file {tmp} was not deleted"
 
-    def test_temp_file_deleted_when_fits_read_fails(
-        self, tmp_path: Path
-    ) -> None:
+    def test_temp_file_deleted_when_fits_read_fails(self, tmp_path: Path) -> None:
         """Temp file must be removed even if astropy FITS loading fails."""
         fits_bytes = b"NOT_FITS"
         created_tmp: list[Path] = []
@@ -202,9 +200,7 @@ class TestDownloadAndLoadMap:
         for tmp in created_tmp:
             assert not tmp.exists(), f"Temp file {tmp} was not deleted"
 
-    def test_temp_file_deleted_when_download_fails(
-        self, tmp_path: Path
-    ) -> None:
+    def test_temp_file_deleted_when_download_fails(self, tmp_path: Path) -> None:
         """Temp file must be removed when the download itself fails."""
         import requests as req_mod
 
@@ -247,8 +243,8 @@ class TestDownloadAndLoadMap:
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
 
-        safe_time = self._DATA_TIME.replace("/", "-").replace(":", "-").replace(
-            " ", "_"
+        safe_time = (
+            self._DATA_TIME.replace("/", "-").replace(":", "-").replace(" ", "_")
         )
         cached = cache_dir / f"{self._SERIES}_{self._WAVELENGTH}_{safe_time}.fits"
         cached.write_bytes(fits_path.read_bytes())
