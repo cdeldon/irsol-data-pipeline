@@ -133,6 +133,7 @@ def _process_single_measurement(
             wavelength=measurement.wavelength,
             timestamp=measurement.timestamp,
             max_delta=max_delta,
+            position_angle=measurement.metadata.derotator.position_angle,
         )
 
         if ff_correction is None:

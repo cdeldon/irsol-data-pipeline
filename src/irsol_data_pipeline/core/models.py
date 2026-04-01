@@ -77,6 +77,9 @@ class FlatFieldCorrection(BaseModel):
     desmiled: np.ndarray
     timestamp: datetime.datetime
     wavelength: int
+    position_angle: float | None = None
+    """Derotator position angle of the flat-field in degrees, or ``None`` if
+    the value was not recorded in the source file."""
 
 
 class Measurement(BaseModel):

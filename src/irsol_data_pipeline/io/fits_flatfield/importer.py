@@ -51,6 +51,12 @@ def load_correction_data(path: Path | str) -> FlatFieldCorrection:
                 timestamp = datetime.datetime.fromisoformat(
                     str(primary_hdr["TIMESTMP"]),
                 )
+                position_angle_raw = primary_hdr.get("POSANGLE")
+                position_angle: float | None = (
+                    float(position_angle_raw)
+                    if position_angle_raw is not None
+                    else None
+                )
                 dust_flat = np.array(hdul["DUSTFLAT"].data, dtype=np.float64)
                 desmiled = np.array(hdul["DESMILED"].data, dtype=np.float64)
                 offset_map_filename: str | None = primary_hdr.get("OMAPFILE")
@@ -79,4 +85,5 @@ def load_correction_data(path: Path | str) -> FlatFieldCorrection:
             desmiled=desmiled,
             timestamp=timestamp,
             wavelength=wavelength,
+            position_angle=position_angle,
         )

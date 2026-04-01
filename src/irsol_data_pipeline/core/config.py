@@ -1,7 +1,16 @@
+from __future__ import annotations
+
 import datetime
 
 # Default maximum time delta between measurement and flat-field
 DEFAULT_MAX_DELTA = datetime.timedelta(hours=2)
+
+# Maximum allowed angular difference in degrees between the derotator position
+# angles of a measurement and a flat-field for a valid association.  A flat-field
+# whose position angle differs by more than this value (accounting for circular
+# wrap-around) is excluded from consideration even if it satisfies the time-delta
+# policy.  Set to a large value (e.g. 360) to disable the angle check entirely.
+DEFAULT_MAX_ANGLE_DELTA: float = 5.0
 
 # Dataset folder naming conventions
 RAW_DIRNAME = "raw"

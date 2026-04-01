@@ -92,8 +92,71 @@ The interpolator shifts each row by the sub-pixel offsets from the `OffsetMap`, 
 
 Flat-field analysis is computationally expensive. The pipeline caches results:
 
-- **In-memory** — the `FlatFieldCache` (in `pipeline.flatfield_cache`) groups corrections by wavelength and retrieves the temporally closest one for each measurement.
+- **In-memory** — the `FlatFieldCache` (in `pipeline.flatfield_cache`) groups corrections by wavelength and retrieves the best match for each measurement using the association policy described below.
 - **On-disk** — corrections are persisted as FITS files (`*_flat_field_correction_data.fits`) in the `processed/_cache/` directory and reloaded on subsequent runs.
+
+## Flat-Field Association Policy
+
+When the pipeline needs to associate a flat-field correction with a measurement it applies **three independent filters** in order.  All three conditions must be satisfied for a candidate to be eligible:
+
+| # | Filter | Default threshold | Behaviour when unknown |
+|---|--------|-------------------|------------------------|
+| 1 | **Wavelength match** | Exact integer match (Å) | Always required |
+| 2 | **Time-delta policy** | ≤ 2 hours (`DEFAULT_MAX_DELTA`) | Always required |
+| 3 | **Angle policy** | ≤ 5° (`DEFAULT_MAX_ANGLE_DELTA`) | Skipped if either angle is `None` |
+
+Among all eligible candidates the **temporally closest** one is chosen.
+
+The `position_angle` used for filter 3 is `measurement.derotator.position_angle` (the derotator position angle recorded in the ZIMPOL `.dat` metadata).  The angular distance is computed as the **shortest arc** on the circle, so 358° and 2° are considered 4° apart.
+
+Both thresholds are configurable constants in `irsol_data_pipeline.core.config`:
+
+```python
+# core/config.py
+DEFAULT_MAX_DELTA: datetime.timedelta = datetime.timedelta(hours=2)
+DEFAULT_MAX_ANGLE_DELTA: float = 5.0  # degrees
+```
+
+### Association Flow
+
+```mermaid
+flowchart TD
+    START(["find_best_correction(wavelength, timestamp, position_angle)"])
+    LOOKUP["Look up candidates<br/>by wavelength"]
+    EMPTY{{"Any candidates?"}}
+    NONE_WL(["Return None<br/>(no flat-field for this wavelength)"])
+    TIME_OK{{"Δt ≤ max_delta?"}}
+    SKIP_TIME["Skip candidate"]
+    BOTH_ANGLES{{"Both position_angle<br/>values known?"}}
+    ANGLE_OK{{"Circular Δangle<br/>≤ max_angle_delta?"}}
+    SKIP_ANGLE["Skip candidate"]
+    ELIGIBLE["Candidate is eligible"]
+    BEST{{"Is this the<br/>closest so far?"}}
+    UPDATE["Update best candidate"]
+    NEXT["Next candidate"]
+    DONE{{"All candidates<br/>checked?"}}
+    RETURN_BEST(["Return best candidate"])
+    RETURN_NONE(["Return None<br/>(no match within thresholds)"])
+
+    START --> LOOKUP --> EMPTY
+    EMPTY -- "No" --> NONE_WL
+    EMPTY -- "Yes" --> TIME_OK
+    TIME_OK -- "No" --> SKIP_TIME --> NEXT
+    TIME_OK -- "Yes" --> BOTH_ANGLES
+    BOTH_ANGLES -- "No (skip check)" --> ELIGIBLE
+    BOTH_ANGLES -- "Yes" --> ANGLE_OK
+    ANGLE_OK -- "No" --> SKIP_ANGLE --> NEXT
+    ANGLE_OK -- "Yes" --> ELIGIBLE
+    ELIGIBLE --> BEST
+    BEST -- "Yes" --> UPDATE --> NEXT
+    BEST -- "No" --> NEXT
+    NEXT --> DONE
+    DONE -- "No" --> TIME_OK
+    DONE -- "Yes, best ≠ None" --> RETURN_BEST
+    DONE -- "Yes, best = None" --> RETURN_NONE
+```
+
+> **Note:** When the flat-field or measurement was recorded without a derotator position angle (`position_angle = None`), the angle filter is **skipped gracefully** and only the wavelength and time-delta constraints are enforced.  This preserves backward compatibility with older data files that lack this metadata.
 
 ## Inputs / Outputs
 
