@@ -556,11 +556,16 @@ idp prefect variables configure --update-existing
 **Variables configured:**
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `data-root-path` | Dataset root directory | Yes |
+| `data-root-path` | Dataset root directory or comma-separated list of directories (e.g. `/srv/data1,/srv/data2`) | Yes |
 | `jsoc-email` | JSOC DRMS email | Yes (for slit images) |
 | `jsoc-data-delay-days` | Minimum day age for `slit-images-full` scanning | Optional |
 | `cache-expiration-hours` | Cache retention hours | Optional |
 | `flow-run-expiration-hours` | Run history retention hours | Optional |
+
+The `data-root-path` variable accepts a comma-separated list of paths.  All top-level
+flows (`ff-correction-full`, `slit-images-full`, `web-assets-compatibility-full`,
+`maintenance-cache-cleanup`) will scan **every** configured root and collect
+observation days from all of them before dispatching per-day tasks.
 
 
 ## How the CLI Interacts with the Pipeline

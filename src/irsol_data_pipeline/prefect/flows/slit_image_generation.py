@@ -1,9 +1,10 @@
 """Prefect 3.x orchestration flows for the slit image generation pipeline.
 
 Two flows:
-1. generate_slit_images (slit-images-full) — Scans dataset root and generates slit
-   previews only for observation days that have at least one pending measurement
-   (i.e. a measurement without an existing slit preview or error file).
+1. generate_slit_images (slit-images-full) — Scans one or more dataset roots
+   and generates slit previews only for observation days that have at least one
+   pending measurement (i.e. a measurement without an existing slit preview or
+   error file).
 2. generate_daily_slit_images (slit-images-daily) — Generates slit previews for a
    single observation day.
 
@@ -46,7 +47,7 @@ from irsol_data_pipeline.prefect.utils import create_prefect_markdown_report
 from irsol_data_pipeline.prefect.variables import (
     PrefectVariableName,
     get_variable,
-    resolve_dataset_root,
+    resolve_dataset_roots,
 )
 
 
@@ -153,18 +154,18 @@ def run_day_slit_generation_task(
 
 @flow(
     name="slit-images-full",
-    flow_run_name="slit-images/full/{root}",
-    description="Scans the dataset and generates slit preview images for all observation days with pending work",
+    flow_run_name="slit-images/full",
+    description="Scans the dataset roots and generates slit preview images for all observation days with pending work",
 )
 def generate_slit_images(
-    root: str = "",
+    roots: tuple[str, ...] = (),
     jsoc_email: str = "",
     use_limbguider: bool = False,
     max_concurrent_days: int = max(1, min(4, (os.cpu_count() or 1) - 1)),
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
 ) -> list[DayProcessingResult]:
-    """Scan the dataset and generate slit preview images for all days with
-    pending work.
+    """Scan one or more dataset roots and generate slit preview images for all
+    days with pending work.
 
     Observation days for which every measurement already has a slit preview
     (or a slit preview error file) are skipped entirely — no sub-task is
@@ -172,7 +173,8 @@ def generate_slit_images(
     correction pipeline.
 
     Args:
-        root: Dataset root path. If not set, the default path from Prefect Variable is used.
+        roots: Dataset root path(s). If not set, the default path(s) from the Prefect Variable
+            ``data-root-path`` are used.
         jsoc_email: Optional JSOC email override for DRMS queries. If unset,
             the Prefect Variable ``jsoc-email`` is used.
         use_limbguider: Whether to try using limbguider coordinates.
@@ -195,7 +197,7 @@ def generate_slit_images(
         )
         return []
 
-    dataset_root = resolve_dataset_root(root)
+    root_paths = resolve_dataset_roots(roots)
 
     jsoc_data_delay_days = _resolve_jsoc_data_delay_days(
         get_variable(
@@ -203,25 +205,36 @@ def generate_slit_images(
             default=str(DEFAULT_JSOC_DATA_DELAY_DAYS),
         ),
     )
-    logger.info("Starting slit image generation", root=dataset_root, jsoc_email=email)
-
-    scan_result = scan_slit_dataset_task(
-        root=dataset_root,
-        jsoc_data_delay_days=jsoc_data_delay_days,
+    logger.info(
+        "Starting slit image generation",
+        roots=[str(p) for p in root_paths],
+        root_count=len(root_paths),
+        jsoc_email=email,
     )
+
+    # Scan all roots and collect pending day paths
+    all_scan_results = [
+        scan_slit_dataset_task(
+            root=root_path, jsoc_data_delay_days=jsoc_data_delay_days
+        )
+        for root_path in root_paths
+    ]
+
+    total_pending = sum(r.total_pending for r in all_scan_results)
     logger.info(
         "Scan complete",
-        days=len(scan_result.observation_days),
-        pending=scan_result.total_pending,
+        days=sum(len(r.observation_days) for r in all_scan_results),
+        pending=total_pending,
         jsoc_data_delay_days=jsoc_data_delay_days,
     )
 
-    if scan_result.total_pending == 0:
+    if total_pending == 0:
         logger.info("No pending slit preview measurements found")
         return []
 
     day_paths = [
         day.path
+        for scan_result in all_scan_results
         for day in scan_result.observation_days
         if day.name in scan_result.pending_measurements
     ]

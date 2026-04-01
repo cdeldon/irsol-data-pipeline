@@ -1,8 +1,8 @@
 """Prefect 3.x orchestration flows for the flat-field correction pipeline.
 
 Two flows:
-1. process_unprocessed_measurements (ff-correction-full) — Scans dataset root and
-   processes all days with pending measurements.
+1. process_unprocessed_measurements (ff-correction-full) — Scans one or more
+   dataset roots and processes all days with pending measurements.
 2. process_daily_unprocessed_measurements (ff-correction-daily) — Processes a single
    observation day.
 
@@ -44,7 +44,7 @@ from irsol_data_pipeline.pipeline.scanner import (
 )
 from irsol_data_pipeline.prefect.patch_logging import PrefectLogLevel, setup_logging
 from irsol_data_pipeline.prefect.utils import create_prefect_markdown_report
-from irsol_data_pipeline.prefect.variables import resolve_dataset_root
+from irsol_data_pipeline.prefect.variables import resolve_dataset_roots
 
 
 @task(task_run_name="ff-correction/scan-dataset/{root}")
@@ -84,20 +84,22 @@ def run_day_processing_subflow_task(
 
 @flow(
     name="ff-correction-full",
-    flow_run_name="ff-correction/full/{root}",
-    description="Scans the dataset and processes all days with pending measurements",
+    flow_run_name="ff-correction/full",
+    description="Scans the dataset roots and processes all days with pending measurements",
 )
 def process_unprocessed_measurements(
-    root: str = "",
+    roots: tuple[str, ...] = tuple(),
     max_delta_hours: float = 2.0,
     max_concurrent_days_to_process: int = max(1, min(12, (os.cpu_count() or 1) - 1)),
     log_level: PrefectLogLevel = PrefectLogLevel.INFO,
     convert_on_ff_failure: bool = False,
 ) -> list[DayProcessingResult]:
-    """Scan the dataset and process all days with pending measurements.
+    """Scan one or more dataset roots and process all days with pending
+    measurements.
 
     Args:
-        root: Dataset root path, if not set, the default path from Prefect Variable is used.
+        roots: Dataset root path(s). If not set, the default path(s) from the Prefect Variable
+            ``data-root-path`` are used.
         max_delta_hours: Maximum flat-field time delta in hours.
         max_concurrent_days_to_process: Maximum number of concurrent day processing tasks. Defaults to CPU count - 1, capped at 12.
         log_level: Logging level for the Prefect flow.
@@ -110,29 +112,33 @@ def process_unprocessed_measurements(
         List of DayProcessingResult for each processed day.
     """
     setup_logging(level=log_level)
-    dataset_root = resolve_dataset_root(root)
+    root_paths = resolve_dataset_roots(roots)
     logger.info(
         "Starting dataset scan flow",
-        root=dataset_root,
+        roots=[str(p) for p in root_paths],
+        root_count=len(root_paths),
         max_delta_hours=max_delta_hours,
         convert_on_ff_failure=convert_on_ff_failure,
     )
 
-    # Scan
-    scan_result = scan_dataset_task(root=dataset_root)
+    # Scan all roots and collect pending day paths
+    all_scan_results = [scan_dataset_task(root=root_path) for root_path in root_paths]
+
+    total_pending = sum(r.total_pending for r in all_scan_results)
     logger.info(
         "Scan complete",
-        days=len(scan_result.observation_days),
-        pending=scan_result.total_pending,
+        days=sum(len(r.observation_days) for r in all_scan_results),
+        pending=total_pending,
     )
 
-    if scan_result.total_pending == 0:
+    if total_pending == 0:
         logger.info("No pending measurements found")
         return []
 
-    # Process each day with pending measurements via the day sub-flow.
+    # Collect all pending day paths across all roots
     selected_day_paths = [
         day.path
+        for scan_result in all_scan_results
         for day in scan_result.observation_days
         if day.name in scan_result.pending_measurements
     ]
