@@ -92,7 +92,7 @@ Validates quality level (1-95) and converts PNG to JPEG using Pillow:
 
 ```python
 image_data = Image.open(source_path).convert("RGB")
-image_data.save(target_path, format="JPEG", quality=quality, optimize=True, progressive=False)
+image_data.save(target_path, format="JPEG", quality=jpeg_quality, optimize=True, progressive=False)
 ```
 
 ### Pipeline Layer
