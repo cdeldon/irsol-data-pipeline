@@ -64,6 +64,7 @@ class TestFitsFlatfieldExporter:
         assert str(hdr["SRCFFPTH"]) == str(correction.source_flatfield_path)
         ts_back = datetime.datetime.fromisoformat(str(hdr["TIMESTMP"]))
         assert ts_back == correction.timestamp
+        assert "POSANGLE" not in hdr  # no position_angle set
 
     def test_no_offset_map_file_when_offset_map_is_none(self, tmp_path: Path):
         correction = _make_correction(offset_map=None)
@@ -99,7 +100,27 @@ class TestFitsFlatfieldExporter:
         write_correction_data(out_path, correction)
         assert out_path.exists()
 
-    def test_raises_export_error_on_write_failure(self, tmp_path: Path):
+    def test_position_angle_written_to_header_when_set(self, tmp_path: Path):
+        correction = FlatFieldCorrection(
+            source_flatfield_path=Path("/data/ff_test.dat"),
+            dust_flat=np.ones((50, 200), dtype=np.float64),
+            offset_map=None,
+            desmiled=np.ones((50, 200), dtype=np.float64),
+            timestamp=datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc),
+            wavelength=6302,
+            position_angle=42.5,
+        )
+        out_path = tmp_path / "ff_pa_correction_cache.fits"
+        write_correction_data(out_path, correction)
+        with fits.open(str(out_path)) as hdul:
+            assert float(hdul[0].header["POSANGLE"]) == pytest.approx(42.5)
+
+    def test_position_angle_absent_from_header_when_none(self, tmp_path: Path):
+        correction = _make_correction(offset_map=None)
+        out_path = tmp_path / "ff_nopa_correction_cache.fits"
+        write_correction_data(out_path, correction)
+        with fits.open(str(out_path)) as hdul:
+            assert "POSANGLE" not in hdul[0].header
         correction = _make_correction()
         with patch("astropy.io.fits.HDUList.writeto", side_effect=OSError("disk full")):
             with pytest.raises(FlatfieldCorrectionExportError, match="disk full"):
@@ -120,6 +141,22 @@ class TestFitsFlatfieldImporter:
         np.testing.assert_array_almost_equal(loaded.dust_flat, original.dust_flat)
         np.testing.assert_array_almost_equal(loaded.desmiled, original.desmiled)
         assert loaded.offset_map is None
+        assert loaded.position_angle is None
+
+    def test_roundtrip_position_angle(self, tmp_path: Path):
+        original = FlatFieldCorrection(
+            source_flatfield_path=Path("/data/ff_pa_test.dat"),
+            dust_flat=np.ones((50, 200), dtype=np.float64),
+            offset_map=None,
+            desmiled=np.ones((50, 200), dtype=np.float64),
+            timestamp=datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc),
+            wavelength=6302,
+            position_angle=33.7,
+        )
+        out_path = tmp_path / "ff_pa_correction_cache.fits"
+        write_correction_data(out_path, original)
+        loaded = load_correction_data(out_path)
+        assert loaded.position_angle == pytest.approx(33.7)
 
     def test_roundtrip_with_offset_map(self, tmp_path: Path):
         mock_offset_map = MagicMock()

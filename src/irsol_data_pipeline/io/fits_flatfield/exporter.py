@@ -63,6 +63,8 @@ def write_correction_data(
             primary_hdr["SRCFFPTH"] = str(data.source_flatfield_path)
             primary_hdr["WAVELEN"] = data.wavelength
             primary_hdr["TIMESTMP"] = data.timestamp.isoformat()
+            if data.position_angle is not None:
+                primary_hdr["POSANGLE"] = data.position_angle
             if offset_map_filename is not None:
                 primary_hdr["OMAPFILE"] = offset_map_filename
 
