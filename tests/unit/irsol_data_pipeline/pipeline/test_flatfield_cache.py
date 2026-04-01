@@ -21,6 +21,7 @@ def _make_correction(
     wavelength: int,
     timestamp: datetime.datetime,
     path_name: str = "ff_test.dat",
+    position_angle: float | None = None,
 ) -> FlatFieldCorrection:
     return FlatFieldCorrection(
         source_flatfield_path=Path(f"/data/{path_name}"),
@@ -29,6 +30,7 @@ def _make_correction(
         desmiled=np.ones((50, 200)),
         timestamp=timestamp,
         wavelength=wavelength,
+        position_angle=position_angle,
     )
 
 
@@ -137,6 +139,85 @@ class TestFlatFieldCache:
             )
             is None
         )
+
+    def test_angle_within_tolerance_matches(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        cache.add_correction(_make_correction(6302, ts, position_angle=45.0))
+
+        result = cache.find_best_correction(6302, ts, position_angle=47.0)
+        assert result is not None
+
+    def test_angle_exceeds_tolerance_no_match(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        cache.add_correction(_make_correction(6302, ts, position_angle=45.0))
+
+        result = cache.find_best_correction(6302, ts, position_angle=55.0)
+        assert result is None
+
+    def test_angle_exactly_at_tolerance_matches(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        cache.add_correction(_make_correction(6302, ts, position_angle=100.0))
+
+        # Exactly 5 degrees apart — should still match
+        result = cache.find_best_correction(6302, ts, position_angle=105.0)
+        assert result is not None
+
+    def test_angle_wrap_around_matches(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        cache.add_correction(_make_correction(6302, ts, position_angle=358.0))
+
+        # 358° and 2° are only 4° apart on the circle
+        result = cache.find_best_correction(6302, ts, position_angle=2.0)
+        assert result is not None
+
+    def test_angle_wrap_around_no_match(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        cache.add_correction(_make_correction(6302, ts, position_angle=350.0))
+
+        # 350° and 5° are 15° apart on the circle
+        result = cache.find_best_correction(6302, ts, position_angle=5.0)
+        assert result is None
+
+    def test_angle_none_on_correction_skips_check(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        # Correction has no angle recorded
+        cache.add_correction(_make_correction(6302, ts, position_angle=None))
+
+        # Should still match because the angle check is skipped when either side is None
+        result = cache.find_best_correction(6302, ts, position_angle=90.0)
+        assert result is not None
+
+    def test_angle_none_on_measurement_skips_check(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        cache.add_correction(_make_correction(6302, ts, position_angle=45.0))
+
+        # position_angle=None means no check; should match regardless of ff angle
+        result = cache.find_best_correction(6302, ts, position_angle=None)
+        assert result is not None
+
+    def test_custom_max_angle_delta_per_query(self):
+        cache = FlatFieldCache()
+        ts = datetime.datetime(2024, 7, 13, 10, 0, tzinfo=datetime.timezone.utc)
+        cache.add_correction(_make_correction(6302, ts, position_angle=45.0))
+
+        # 8° apart — passes with max_angle_delta=10 but fails with default 5
+        result = cache.find_best_correction(
+            6302,
+            ts,
+            position_angle=53.0,
+            max_angle_delta=10.0,
+        )
+        assert result is not None
+
+        result_strict = cache.find_best_correction(6302, ts, position_angle=53.0)
+        assert result_strict is None
 
 
 class TestBuildFlatFieldCache:

@@ -89,13 +89,25 @@ For each flat-field `.dat` file:
 2. Otherwise, load the flat-field `.dat`, run `analyze_flatfield()`, and persist the result.
 3. Add the `FlatFieldCorrection` to the in-memory `FlatFieldCache`, keyed by wavelength.
 
-The cache supports lookup by wavelength and timestamp:
+The cache applies a **three-filter association policy** to find the best match for a measurement:
 
 ```python
-cache.find_best_correction(wavelength=6302, timestamp=measurement_time)
+cache.find_best_correction(
+    wavelength=6302,
+    timestamp=measurement_time,
+    position_angle=measurement.metadata.derotator.position_angle,
+)
 ```
 
-This returns the closest correction within `max_delta` (default: 2 hours), or `None` if no match exists.
+| Filter | Condition | Default |
+|--------|-----------|---------|
+| Wavelength | Exact integer match (Å) | — |
+| Time delta | `abs(Δt) ≤ max_delta` | 2 hours |
+| Angle | Circular `abs(Δangle) ≤ max_angle_delta` | 5° |
+
+Among all eligible candidates the **temporally closest** one is returned.  If either the measurement or the flat-field has no recorded `position_angle`, the angle filter is skipped.
+
+See [Flat-Field Association Policy](../core/flat_field_correction.md#flat-field-association-policy) for the full decision flow and configuration details.
 
 ### Stage 4 — Single Measurement Processing
 
