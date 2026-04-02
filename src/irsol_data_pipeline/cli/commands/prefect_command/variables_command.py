@@ -85,7 +85,6 @@ def _render_variable_entries(entries: list[VariableReportEntry]) -> None:
     table = Table(show_header=True, header_style="bold cyan")
     table.add_column("Variable", style="white", no_wrap=True)
     table.add_column("Value", style="white")
-    table.add_column("Required", style="magenta", no_wrap=True)
     table.add_column("Default", style="white")
     table.add_column("Tags", style="green")
 
@@ -93,7 +92,6 @@ def _render_variable_entries(entries: list[VariableReportEntry]) -> None:
         table.add_row(
             entry.name,
             str(entry.value),
-            "yes" if entry.required else "no",
             entry.default_value or "-",
             _format_tags(entry.tags),
         )

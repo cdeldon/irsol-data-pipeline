@@ -8,8 +8,10 @@ from typing import Literal
 from prefect.automations import Automation as PrefectAutomation
 
 from irsol_data_pipeline.core.config import (
+    DEFAULT_JSOC_EMAIL,
     DEFAULT_PIOMBO_BASE_PATH,
     DEFAULT_PIOMBO_HOST_NAME,
+    DEFAULT_PIOMBO_USERNAME,
 )
 from irsol_data_pipeline.prefect.automations import AUTOMATIONS
 from irsol_data_pipeline.prefect.flows.tags import PrefectDeploymentTopicTag
@@ -114,7 +116,8 @@ PREFECT_VARIABLES: tuple[PrefectVariableMetadata, ...] = (
         prompt_text=(
             "JSOC email (register at http://jsoc.stanford.edu/ajax/register_email.html)"
         ),
-        required=True,
+        required=False,
+        default_value=DEFAULT_JSOC_EMAIL,
         topic_tags=(PrefectDeploymentTopicTag.SLIT_IMAGES,),
     ),
     PrefectVariableMetadata(
@@ -157,7 +160,8 @@ PREFECT_VARIABLES: tuple[PrefectVariableMetadata, ...] = (
     PrefectVariableMetadata(
         prefect_name=PrefectVariableName.PIOMBO_USERNAME,
         prompt_text="SSH username used by Piombo for web-assets upload",
-        required=True,
+        required=False,
+        default_value=DEFAULT_PIOMBO_USERNAME,
         topic_tags=(PrefectDeploymentTopicTag.WEB_ASSETS_COMPATIBILITY,),
     ),
     # PIOMBO_PASSWORD is now managed as a Prefect Secret block, not a variable.
