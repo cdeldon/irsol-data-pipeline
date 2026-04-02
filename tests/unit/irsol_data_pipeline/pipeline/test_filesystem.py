@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from irsol_data_pipeline.core.config import (
     CACHE_DIRNAME,
@@ -102,6 +103,31 @@ class TestDiscoverObservationDays:
         )
         assert [day.name for day in days] == ["240713"]
 
+    def test_skips_inaccessible_root(self, tmp_path: Path):
+        with patch.object(Path, "iterdir", side_effect=PermissionError("denied")):
+            days = discover_observation_days(tmp_path)
+        assert days == []
+
+    def test_skips_inaccessible_year_dir(self, tmp_path: Path):
+        year_dir = tmp_path / "2024"
+        accessible_year_dir = tmp_path / "2025"
+        day_dir = accessible_year_dir / "251111"
+        (day_dir / REDUCED_DIRNAME).mkdir(parents=True)
+        year_dir.mkdir()
+
+        original_iterdir = Path.iterdir
+
+        def selective_iterdir(self):
+            if str(self) == str(year_dir):
+                raise PermissionError("denied")
+            return original_iterdir(self)
+
+        with patch.object(Path, "iterdir", selective_iterdir):
+            days = discover_observation_days(tmp_path)
+
+        assert len(days) == 1
+        assert days[0].name == "251111"
+
 
 class TestDiscoverMeasurementFiles:
     def test_finds_measurements(self, tmp_path: Path):
@@ -127,6 +153,12 @@ class TestDiscoverMeasurementFiles:
         files = discover_measurement_files(tmp_path / "nonexistent")
         assert len(files) == 0
 
+    def test_skips_inaccessible_dir(self, tmp_path: Path):
+        (tmp_path / "6302_m1.dat").touch()
+        with patch.object(Path, "iterdir", side_effect=PermissionError("denied")):
+            files = discover_measurement_files(tmp_path)
+        assert files == []
+
 
 class TestDiscoverFlatfieldFiles:
     def test_finds_flatfields(self, tmp_path: Path):
@@ -139,6 +171,12 @@ class TestDiscoverFlatfieldFiles:
         assert "ff6302_m1.dat" in names
         assert "ff4078_m1.dat" in names
         assert "6302_m1.dat" not in names
+
+    def test_skips_inaccessible_dir(self, tmp_path: Path):
+        (tmp_path / "ff6302_m1.dat").touch()
+        with patch.object(Path, "iterdir", side_effect=PermissionError("denied")):
+            files = discover_flatfield_files(tmp_path)
+        assert files == []
 
 
 class TestGetProcessedStem:
