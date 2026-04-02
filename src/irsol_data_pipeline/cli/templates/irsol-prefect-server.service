@@ -5,6 +5,7 @@ After=network.target
 [Service]
 Type=simple
 User=${user}
+WorkingDirectory=${working_directory}
 ExecStart=${idp_executable_path} prefect start
 Restart=always
 RestartSec=5

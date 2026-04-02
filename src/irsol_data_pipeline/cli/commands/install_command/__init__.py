@@ -14,3 +14,9 @@ install_app.command(
     name="service",
     help="Interactively generate and install systemd service unit files for the pipeline.",
 )
+
+install_app.command(
+    "irsol_data_pipeline.cli.commands.install_command.service_command:uninstall_service",
+    name="uninstall-service",
+    help="Interactively stop, disable, and remove installed systemd service unit files.",
+)
