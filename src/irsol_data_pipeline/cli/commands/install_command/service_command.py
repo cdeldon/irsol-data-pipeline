@@ -24,6 +24,7 @@ _SERVER_SERVICE_NAME = "irsol-prefect-server.service"
 
 _DEFAULT_SYSTEMD_DIR = Path("/etc/systemd/system")
 _DEFAULT_USER = "irsol-prefect"
+_DEFAULT_WORKING_DIRECTORY: Path = Path(f"/home/{_DEFAULT_USER}")
 
 _FLOW_GROUP_SERVICE_NAMES: dict[str, str] = {
     "flat-field-correction": "irsol-prefect-serve-flatfield.service",
@@ -198,6 +199,26 @@ def _prompt_systemd_dir(console: Console) -> Path:
     return Path(raw).expanduser().resolve()
 
 
+def _prompt_working_directory(console: Console) -> Path:
+    """Prompt for the working directory used by the services.
+
+    This directory becomes the CWD of each service process and is the
+    location where any relative log or stderr paths will resolve to.
+
+    Args:
+        console: Rich console for output.
+
+    Returns:
+        Working directory as a Path.
+    """
+    raw = Prompt.ask(
+        "Working directory for the services",
+        default=str(_DEFAULT_WORKING_DIRECTORY),
+        console=console,
+    )
+    return Path(raw).expanduser().resolve()
+
+
 def _prompt_flow_groups(console: Console) -> list[str]:
     """Prompt the user to select which flow runner services to install.
 
@@ -218,24 +239,30 @@ def _prompt_flow_groups(console: Console) -> list[str]:
     return selected
 
 
-def _generate_server_unit(user: str, idp_path: str) -> str:
+def _generate_server_unit(user: str, idp_path: str, working_directory: str) -> str:
     """Render the Prefect server systemd unit file.
 
     Args:
         user: Unix user for the service.
         idp_path: Absolute path to the ``idp`` executable.
+        working_directory: Working directory for the service process.
 
     Returns:
         Rendered unit file content.
     """
     template = _load_template(_SERVER_TEMPLATE_NAME)
-    return template.substitute(user=user, idp_executable_path=idp_path)
+    return template.substitute(
+        user=user,
+        idp_executable_path=idp_path,
+        working_directory=working_directory,
+    )
 
 
 def _generate_flow_runner_unit(
     user: str,
     idp_path: str,
     flow_group_name: str,
+    working_directory: str,
 ) -> str:
     """Render a flow-runner systemd unit file.
 
@@ -243,6 +270,7 @@ def _generate_flow_runner_unit(
         user: Unix user for the service.
         idp_path: Absolute path to the ``idp`` executable.
         flow_group_name: Canonical flow-group name.
+        working_directory: Working directory for the service process.
 
     Returns:
         Rendered unit file content.
@@ -254,6 +282,7 @@ def _generate_flow_runner_unit(
         idp_executable_path=idp_path,
         flow_group_name=flow_group_name,
         flow_group_description=description,
+        working_directory=working_directory,
     )
 
 
@@ -293,6 +322,121 @@ def _write_unit_file(
     target.write_text(content)
     console.print(f"  [green]✓[/green] Written [bold]{target}[/bold]")
     return True
+
+
+def _stop_service(console: Console, service_name: str) -> None:
+    """Stop a running systemd service.
+
+    Args:
+        console: Rich console for output.
+        service_name: Systemd unit name.
+    """
+    result = subprocess.run(  # noqa: S603
+        ["systemctl", "stop", service_name],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        console.print(f"  [green]✓[/green] Stopped [bold]{service_name}[/bold]")
+    else:
+        console.print(
+            f"  [dim]Could not stop {service_name} (may not be running)[/dim]"
+        )
+
+
+def _disable_service(console: Console, service_name: str) -> None:
+    """Disable a systemd service from starting at boot.
+
+    Args:
+        console: Rich console for output.
+        service_name: Systemd unit name.
+    """
+    result = subprocess.run(  # noqa: S603
+        ["systemctl", "disable", service_name],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        console.print(f"  [green]✓[/green] Disabled [bold]{service_name}[/bold]")
+    else:
+        console.print(
+            f"  [dim]Could not disable {service_name} (may not be enabled)[/dim]"
+        )
+
+
+def _remove_unit_file(
+    console: Console,
+    systemd_dir: Path,
+    service_name: str,
+) -> bool:
+    """Remove a systemd unit file from disk.
+
+    Args:
+        console: Rich console for output.
+        systemd_dir: Directory where systemd unit files reside.
+        service_name: Service file name.
+
+    Returns:
+        True when the file was removed.
+    """
+    target = systemd_dir / service_name
+    if not target.exists():
+        console.print(f"  [dim]{service_name} not found on disk, skipping[/dim]")
+        return False
+    target.unlink()
+    console.print(f"  [green]✓[/green] Removed [bold]{target}[/bold]")
+    return True
+
+
+def _prompt_services_to_uninstall(
+    console: Console,
+    status: dict[str, bool],
+) -> list[str]:
+    """Prompt the user to select which installed services to uninstall.
+
+    Args:
+        console: Rich console for output.
+        status: Mapping of service name to installation status.
+
+    Returns:
+        List of service names selected for removal.
+    """
+    installed = [name for name, present in status.items() if present]
+    selected: list[str] = []
+    for service_name in installed:
+        if Confirm.ask(
+            f"Uninstall [bold]{service_name}[/bold]?",
+            default=True,
+            console=console,
+        ):
+            selected.append(service_name)
+    return selected
+
+
+def _render_post_uninstall_instructions(
+    console: Console,
+    removed_services: list[str],
+) -> None:
+    """Render post-uninstallation instructions.
+
+    Args:
+        console: Rich console for output.
+        removed_services: List of service file names that were removed.
+    """
+    if not removed_services:
+        return
+
+    console.print()
+    console.print(
+        Panel(
+            "sudo systemctl daemon-reload",
+            title="Next steps",
+            subtitle="Run this command to reload the systemd configuration",
+            border_style="green",
+        ),
+    )
 
 
 def _render_post_install_instructions(
@@ -355,6 +499,7 @@ def install_service() -> int:
 
     user = _prompt_unix_user(console)
     idp_path = _prompt_idp_path(console)
+    working_dir = _prompt_working_directory(console)
 
     install_server = Confirm.ask(
         "Install the [bold]Prefect server[/bold] service?",
@@ -374,7 +519,7 @@ def install_service() -> int:
     overwrite = False
 
     if install_server:
-        content = _generate_server_unit(user, idp_path)
+        content = _generate_server_unit(user, idp_path, str(working_dir))
         if _write_unit_file(
             console,
             systemd_dir,
@@ -386,7 +531,9 @@ def install_service() -> int:
 
     for group_name in selected_groups:
         service_name = _FLOW_GROUP_SERVICE_NAMES[group_name]
-        content = _generate_flow_runner_unit(user, idp_path, group_name)
+        content = _generate_flow_runner_unit(
+            user, idp_path, group_name, str(working_dir)
+        )
         if _write_unit_file(
             console,
             systemd_dir,
@@ -404,5 +551,68 @@ def install_service() -> int:
         )
     else:
         console.print("\n[yellow]No service files were written.[/yellow]\n")
+
+    return 0
+
+
+def uninstall_service() -> int:
+    """Interactively stop, disable, and remove installed systemd service unit
+    files.
+
+    Detects which pipeline services are currently installed, prompts the user
+    to select which ones to remove, stops and disables each selected service,
+    and deletes the corresponding unit files from disk.
+
+    Returns:
+        Exit code for the command.
+    """
+    console = Console()
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold]IRSOL Data Pipeline — Service Uninstaller[/bold]\n\n"
+            "This command stops, disables, and removes systemd service unit\n"
+            "files for the Prefect server and flow runners.",
+            border_style="red",
+        ),
+    )
+    console.print()
+
+    systemd_dir = _prompt_systemd_dir(console)
+
+    existing = _detect_existing_services(console, systemd_dir)
+    _render_existing_services(console, existing)
+
+    installed_count = sum(1 for v in existing.values() if v)
+    if installed_count == 0:
+        console.print(
+            "[yellow]No installed pipeline services found. Nothing to do.[/yellow]\n"
+        )
+        return 0
+
+    selected = _prompt_services_to_uninstall(console, existing)
+
+    if not selected:
+        console.print("\n[yellow]No services selected. Nothing to do.[/yellow]\n")
+        return 0
+
+    console.print()
+    removed: list[str] = []
+    for service_name in selected:
+        console.print(f"\n[bold]{service_name}[/bold]")
+        _stop_service(console, service_name)
+        _disable_service(console, service_name)
+        if _remove_unit_file(console, systemd_dir, service_name):
+            removed.append(service_name)
+
+    _render_post_uninstall_instructions(console, removed)
+
+    if removed:
+        console.print(
+            f"\n[green]Done.[/green] {len(removed)} service file(s) removed.\n",
+        )
+    else:
+        console.print("\n[yellow]No service files were removed.[/yellow]\n")
 
     return 0

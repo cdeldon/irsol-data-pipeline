@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from irsol_data_pipeline.cli.commands.install_command.service_command import (
     _DEFAULT_SYSTEMD_DIR,
     _DEFAULT_USER,
+    _DEFAULT_WORKING_DIRECTORY,
     _FLOW_GROUP_DESCRIPTIONS,
     _FLOW_GROUP_SERVICE_NAMES,
     _SERVER_SERVICE_NAME,
@@ -21,6 +22,7 @@ from irsol_data_pipeline.cli.commands.install_command.service_command import (
     _prompt_idp_path,
     _prompt_systemd_dir,
     _prompt_unix_user,
+    _prompt_working_directory,
     _render_existing_services,
     _service_file_exists,
     _write_unit_file,
@@ -156,6 +158,27 @@ class TestPromptSystemdDir:
         assert result == tmp_path
 
 
+class TestPromptWorkingDirectory:
+    def test_returns_custom_path(self, tmp_path: Path) -> None:
+        console = MagicMock()
+        with patch(
+            "irsol_data_pipeline.cli.commands.install_command.service_command.Prompt.ask",
+            return_value=str(tmp_path),
+        ):
+            result = _prompt_working_directory(console)
+        assert result == tmp_path
+
+    def test_default_is_default_working_directory(self) -> None:
+        console = MagicMock()
+        with patch(
+            "irsol_data_pipeline.cli.commands.install_command.service_command.Prompt.ask",
+            return_value=str(_DEFAULT_WORKING_DIRECTORY),
+        ) as mock_ask:
+            _prompt_working_directory(console)
+        _, kwargs = mock_ask.call_args
+        assert kwargs["default"] == str(_DEFAULT_WORKING_DIRECTORY)
+
+
 class TestPromptFlowGroups:
     def test_selects_all_groups(self) -> None:
         console = MagicMock()
@@ -181,16 +204,18 @@ class TestGenerateServerUnit:
         with patch(
             "irsol_data_pipeline.cli.commands.install_command.service_command._load_template",
             return_value=Template(
-                "[Service]\nUser=${user}\nExecStart=${idp_executable_path} prefect start"
+                "[Service]\nUser=${user}\nWorkingDirectory=${working_directory}\nExecStart=${idp_executable_path} prefect start"
             ),
         ):
-            content = _generate_server_unit("testuser", "/usr/bin/idp")
+            content = _generate_server_unit("testuser", "/usr/bin/idp", "/srv/irsol")
         assert "User=testuser" in content
+        assert "WorkingDirectory=/srv/irsol" in content
         assert "ExecStart=/usr/bin/idp prefect start" in content
 
     def test_renders_from_real_template(self) -> None:
-        content = _generate_server_unit("deploy-user", "/opt/bin/idp")
+        content = _generate_server_unit("deploy-user", "/opt/bin/idp", "/home/deploy")
         assert "User=deploy-user" in content
+        assert "WorkingDirectory=/home/deploy" in content
         assert "ExecStart=/opt/bin/idp prefect start" in content
         assert "[Unit]" in content
         assert "[Install]" in content
@@ -202,9 +227,11 @@ class TestGenerateFlowRunnerUnit:
             "testuser",
             "/usr/bin/idp",
             "flat-field-correction",
+            "/srv/irsol",
         )
         assert "flat-field-correction" in content
         assert "User=testuser" in content
+        assert "WorkingDirectory=/srv/irsol" in content
         assert "Requires=irsol-prefect-server.service" in content
 
     def test_contains_description(self) -> None:
@@ -212,6 +239,7 @@ class TestGenerateFlowRunnerUnit:
             "testuser",
             "/usr/bin/idp",
             "maintenance",
+            "/srv/irsol",
         )
         assert _FLOW_GROUP_DESCRIPTIONS["maintenance"] in content
 
@@ -289,6 +317,7 @@ class TestInstallService:
                     str(tmp_path),
                     "testuser",
                     "/usr/bin/idp",
+                    "/srv/irsol",
                 ],
             ),
             patch(
@@ -315,6 +344,7 @@ class TestInstallService:
                     str(tmp_path),
                     "testuser",
                     "/usr/bin/idp",
+                    "/srv/irsol",
                 ],
             ),
             patch(
@@ -339,6 +369,7 @@ class TestInstallService:
                     str(tmp_path),
                     "deploy",
                     "/home/deploy/.local/bin/idp",
+                    "/home/deploy",
                 ],
             ),
             patch(
@@ -355,3 +386,4 @@ class TestInstallService:
         content = (tmp_path / _SERVER_SERVICE_NAME).read_text()
         assert "User=deploy" in content
         assert "/home/deploy/.local/bin/idp prefect start" in content
+        assert "WorkingDirectory=/home/deploy" in content
