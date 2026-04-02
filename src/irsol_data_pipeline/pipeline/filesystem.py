@@ -161,13 +161,26 @@ def discover_observation_days(
             logger.debug("Observation root does not exist")
             return days
 
-        for year_dir in sorted(root.iterdir()):
+        try:
+            year_dirs = sorted(root.iterdir())
+        except PermissionError:
+            logger.warning("Permission denied listing root directory, skipping")
+            return days
+
+        for year_dir in year_dirs:
             with logger.contextualize(year=year_dir):
                 if not year_dir.is_dir():
                     logger.warning("Skipping non-directory in root")
                     continue
                 logger.info("Scanning year")
-                for day_dir in sorted(year_dir.iterdir()):
+                try:
+                    day_dirs = sorted(year_dir.iterdir())
+                except PermissionError:
+                    logger.warning(
+                        "Permission denied listing year directory, skipping",
+                    )
+                    continue
+                for day_dir in day_dirs:
                     with logger.contextualize(day=day_dir.name):
                         if not day_dir.is_dir():
                             logger.warning("Skipping non-directory")
@@ -213,7 +226,14 @@ def discover_measurement_files(reduced_dir: Path) -> list[Path]:
             return []
 
         files: list[Path] = []
-        for p in sorted(reduced_dir.iterdir()):
+        try:
+            entries = sorted(reduced_dir.iterdir())
+        except PermissionError:
+            logger.warning(
+                "Permission denied listing reduced directory, skipping",
+            )
+            return []
+        for p in entries:
             if not p.is_file() or not p.name.endswith(".dat"):
                 continue
             # Skip flat-field files
@@ -250,7 +270,14 @@ def discover_flatfield_files(reduced_dir: Path) -> list[Path]:
             return []
 
         files: list[Path] = []
-        for p in sorted(reduced_dir.iterdir()):
+        try:
+            entries = sorted(reduced_dir.iterdir())
+        except PermissionError:
+            logger.warning(
+                "Permission denied listing reduced directory, skipping",
+            )
+            return []
+        for p in entries:
             if p.is_file() and FLATFIELD_PATTERN.match(p.name):
                 files.append(p)
 
