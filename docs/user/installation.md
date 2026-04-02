@@ -35,7 +35,7 @@ version) and follows a more conservative release cadence than the main library.
 uv tool install irsol-data-pipeline-cli --no-cache-dir --python 3.10
 ```
 
-> **Which one should I install?**  
+> **Which one should I install?**
 > For day-to-day operations on the `sirius` production server, always install
 > `irsol-data-pipeline-cli`.  For development or scripting use the `irsol-data-pipeline`
 > package (or install from source as described below).

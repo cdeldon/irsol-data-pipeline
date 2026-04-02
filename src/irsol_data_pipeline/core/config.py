@@ -37,6 +37,9 @@ SLIT_PREVIEW_ERROR_JSON_SUFFIX = "_slit_preview_error.json"
 # V Stokes intensity threshold for row filtering in auto-calibration
 V_STOKES_CUTOFF = 0.4
 
+# Default emaul used to access JSOC data
+DEFAULT_JSOC_EMAIL = "info@irsol.usi.ch"
+
 # Default delta days to access JSOC data
 DEFAULT_JSOC_DATA_DELAY_DAYS = 14
 
@@ -45,3 +48,6 @@ DEFAULT_PIOMBO_BASE_PATH = "/irsol_db/docs/web-site/assets"
 
 # Default host name for piombo host
 DEFAULT_PIOMBO_HOST_NAME = "piombo7.usi.ch"
+
+# Default user for piombo
+DEFAULT_PIOMBO_USERNAME = "leporan@usi.ch"

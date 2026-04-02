@@ -97,28 +97,13 @@ Start the Prefect server to verify it works:
 idp prefect start
 ```
 
-Configure variables and secrets (the server must be running):
+Configure variables, secrets and automations (the server must be running):
 
 ```bash
 idp prefect variables configure
 idp prefect secrets configure
+idp prefect automations configure
 ```
-
-Required variables:
-
-| Variable | Description |
-|----------|-------------|
-| `data-root-path` | Path(s) to the dataset root directories (comma-separated for multiple) |
-| `jsoc-email` | Email registered with JSOC for SDO data queries |
-| `jsoc-data-delay-days` | Minimum age (days) for observation-day folders processed by `slit-images-full` (default: 14) |
-| `cache-expiration-hours` | Cache file retention in hours (default: 672 = 28 days) |
-| `flow-run-expiration-hours` | Prefect run history retention in hours (default: 672) |
-
-Required secrets:
-
-| Secret | Description |
-|--------|-------------|
-| `piombo-password` | SFTP password for Piombo uploads (used by web asset compatibility flows) |
 
 Verify the configuration:
 
@@ -126,6 +111,7 @@ Verify the configuration:
 idp info
 idp prefect variables list
 idp prefect secrets list
+idp prefect automations list
 idp prefect flows list
 ```
 
@@ -219,9 +205,6 @@ idp prefect status
 
 # With deep analysis (running flows and tasks)
 idp prefect status --deep-analysis
-
-# JSON output for automation
-idp prefect status --format json
 ```
 
 ### Service Status
@@ -243,6 +226,9 @@ journalctl -u irsol-prefect-server -n 200 --no-pager
 
 # Flow runner logs
 journalctl -u irsol-prefect-serve-flatfield -n 200 --no-pager
+journalctl -u irsol-prefect-serve-slitimages -n 200 --no-pager
+journalctl -u irsol-prefect-serve-web-assets-compatibility -n 200 --no-pager
+journalctl -u irsol-prefect-serve-maintenance -n 200 --no-pager
 ```
 
 ## Database Reset
@@ -254,6 +240,8 @@ idp prefect reset-database
 ```
 
 Use this only as a last resort when the Prefect database is corrupted.
+
+After this operation, all Prefect data is eliminated, requiring you to reconfigure variables, secrets and automations. The systemd services will continue running but fail to execute flows until the server is reconfigured.
 
 ## Upgrade Procedure
 
