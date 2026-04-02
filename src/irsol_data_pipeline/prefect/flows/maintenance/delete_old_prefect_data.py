@@ -33,9 +33,15 @@ async def delete_flow_run_id(flow_run_id: UUID) -> UUID:
     return flow_run_id
 
 
+_PAGE_SIZE = 200
+
+
 @task(task_run_name="maintenance/retrieve-old-runs")
 async def retrieve_old_flow_ids(dt: datetime.timedelta) -> list[UUID]:
     """Return IDs of flow runs that ended before the provided cutoff.
+
+    Paginates through all results in pages of ``_PAGE_SIZE`` because
+    ``read_flow_runs`` returns at most 200 runs per call.
 
     Args:
         dt: Retention duration. Runs older than `now - dt` are selected.
@@ -49,14 +55,23 @@ async def retrieve_old_flow_ids(dt: datetime.timedelta) -> list[UUID]:
         "Retrieving all flows finished before cutoff time",
         cutoff=cutoff.isoformat(),
     )
+    flow_run_filter = FlowRunFilter(end_time=FlowRunFilterEndTime(before_=cutoff))
+    ids: list[UUID] = []
+    offset = 0
     async with get_client() as client:
-        old_flow_runs = await client.read_flow_runs(
-            sort=FlowRunSort.START_TIME_ASC,
-            flow_run_filter=FlowRunFilter(
-                end_time=FlowRunFilterEndTime(before_=cutoff),
-            ),
-        )
-    return [fr.id for fr in old_flow_runs]
+        while True:
+            page = await client.read_flow_runs(
+                sort=FlowRunSort.START_TIME_ASC,
+                flow_run_filter=flow_run_filter,
+                limit=_PAGE_SIZE,
+                offset=offset,
+            )
+            ids.extend(fr.id for fr in page)
+            if len(page) < _PAGE_SIZE:
+                break
+            offset += _PAGE_SIZE
+    logger.info("Retrieved old flow runs", count=len(ids))
+    return ids
 
 
 @flow(
