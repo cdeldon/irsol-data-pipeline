@@ -29,7 +29,7 @@ def _scan_dataset(
     *,
     is_measurment_already_processed: MeasurementDonePredicate,
     day_predicate: ObservationDayPredicate | None = None,
-    force_override: bool = False,
+    force_override: bool,
 ) -> ScanResult:
     """Core dataset scan implementation.
 

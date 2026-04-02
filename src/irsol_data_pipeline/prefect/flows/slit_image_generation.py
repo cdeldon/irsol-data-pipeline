@@ -110,8 +110,7 @@ def _resolve_jsoc_data_delay_days(raw_value: object) -> int:
 def scan_slit_dataset_task(
     root: Path,
     jsoc_data_delay_days: int,
-    *,
-    force_override: bool = False,
+    force_override: bool,
 ) -> ScanResult:
     """Prefect task: scan the dataset root for pending slit preview work.
 
@@ -139,9 +138,9 @@ def scan_slit_dataset_task(
 def run_day_slit_generation_task(
     day_path: Path,
     jsoc_email: str,
-    use_limbguider: bool = False,
-    log_level: PrefectLogLevel = PrefectLogLevel.INFO,
-    force_override: bool = False,
+    use_limbguider: bool,
+    log_level: PrefectLogLevel,
+    force_override: bool,
 ) -> DayProcessingResult:
     """Prefect task: generate slit images for a single day."""
     with logger.contextualize(day=day_path.name):

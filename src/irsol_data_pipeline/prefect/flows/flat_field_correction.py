@@ -48,7 +48,7 @@ from irsol_data_pipeline.prefect.variables import resolve_dataset_roots
 
 
 @task(task_run_name="ff-correction/scan-dataset/{root}")
-def scan_dataset_task(root: Path, *, force_override: bool = False) -> ScanResult:
+def scan_dataset_task(root: Path, force_override: bool) -> ScanResult:
     """Prefect task: scan the dataset root."""
     scan_result = scan_flatfield_dataset(root, force_override=force_override)
     markdown = build_scan_flatfield_report_markdown(root=root, scan_result=scan_result)
@@ -65,10 +65,10 @@ def scan_dataset_task(root: Path, *, force_override: bool = False) -> ScanResult
 )
 def run_day_processing_subflow_task(
     day_path: Path,
-    max_delta_hours: float = 2.0,
-    log_level: PrefectLogLevel = PrefectLogLevel.INFO,
-    convert_on_ff_failure: bool = True,
-    force_override: bool = False,
+    max_delta_hours: float,
+    log_level: PrefectLogLevel,
+    convert_on_ff_failure: bool,
+    force_override: bool,
 ) -> DayProcessingResult:
     """Prefect task: execute the day-processing flow as a sub-flow."""
     with logger.contextualize(day=day_path.name):
